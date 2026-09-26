@@ -1,0 +1,33 @@
+.stat-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.stat-bar-head {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.stat-bar-track {
+  height: 10px;
+  border-radius: 2px;
+  background: #120d08;
+  border: 1px solid var(--border-bronze);
+  overflow: hidden;
+}
+
+.stat-bar-fill {
+  height: 100%;
+  transition: width 0.3s ease;
+}
+
+.stat-bar-fill--wine {
+  background: linear-gradient(180deg, var(--wine-bright), var(--wine));
+}
+
+.stat-bar-fill--forest {
+  background: linear-gradient(180deg, #5c8a6d, var(--forest));
+}
