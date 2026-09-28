@@ -1,0 +1,36 @@
+.ornate-frame {
+  position: relative;
+  padding: 40px;
+}
+
+.ornate-frame-content {
+  position: relative;
+  z-index: 1;
+}
+
+.ornate-corner {
+  position: absolute;
+  width: 32px;
+  height: 32px;
+  color: var(--gold);
+}
+
+.ornate-corner:nth-of-type(1) {
+  top: 6px;
+  left: 6px;
+}
+.ornate-corner:nth-of-type(2) {
+  top: 6px;
+  right: 6px;
+  transform: scaleX(-1);
+}
+.ornate-corner:nth-of-type(3) {
+  bottom: 6px;
+  left: 6px;
+  transform: scaleY(-1);
+}
+.ornate-corner:nth-of-type(4) {
+  bottom: 6px;
+  right: 6px;
+  transform: scale(-1, -1);
+}
