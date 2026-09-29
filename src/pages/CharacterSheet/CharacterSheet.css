@@ -1,0 +1,740 @@
+.sheet-status {
+  color: var(--muted);
+  font-size: 16px;
+  padding: 40px 0;
+}
+
+.sheet-loading-box {
+  padding: 60px 0;
+  text-align: center;
+}
+
+.sheet-not-found {
+  background: var(--ink-panel);
+  border: 1px solid var(--border-bronze);
+  border-radius: 12px;
+  padding: 40px;
+  text-align: center;
+  max-width: 480px;
+  margin: 60px auto;
+}
+
+.sheet-not-found h2 {
+  font-size: 26px;
+  color: var(--gold-bright);
+  margin-bottom: 12px;
+}
+
+.sheet-not-found p {
+  color: var(--muted);
+  margin-bottom: 24px;
+}
+
+.sheet-banner {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--border-bronze);
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.sheet-portrait-frame {
+  width: 84px;
+  height: 84px;
+  flex-shrink: 0;
+  border: 1px solid var(--border-bronze);
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+}
+
+.sheet-portrait-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.sheet-portrait-fallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-size: 32px;
+  color: var(--ink);
+  background: linear-gradient(180deg, var(--gold-bright), var(--gold));
+}
+
+.sheet-heading {
+  flex-grow: 1;
+  min-width: 220px;
+}
+
+.sheet-title-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.sheet-heading h1 {
+  font-size: 30px;
+  margin: 0;
+}
+
+.sheet-level-badge {
+  font-family: var(--font-display);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--gold-bright);
+  background: rgba(201, 162, 39, 0.15);
+  border: 1px solid var(--gold);
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.sheet-meta-info {
+  color: var(--muted);
+  font-size: 14px;
+  margin: 0;
+}
+
+.sheet-meta-info strong {
+  color: var(--parchment);
+}
+
+.sheet-meta-filiacao {
+  color: var(--gold);
+}
+
+/* VITALS E PV TEMPORÁRIO */
+.sheet-vitals {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 260px;
+}
+
+.vital-control-wrapper {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.vital-control-wrapper > div:first-child {
+  flex: 1;
+}
+
+.vital-mini-buttons {
+  display: flex;
+  gap: 3px;
+  padding-bottom: 2px;
+}
+
+.btn-vital-action {
+  background: rgba(122, 22, 38, 0.35);
+  border: 1px solid rgba(122, 22, 38, 0.7);
+  color: #ffb8b8;
+  font-size: 11px;
+  font-weight: bold;
+  padding: 4px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-vital-action:hover {
+  background: rgba(122, 22, 38, 0.65);
+}
+
+.btn-vital-action.btn-mana {
+  background: rgba(46, 117, 89, 0.35);
+  border-color: rgba(46, 117, 89, 0.7);
+  color: #7ee0b5;
+}
+
+.btn-vital-action.btn-mana:hover {
+  background: rgba(46, 117, 89, 0.65);
+}
+
+/* CARD DE PONTOS DE VIDA TEMPORÁRIOS */
+.temp-hp-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 10px;
+  background: rgba(201, 162, 39, 0.08);
+  border: 1px solid rgba(201, 162, 39, 0.3);
+  border-radius: 6px;
+}
+
+.temp-hp-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.temp-hp-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+.temp-hp-value {
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: bold;
+  color: var(--gold-bright);
+}
+
+.temp-hp-buttons {
+  display: flex;
+  gap: 4px;
+}
+
+.btn-temp-hp {
+  background: rgba(201, 162, 39, 0.2);
+  border: 1px solid var(--border-bronze);
+  color: var(--gold-bright);
+  font-size: 11px;
+  font-weight: bold;
+  padding: 2px 7px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.btn-temp-hp:hover {
+  background: rgba(201, 162, 39, 0.4);
+}
+
+.btn-temp-clear {
+  color: var(--muted);
+  font-size: 10px;
+  padding: 2px 5px;
+}
+
+/* ABAS */
+.sheet-tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--border-bronze);
+  margin-bottom: 24px;
+  overflow-x: auto;
+}
+
+.sheet-tab {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
+  font-family: var(--font-display);
+  font-size: 14px;
+  letter-spacing: 0.03em;
+  padding: 10px 8px;
+  margin-right: 18px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+
+.sheet-tab:hover {
+  color: var(--parchment);
+}
+
+.sheet-tab--active {
+  color: var(--gold-bright);
+  border-bottom-color: var(--gold);
+}
+
+/* ABA PERSONA */
+.persona-tab-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.sheet-panel {
+  background: rgba(236, 223, 192, 0.03);
+  border: 1px solid rgba(201, 162, 39, 0.22);
+  border-radius: 12px;
+  padding: 18px 20px;
+}
+
+.sheet-panel-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+  border-bottom: 1px solid rgba(201, 162, 39, 0.15);
+  padding-bottom: 8px;
+}
+
+.sheet-panel-head h3 {
+  margin: 0;
+  font-size: 18px;
+  color: var(--gold-bright);
+}
+
+.sheet-tag-sub {
+  font-size: 12px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.persona-classification-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.classification-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(201, 162, 39, 0.2);
+  border-radius: 8px;
+}
+
+.class-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.class-value {
+  font-family: var(--font-display);
+  font-size: 16px;
+  color: var(--gold-bright);
+  font-weight: 600;
+}
+
+.persona-bonuses-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+}
+
+.persona-sheet-bonus-card {
+  padding: 12px 14px;
+  background: rgba(122, 22, 38, 0.12);
+  border: 1px solid rgba(201, 162, 39, 0.3);
+  border-radius: 8px;
+  border-left: 3px solid var(--gold);
+}
+
+.bonus-card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.bonus-origin {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--gold);
+  background: rgba(201, 162, 39, 0.15);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.bonus-name {
+  font-size: 14px;
+  color: var(--gold-bright);
+}
+
+.bonus-desc {
+  font-size: 13px;
+  color: var(--parchment);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.persona-narrative-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.narrative-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(201, 162, 39, 0.2);
+  border-radius: 8px;
+}
+
+.narrative-block-full {
+  grid-column: 1 / -1;
+}
+
+.narrative-label {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--gold);
+  font-weight: 600;
+}
+
+.narrative-content {
+  font-size: 14px;
+  color: var(--parchment);
+  line-height: 1.6;
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+/* ABA ATRIBUTOS */
+.attribute-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 14px;
+}
+
+.attribute-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 18px 12px;
+  background: var(--ink-panel);
+  border: 1px solid var(--border-bronze);
+  border-radius: 8px;
+  position: relative;
+}
+
+.attribute-label {
+  font-size: 13px;
+  color: var(--muted);
+  letter-spacing: 0.03em;
+  font-weight: 500;
+}
+
+.attribute-value {
+  font-family: var(--font-display);
+  font-size: 32px;
+  color: var(--gold-bright);
+  line-height: 1.1;
+}
+
+.attribute-bonus-sub {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  background: rgba(201, 162, 39, 0.12);
+  border: 1px solid rgba(201, 162, 39, 0.25);
+  padding: 3px 10px;
+  border-radius: 999px;
+}
+
+.bonus-sub-label {
+  font-size: 11px;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+.bonus-sub-value {
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: bold;
+  color: var(--gold-bright);
+}
+
+/* ABA PERÍCIAS */
+.sheet-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  background: var(--border-bronze);
+  border: 1px solid var(--border-bronze);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.sheet-list li {
+  background: var(--ink-panel);
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.sheet-skill-trained {
+  background: rgba(46, 117, 89, 0.08) !important;
+}
+
+.skill-sheet-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.skill-check-mark {
+  color: var(--gold-bright);
+  font-size: 14px;
+  width: 16px;
+}
+
+.skill-sheet-name {
+  font-size: 15px;
+  color: var(--parchment);
+  font-weight: 500;
+}
+
+.sheet-list-tag {
+  color: var(--muted);
+  font-size: 13px;
+  margin-left: auto;
+}
+
+.sheet-list-bonus {
+  font-family: var(--font-display);
+  color: var(--gold-bright);
+  min-width: 36px;
+  text-align: right;
+  font-size: 16px;
+  font-weight: bold;
+}
+
+/* TOOLBAR DE SEÇÃO */
+.section-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.section-toolbar h3 {
+  margin: 0;
+  font-size: 20px;
+  color: var(--gold-bright);
+}
+
+.section-subtext {
+  font-size: 13px;
+  color: var(--muted);
+  margin: 2px 0 0;
+}
+
+/* FORMULÁRIO DE ADIÇÃO (SUBFORM) */
+.add-subform {
+  background: rgba(20, 15, 10, 0.95);
+  border: 1px solid var(--gold);
+  border-radius: 10px;
+  padding: 18px;
+  margin-bottom: 20px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.add-subform h4 {
+  margin: 0 0 14px;
+  font-size: 16px;
+  color: var(--gold-bright);
+}
+
+.add-subform-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.field-narrow {
+  grid-column: span 1;
+}
+
+.add-subform-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+/* INVENTÁRIO INTERATIVO */
+.inventory-item-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+}
+
+.item-main-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.item-title {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--parchment);
+}
+
+.item-desc {
+  font-size: 13px;
+  color: var(--muted);
+  margin: 0;
+}
+
+.item-qty-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-qty {
+  background: rgba(201, 162, 39, 0.15);
+  border: 1px solid var(--border-bronze);
+  color: var(--gold-bright);
+  font-size: 14px;
+  font-weight: bold;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-qty:hover {
+  background: rgba(201, 162, 39, 0.35);
+  border-color: var(--gold);
+}
+
+.btn-delete-item {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 15px;
+  padding: 4px;
+  opacity: 0.65;
+  transition: opacity 0.15s;
+  margin-left: 8px;
+}
+
+.btn-delete-item:hover {
+  opacity: 1;
+}
+
+/* HABILIDADES & MAGIAS */
+.spell-item-row {
+  flex-direction: column !important;
+  align-items: stretch !important;
+  gap: 8px !important;
+}
+
+.spell-name-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--gold-bright);
+}
+
+.spell-meta-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.btn-use-spell {
+  background: rgba(46, 117, 89, 0.25);
+  border: 1px solid rgba(46, 117, 89, 0.6);
+  color: #7ee0b5;
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-use-spell:hover {
+  background: rgba(46, 117, 89, 0.5);
+  border-color: #7ee0b5;
+}
+
+.sheet-spell-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.sheet-list--spells p {
+  color: var(--parchment);
+  font-size: 14px;
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* NOTAS */
+.notes-editor {
+  width: 100%;
+  border: 1px solid rgba(201, 162, 39, 0.35);
+  background: rgba(12, 9, 6, 0.7);
+  border-radius: 8px;
+  padding: 16px;
+  color: var(--parchment);
+  font-family: inherit;
+  font-size: 15px;
+  line-height: 1.7;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.notes-editor:focus {
+  outline: none;
+  border-color: var(--gold);
+  box-shadow: 0 0 0 2px rgba(201, 162, 39, 0.2);
+}
+
+.save-status-banner {
+  background: rgba(46, 117, 89, 0.2);
+  border: 1px solid #2e7559;
+  color: #7ee0b5;
+  padding: 8px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+
+.sheet-empty {
+  color: var(--muted);
+  padding: 24px 0;
+  text-align: center;
+}
+
+@media (max-width: 768px) {
+  .persona-narrative-grid,
+  .add-subform-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .sheet-vitals {
+    width: 100%;
+  }
+
+  .section-toolbar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

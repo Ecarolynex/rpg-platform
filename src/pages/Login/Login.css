@@ -1,0 +1,366 @@
+/* =========================================================
+   Página de Login & Criação de Conta — Estilo Dashboard
+   Paleta: Couro nobre, tinta arcaica, ouro e bronze trabalhado
+   ========================================================= */
+
+.login-screen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 16px;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Brilho místico de fundo para ambientação de RPG */
+.login-ambient-glow {
+  position: absolute;
+  top: 20%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 580px;
+  height: 380px;
+  background: radial-gradient(
+    ellipse,
+    rgba(201, 162, 39, 0.14) 0%,
+    rgba(122, 22, 38, 0.12) 45%,
+    transparent 70%
+  );
+  filter: blur(50px);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Card Principal no estilo do .character-creator do Dashboard */
+.login-card-container {
+  width: 100%;
+  max-width: 490px;
+  position: relative;
+  z-index: 1;
+  background: linear-gradient(180deg, rgba(36, 25, 18, 0.96), rgba(23, 17, 11, 0.98));
+  border: 1px solid var(--border-bronze);
+  border-radius: 18px;
+  box-shadow:
+    0 22px 42px rgba(0, 0, 0, 0.48),
+    0 0 0 1px rgba(201, 162, 39, 0.15) inset;
+  overflow: hidden;
+  backdrop-filter: blur(10px);
+  animation: loginAppear 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes loginAppear {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Banner de Topo idêntico ao .creator-banner do Dashboard */
+.login-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 24px 18px;
+  border-bottom: 1px solid var(--border-bronze);
+  background: linear-gradient(90deg, rgba(201, 162, 39, 0.18), rgba(122, 22, 38, 0.18));
+}
+
+.login-banner-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.login-kicker {
+  display: inline-block;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--gold-bright);
+  margin-bottom: 6px;
+  font-family: var(--font-display);
+}
+
+.login-title-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.login-crest-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(240, 207, 110, 0.3);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.login-title-row h2 {
+  font-size: 26px;
+  line-height: 1.1;
+  color: var(--gold-bright);
+}
+
+.login-title-row p {
+  font-size: 13px;
+  color: var(--parchment-dim);
+  font-style: italic;
+  margin-top: 2px;
+}
+
+.login-badge {
+  border: 1px solid rgba(240, 207, 110, 0.45);
+  background: rgba(0, 0, 0, 0.3);
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-family: var(--font-display);
+  color: var(--gold-bright);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+/* Abas de Navegação (Entrar / Criar Conta) */
+.login-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border-bronze);
+  background: rgba(14, 10, 7, 0.5);
+}
+
+.login-tab {
+  flex: 1;
+  padding: 13px 16px;
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.login-tab:hover {
+  color: var(--parchment);
+  background: rgba(201, 162, 39, 0.06);
+}
+
+.login-tab.active {
+  color: var(--gold-bright);
+  background: rgba(201, 162, 39, 0.12);
+  border-bottom-color: var(--gold-bright);
+  text-shadow: 0 0 10px rgba(240, 207, 110, 0.3);
+}
+
+/* Corpo do Formulário */
+.login-body {
+  padding: 24px;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* Grid de campos nos formulários (estilo Dashboard) */
+.field-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.field span {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.field input {
+  width: 100%;
+  border: 1px solid rgba(201, 162, 39, 0.45);
+  background: rgba(9, 7, 6, 0.55);
+  border-radius: 10px;
+  padding: 11px 14px;
+  color: var(--parchment);
+  font-size: 16px;
+  min-height: 44px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.field input::placeholder {
+  color: rgba(236, 223, 192, 0.38);
+  font-style: italic;
+  font-size: 14px;
+}
+
+.field input:hover {
+  border-color: rgba(240, 207, 110, 0.65);
+}
+
+.field input:focus {
+  outline: none;
+  background: rgba(9, 7, 6, 0.8);
+  border-color: var(--gold-bright);
+  box-shadow: 0 0 0 3px rgba(240, 207, 110, 0.18);
+}
+
+/* Alertas de Erro e Sucesso */
+.auth-alert {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  font-size: 14px;
+  margin-bottom: 6px;
+  animation: alertFadeIn 0.25s ease forwards;
+}
+
+@keyframes alertFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.alert-error {
+  background: rgba(122, 22, 38, 0.3);
+  border: 1px solid rgba(163, 39, 60, 0.7);
+  color: #ffb8c4;
+}
+
+.alert-success {
+  background: rgba(60, 90, 69, 0.35);
+  border: 1px solid rgba(120, 180, 140, 0.6);
+  color: #c9eed3;
+}
+
+.alert-icon {
+  font-size: 16px;
+}
+
+/* Botão de envio primário estilo RPG */
+.auth-submit-btn {
+  width: 100%;
+  margin-top: 8px;
+  padding: 13px 20px;
+  font-size: 16px;
+  letter-spacing: 0.05em;
+  border-radius: 10px;
+  box-shadow:
+    0 8px 18px rgba(0, 0, 0, 0.4),
+    0 1px 0 rgba(255, 255, 255, 0.25) inset;
+}
+
+.auth-submit-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  filter: grayscale(0.4);
+}
+
+/* Link para alternar entre entrar e cadastrar */
+.auth-switch-prompt {
+  text-align: center;
+  font-size: 14px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.link-switch {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--gold-bright);
+  font-weight: 600;
+  font-family: inherit;
+  font-size: 14px;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  transition: color 0.15s ease;
+}
+
+.link-switch:hover {
+  color: #fff;
+}
+
+/* Dica de Mock / Teste rápido */
+.mock-demo-tip {
+  margin-top: 14px;
+  padding: 10px 14px;
+  background: rgba(236, 223, 192, 0.04);
+  border: 1px dashed rgba(201, 162, 39, 0.3);
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--muted);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.mock-demo-tip .tip-title {
+  font-family: var(--font-display);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+.mock-demo-tip code {
+  color: var(--gold-bright);
+  background: rgba(0, 0, 0, 0.35);
+  padding: 2px 5px;
+  border-radius: 4px;
+  font-family: monospace;
+}
+
+/* Responsividade Mobile */
+@media (max-width: 520px) {
+  .login-card-container {
+    border-radius: 14px;
+  }
+
+  .login-banner {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 16px;
+  }
+
+  .login-badge {
+    align-self: flex-start;
+  }
+
+  .field-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .login-body {
+    padding: 18px;
+  }
+}
