@@ -5,6 +5,7 @@ import Login from "./pages/Login/Login";
 import Dashboard from "./pages/Dashboard/Dashboard";
 import CharacterSheet from "./pages/CharacterSheet/CharacterSheet";
 import Campaigns from "./pages/Campaigns/Campaigns";
+import Campaign from "./pages/Campaign/Campaign";
 
 function App() {
   return (
@@ -20,6 +21,7 @@ function App() {
       >
         <Route path="/" element={<Dashboard />} />
         <Route path="/campanhas" element={<Campaigns />} />
+        <Route path="/campanha/:id" element={<Campaign />} />
         <Route path="/personagem/:id" element={<CharacterSheet />} />
       </Route>
     </Routes>
