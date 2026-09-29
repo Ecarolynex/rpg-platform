@@ -1,3 +1,4 @@
+
 import type { Character, User } from "../types/character";
 import { mockCharacters } from "../data/mockCharacters";
 import { supabase } from "./supabase";
@@ -6,16 +7,20 @@ function delay<T>(value: T, ms = 300): Promise<T> {
   return new Promise((resolve) => setTimeout(() => resolve(value), ms));
 }
 
+/* =========================================================
+   AUTENTICAÇÃO
+   ========================================================= */
+
 export async function login(usuario: string, senha: string): Promise<User> {
   const cleanInput = usuario.trim();
+
   if (!cleanInput || !senha) {
     throw new Error("Informe seu e-mail e senha para prosseguir.");
   }
 
-  // Se o usuário digitou sem '@', avisa amigavelmente
   if (!cleanInput.includes("@")) {
     throw new Error(
-      "Para entrar pelo Supabase, informe o e-mail cadastrado (ex: aventureiro@reino.com).",
+      "Para entrar pelo Supabase, informe o e-mail cadastrado.",
     );
   }
 
@@ -25,15 +30,21 @@ export async function login(usuario: string, senha: string): Promise<User> {
   });
 
   if (error) {
-    if (error.message.toLowerCase().includes("email not confirmed")) {
+    const mensagem = error.message.toLowerCase();
+
+    if (mensagem.includes("email not confirmed")) {
       throw new Error(
-        "E-mail ainda não confirmado! Verifique sua caixa de entrada ou desative a confirmação de e-mail no painel do Supabase durante os testes.",
+        "E-mail ainda não confirmado! Verifique sua caixa de entrada ou desative a confirmação de e-mail no Supabase durante os testes.",
       );
     }
-    if (error.message.toLowerCase().includes("invalid login credentials")) {
+
+    if (mensagem.includes("invalid login credentials")) {
       throw new Error("E-mail ou senha incorretos.");
     }
-    throw new Error(error.message || "Erro ao conectar com o Supabase.");
+
+    throw new Error(
+      error.message || "Erro ao conectar com o Supabase.",
+    );
   }
 
   if (!data.user) {
@@ -80,14 +91,16 @@ export async function registerUser(
     if (error.message.toLowerCase().includes("already registered")) {
       throw new Error("Este e-mail já está registrado no Supabase.");
     }
-    throw new Error(error.message || "Não foi possível cadastrar no Supabase.");
+
+    throw new Error(
+      error.message || "Não foi possível cadastrar no Supabase.",
+    );
   }
 
   if (!data.user) {
     throw new Error("Erro ao criar aventureiro no Supabase.");
   }
 
-  // Se o Supabase tiver a tabela 'usuarios', tenta gravar os dados adicionais lá também
   try {
     await supabase.from("usuarios").insert([
       {
@@ -98,7 +111,7 @@ export async function registerUser(
       },
     ]);
   } catch {
-    // Se a tabela tiver estrutura diferente ou não existir no schema public, o auth nativo já está salvo
+    // Mantém o cadastro mesmo que a tabela usuarios não exista.
   }
 
   return {
@@ -108,30 +121,275 @@ export async function registerUser(
   };
 }
 
+/* =========================================================
+   PERSONAGENS
+   ========================================================= */
+
 export async function getCharacters(): Promise<Character[]> {
   try {
-    const { data, error } = await supabase.from("personagens").select("*");
+    const { data, error } = await supabase
+      .from("personagens")
+      .select("*");
+
     if (!error && data && data.length > 0) {
       return data as Character[];
     }
   } catch {
-    // fallback para mock se a tabela estiver vazia
+    // Fallback temporário para desenvolvimento.
   }
+
   return delay(mockCharacters);
 }
 
-export async function getCharacterById(id: string): Promise<Character | undefined> {
+export async function getCharacterById(
+  id: string,
+): Promise<Character | undefined> {
   try {
     const { data, error } = await supabase
       .from("personagens")
       .select("*")
       .eq("id", id)
       .single();
+
     if (!error && data) {
       return data as Character;
     }
   } catch {
-    // fallback
+    // Fallback temporário para desenvolvimento.
   }
+
   return delay(mockCharacters.find((c) => c.id === id));
+}
+
+/* =========================================================
+   CAMPANHAS
+   ========================================================= */
+
+export interface Campaign {
+  id: string;
+  nome: string;
+  descricao: string | null;
+  sistema: string | null;
+  imagem_url: string | null;
+  moeda_principal: string | null;
+  status: string;
+  codigo_convite: string;
+  created_by: string;
+  created_at: string;
+}
+
+function gerarCodigoConvite(): string {
+  const caracteres = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+
+  let codigo = "";
+
+  for (let i = 0; i < 6; i++) {
+    const indice = Math.floor(Math.random() * caracteres.length);
+    codigo += caracteres[indice];
+  }
+
+  return codigo;
+}
+
+/* =========================================================
+   CRIAR CAMPANHA
+   ========================================================= */
+
+export async function criarCampanha(dados: {
+  nome: string;
+  descricao: string;
+  sistema: string;
+  moeda_principal: string;
+}): Promise<Campaign> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    throw new Error("Usuário não autenticado.");
+  }
+
+  for (let tentativa = 0; tentativa < 5; tentativa++) {
+    const codigo = gerarCodigoConvite();
+
+    const { data, error } = await supabase
+      .from("campanhas")
+      .insert({
+        nome: dados.nome.trim(),
+        descricao: dados.descricao.trim() || null,
+        sistema: dados.sistema.trim() || null,
+        moeda_principal: dados.moeda_principal.trim() || null,
+        codigo_convite: codigo,
+        created_by: user.id,
+        status: "ATIVA",
+      })
+      .select()
+      .single();
+
+    if (!error && data) {
+      const { error: membroError } = await supabase
+        .from("campanha_membros")
+        .insert({
+          campanha_id: data.id,
+          user_id: user.id,
+          papel: "MESTRE",
+          status: "ATIVO",
+        });
+
+      if (membroError) {
+        await supabase
+          .from("campanhas")
+          .delete()
+          .eq("id", data.id);
+
+        throw new Error(
+          membroError.message ||
+            "A campanha foi criada, mas não foi possível registrar o Mestre.",
+        );
+      }
+
+      return data as Campaign;
+    }
+
+    if (error?.code !== "23505") {
+      throw new Error(
+        error?.message || "Não foi possível criar a campanha.",
+      );
+    }
+  }
+
+  throw new Error(
+    "Não foi possível gerar um código de convite exclusivo. Tente novamente.",
+  );
+}
+
+/* =========================================================
+   LISTAR CAMPANHAS DO USUÁRIO
+   ========================================================= */
+
+export async function listarMinhasCampanhas(): Promise<Campaign[]> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    throw new Error("Usuário não autenticado.");
+  }
+
+  const { data, error } = await supabase
+    .from("campanha_membros")
+    .select(
+      `
+      campanha_id,
+      campanhas (*)
+      `,
+    )
+    .eq("user_id", user.id)
+    .eq("status", "ATIVO");
+
+  if (error) {
+    throw new Error(
+      error.message || "Não foi possível carregar suas campanhas.",
+    );
+  }
+
+  const campanhas: Campaign[] = [];
+
+  for (const item of data ?? []) {
+    const campanha = item.campanhas;
+
+    if (campanha && !Array.isArray(campanha)) {
+      campanhas.push(campanha as Campaign);
+    }
+  }
+
+  return campanhas;
+}
+
+/* =========================================================
+   ENTRAR EM CAMPANHA POR CÓDIGO
+   ========================================================= */
+
+export async function entrarNaCampanha(
+  codigoConvite: string,
+): Promise<Campaign> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    throw new Error("Usuário não autenticado.");
+  }
+
+  const codigo = codigoConvite.trim().toUpperCase();
+
+  if (!codigo) {
+    throw new Error("Informe o código da campanha.");
+  }
+
+  const { data: campanha, error: campanhaError } = await supabase
+    .from("campanhas")
+    .select("*")
+    .eq("codigo_convite", codigo)
+    .eq("status", "ATIVA")
+    .single();
+
+  if (campanhaError || !campanha) {
+    throw new Error("Campanha não encontrada ou não está ativa.");
+  }
+
+  const {
+    data: membroExistente,
+    error: membroConsultaError,
+  } = await supabase
+    .from("campanha_membros")
+    .select("id, status")
+    .eq("campanha_id", campanha.id)
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (membroConsultaError) {
+    throw new Error(
+      membroConsultaError.message ||
+        "Não foi possível verificar sua participação.",
+    );
+  }
+
+  if (membroExistente) {
+    if (membroExistente.status !== "ATIVO") {
+      const { error: atualizarError } = await supabase
+        .from("campanha_membros")
+        .update({
+          status: "ATIVO",
+        })
+        .eq("id", membroExistente.id);
+
+      if (atualizarError) {
+        throw new Error(
+          atualizarError.message ||
+            "Não foi possível reativar sua participação.",
+        );
+      }
+    }
+
+    return campanha as Campaign;
+  }
+
+  const { error: entradaError } = await supabase
+    .from("campanha_membros")
+    .insert({
+      campanha_id: campanha.id,
+      user_id: user.id,
+      papel: "JOGADOR",
+      status: "ATIVO",
+    });
+
+  if (entradaError) {
+    throw new Error(
+      entradaError.message ||
+        "Não foi possível entrar na campanha.",
+    );
+  }
+
+  return campanha as Campaign;
 }

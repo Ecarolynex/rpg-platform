@@ -4,6 +4,7 @@ import { ProtectedRoute } from "./components/layout/ProtectedRoute";
 import Login from "./pages/Login/Login";
 import Dashboard from "./pages/Dashboard/Dashboard";
 import CharacterSheet from "./pages/CharacterSheet/CharacterSheet";
+import Campaigns from "./pages/Campaigns/Campaigns";
 
 function App() {
   return (
@@ -18,6 +19,7 @@ function App() {
         }
       >
         <Route path="/" element={<Dashboard />} />
+        <Route path="/campanhas" element={<Campaigns />} />
         <Route path="/personagem/:id" element={<CharacterSheet />} />
       </Route>
     </Routes>

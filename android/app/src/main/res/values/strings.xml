@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">RPG Platform</string>
+    <string name="title_activity_main">RPG Platform</string>
+    <string name="package_name">com.rpgplatform.app</string>
+    <string name="custom_url_scheme">com.rpgplatform.app</string>
+</resources>
