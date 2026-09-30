@@ -650,15 +650,11 @@ export default function Dashboard() {
                 <div className="card-actions">
                   {character.campanhaId ? (
                     <>
-                      <span className="card-campaign-name">
-                        {campanha ? campanha.nome : "Em campanha"}
-                      </span>
-
                       <Link
-                        className="btn-ghost"
+                        className="btn-ghost card-campaign-link"
                         to={"/campanha/" + character.campanhaId}
                       >
-                        Abrir campanha
+                        {campanha ? campanha.nome : "Em campanha"}
                       </Link>
 
                       <Link

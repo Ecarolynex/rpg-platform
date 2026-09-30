@@ -54,14 +54,83 @@
 .app-sidebar-footer {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
   padding-top: 16px;
   border-top: 1px solid var(--border-bronze);
 }
 
-.app-sidebar-user {
-  font-size: 14px;
+.app-sidebar-account {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 9px;
+  border: 1px solid rgba(201, 162, 39, 0.28);
+  background: linear-gradient(135deg, rgba(201, 162, 39, 0.09), rgba(0, 0, 0, 0.14));
+}
+
+.app-sidebar-account-mark {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  border: 1px solid #d2a94d;
+  background: linear-gradient(145deg, #f0cf6e, #a77b20);
+  box-shadow: inset 0 0 0 2px rgba(95, 62, 16, 0.24);
+  color: #21150b;
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.app-sidebar-account-details {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.25;
+}
+
+.app-sidebar-account-label {
   color: var(--muted);
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.app-sidebar-user {
+  display: block;
+  overflow: hidden;
+  color: var(--parchment);
+  font-size: 14px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-sidebar-footer .app-sidebar-logout {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 42px;
+  border-color: rgba(163, 39, 60, 0.66);
+  background: linear-gradient(180deg, rgba(122, 22, 38, 0.3), rgba(43, 19, 17, 0.9));
+  box-shadow: inset 0 0 0 1px rgba(240, 207, 110, 0.12);
+  color: var(--parchment);
+  font-family: var(--font-display);
+  font-weight: 600;
+  text-transform: uppercase;
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease, transform 0.15s ease;
+}
+
+.app-sidebar-footer .app-sidebar-logout:hover {
+  border-color: var(--wine-bright);
+  background: linear-gradient(180deg, rgba(163, 39, 60, 0.58), rgba(71, 22, 25, 0.96));
+  color: #fff0cc;
+}
+
+.app-sidebar-footer .app-sidebar-logout:active {
+  transform: translateY(1px);
 }
 
 .app-content {
@@ -110,12 +179,28 @@
     flex-direction: row;
     margin-left: auto;
     flex: 0 0 auto;
+    align-items: center;
+    gap: 8px;
+    padding: 0;
   }
 
-  .app-sidebar-footer .btn-ghost {
+  .app-sidebar-account {
+    padding: 6px 8px;
+  }
+
+  .app-sidebar-account-mark {
+    width: 30px;
+    height: 30px;
+    flex-basis: 30px;
+    font-size: 15px;
+  }
+
+  .app-sidebar-footer .app-sidebar-logout {
+    flex: 0 0 auto;
     width: auto;
     min-width: 0;
-    padding: 8px 10px;
+    min-height: 38px;
+    padding: 8px 12px;
   }
 
   .app-content {
@@ -123,5 +208,17 @@
     min-width: 0;
     box-sizing: border-box;
     padding: 24px 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .app-sidebar-footer {
+    flex: 1 0 100%;
+    justify-content: space-between;
+    margin-left: 0;
+  }
+
+  .app-sidebar-account {
+    flex: 1;
   }
 }

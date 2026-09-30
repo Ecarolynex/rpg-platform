@@ -236,7 +236,7 @@ export default function Campaigns() {
                 ✦
               </div>
 
-              <h2>Nenhuma campanha selecionada</h2>
+              <h2>Nenhuma campanha por aqui</h2>
 
               <p>
                 Crie sua própria aventura como Mestre ou use um

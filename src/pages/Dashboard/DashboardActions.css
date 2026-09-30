@@ -10,21 +10,69 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  justify-content: center;
   gap: 8px;
 }
 
 .card-actions .btn-ghost,
 .card-actions .btn-primary {
-  font-size: 0.85rem;
-  padding: 4px 10px;
+  border: 1px solid #a87935;
+  box-shadow: inset 0 0 0 1px rgba(240, 207, 110, 0.22);
+  font-family: var(--font-display);
+  font-size: 0.76rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  padding: 5px 12px;
   cursor: pointer;
   text-decoration: none;
+  text-align: center;
+  text-transform: uppercase;
+  transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+
+.card-actions .btn-ghost {
+  background: linear-gradient(180deg, rgba(108, 71, 34, 0.28), rgba(38, 25, 16, 0.8));
+  color: var(--parchment);
+}
+
+.card-actions .btn-ghost:hover {
+  background: linear-gradient(180deg, rgba(153, 104, 44, 0.42), rgba(61, 40, 22, 0.9));
+  border-color: var(--gold-bright);
+  color: var(--gold-bright);
+  transform: translateY(-1px);
+}
+
+.card-actions .btn-primary {
+  background: linear-gradient(180deg, #d5a84b, #956022);
+  color: #21150b;
+}
+
+.card-actions .btn-primary:hover {
+  background: linear-gradient(180deg, #f0cf6e, #b27a2c);
+  border-color: var(--gold-bright);
 }
 
 .card-campaign-name {
-  margin-right: auto;
+  flex: 1 0 100%;
   font-size: 0.8rem;
   opacity: 0.75;
+  text-align: center;
+}
+
+.card-actions .card-campaign-link {
+  flex: 1 0 100%;
+  border-color: #d2a94d;
+  background: linear-gradient(180deg, #d5a84b, #956022);
+  box-shadow: inset 0 0 0 1px rgba(255, 235, 170, 0.38), 0 2px 7px rgba(0, 0, 0, 0.22);
+  color: #21150b;
+  font-size: 0.82rem;
+  overflow-wrap: anywhere;
+}
+
+.card-actions .card-campaign-link:hover {
+  border-color: var(--gold-bright);
+  background: linear-gradient(180deg, #f0cf6e, #b27a2c);
+  color: #21150b;
 }
 
 .dashboard-join {

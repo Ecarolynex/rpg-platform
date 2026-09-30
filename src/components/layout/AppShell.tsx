@@ -71,12 +71,25 @@ export function AppShell() {
         </nav>
 
         <div className="app-sidebar-footer">
-          <span className="app-sidebar-user">
-            {user?.nome}
-          </span>
+          <div
+            className="app-sidebar-account"
+            aria-label={`Conta conectada: ${user?.nome || "Aventureiro"}`}
+          >
+            <span className="app-sidebar-account-mark" aria-hidden="true">
+              {user?.nome?.trim().charAt(0).toUpperCase() || "A"}
+            </span>
+
+            <span className="app-sidebar-account-details">
+              <span className="app-sidebar-account-label">Conta conectada</span>
+              <span className="app-sidebar-user" title={user?.nome}>
+                {user?.nome || "Aventureiro"}
+              </span>
+            </span>
+          </div>
 
           <button
-            className="btn-ghost"
+            className="btn-ghost app-sidebar-logout"
+            aria-label="Sair da conta"
             onClick={() => {
               void logout();
             }}

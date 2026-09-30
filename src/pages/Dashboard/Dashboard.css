@@ -15,6 +15,18 @@
   color: var(--muted);
 }
 
+.dashboard-header .btn-primary {
+  border-color: #a87935;
+  background: linear-gradient(180deg, #b67a3e 0%, #79451f 100%);
+  color: #fff0cc;
+  box-shadow: inset 0 0 0 1px rgba(240, 207, 110, 0.32), 0 3px 10px rgba(0, 0, 0, 0.22);
+  text-transform: uppercase;
+}
+
+.dashboard-header .btn-primary:hover {
+  background: linear-gradient(180deg, #c58a4b 0%, #8d5328 100%);
+}
+
 .dashboard-status {
   color: var(--muted);
   padding: 40px 0;
