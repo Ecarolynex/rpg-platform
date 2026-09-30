@@ -7,7 +7,10 @@ import {
   listarMinhasCampanhas,
   comprarItem,
 } from "../../services/api";
-import type { Campaign, ShopItem as ApiShopItem } from "../../services/api";
+import type {
+  Campaign,
+  ShopItem as ApiShopItem,
+} from "../../services/api";
 import type { Character } from "../../types/character";
 import "./Shop.css";
 
@@ -17,7 +20,12 @@ interface ShopItem {
   nome: string;
   categoria: string;
   subcategoria: string;
-  raridade: "Comum" | "Incomum" | "Raro" | "Épico" | "Lendário";
+  raridade:
+    | "Comum"
+    | "Incomum"
+    | "Raro"
+    | "Épico"
+    | "Lendário";
   descricao: string;
   efeitos: string[];
   preco: number;
@@ -64,13 +72,17 @@ function readStoredCart(campaignId: string): CartEntry[] {
       getCartStorageKey(campaignId),
     );
 
-    return saved ? (JSON.parse(saved) as CartEntry[]) : [];
+    return saved
+      ? (JSON.parse(saved) as CartEntry[])
+      : [];
   } catch {
     return [];
   }
 }
 
-function mapRarity(value: string | null): ShopItem["raridade"] {
+function mapRarity(
+  value: string | null,
+): ShopItem["raridade"] {
   switch ((value ?? "").toUpperCase()) {
     case "COMUM":
       return "Comum";
@@ -94,7 +106,9 @@ function mapRarity(value: string | null): ShopItem["raridade"] {
   }
 }
 
-function mapCategory(tipo: string | null): {
+function mapCategory(
+  tipo: string | null,
+): {
   categoria: string;
   subcategoria: string;
 } {
@@ -133,7 +147,9 @@ function mapCategory(tipo: string | null): {
   }
 }
 
-function convertApiItem(item: ApiShopItem): ShopItem {
+function convertApiItem(
+  item: ApiShopItem,
+): ShopItem {
   const category = mapCategory(item.tipo);
 
   return {
@@ -153,7 +169,8 @@ function convertApiItem(item: ApiShopItem): ShopItem {
     preco: Number(item.precoCompra),
     moeda: "PO",
     estoque: Number(item.estoque),
-    disponivel: item.ativo && item.estoque > 0,
+    disponivel:
+      item.ativo && Number(item.estoque) > 0,
     imagem: item.imagemUrl ?? "",
   };
 }
@@ -165,32 +182,45 @@ export default function Shop() {
   const campaignId = id ?? "campanha-demo";
 
   const [items, setItems] = useState<ShopItem[]>([]);
-  const [loadingItems, setLoadingItems] = useState(Boolean(id));
-  const [itemsError, setItemsError] = useState("");
+  const [loadingItems, setLoadingItems] =
+    useState(Boolean(id));
+  const [itemsError, setItemsError] =
+    useState("");
 
   const [search, setSearch] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("Todas");
-  const [selectedRarity, setSelectedRarity] = useState("Todas");
-  const [sortBy, setSortBy] = useState("nome");
+  const [selectedCategory, setSelectedCategory] =
+    useState("Todas");
+  const [selectedRarity, setSelectedRarity] =
+    useState("Todas");
+  const [sortBy, setSortBy] =
+    useState("nome");
 
-  const [cart, setCart] = useState<CartEntry[]>(() =>
-    readStoredCart(campaignId),
+  const [cart, setCart] = useState<CartEntry[]>(
+    () => readStoredCart(campaignId),
   );
 
-  const [checkoutMessage, setCheckoutMessage] = useState("");
-  const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [checkoutMessage, setCheckoutMessage] =
+    useState("");
+  const [checkoutLoading, setCheckoutLoading] =
+    useState(false);
 
-  const [startingGold, setStartingGold] = useState(0);
+  const [selectedItem, setSelectedItem] =
+    useState<ShopItem | null>(null);
 
-  const [selectedItem, setSelectedItem] = useState<ShopItem | null>(null);
-  const [isMaster, setIsMaster] = useState(false);
+  const [isMaster, setIsMaster] =
+    useState(false);
 
-  const [characters, setCharacters] = useState<Character[]>([]);
-  const [activeCharacterId, setActiveCharacterId] = useState("");
+  const [characters, setCharacters] =
+    useState<Character[]>([]);
+  const [activeCharacterId, setActiveCharacterId] =
+    useState("");
 
-  const [availableCampaigns, setAvailableCampaigns] = useState<Campaign[]>([]);
-  const [campaignsLoading, setCampaignsLoading] = useState(!id);
-  const [campaignsError, setCampaignsError] = useState("");
+  const [availableCampaigns, setAvailableCampaigns] =
+    useState<Campaign[]>([]);
+  const [campaignsLoading, setCampaignsLoading] =
+    useState(!id);
+  const [campaignsError, setCampaignsError] =
+    useState("");
 
   async function loadShopItems() {
     if (!id) {
@@ -201,8 +231,11 @@ export default function Shop() {
     setItemsError("");
 
     try {
-      const data = await listarItensDaLoja(campaignId);
-      const converted = data.map(convertApiItem);
+      const data =
+        await listarItensDaLoja(campaignId);
+
+      const converted =
+        data.map(convertApiItem);
 
       setItems(converted);
     } catch (error) {
@@ -277,18 +310,16 @@ export default function Shop() {
     let active = true;
 
     getCampaignAccess(campaignId)
-      .then(({ isMaster: hasMasterAccess, startingGold: campaignGold }) => {
+      .then(({ isMaster: hasMasterAccess }) => {
         if (!active) {
           return;
         }
 
         setIsMaster(hasMasterAccess);
-        setStartingGold(campaignGold);
       })
       .catch(() => {
         if (active) {
           setIsMaster(false);
-          setStartingGold(0);
         }
       });
 
@@ -298,7 +329,10 @@ export default function Shop() {
   }, [campaignId, id]);
 
   useEffect(() => {
-    if (id && typeof window !== "undefined") {
+    if (
+      id &&
+      typeof window !== "undefined"
+    ) {
       window.localStorage.setItem(
         getCartStorageKey(campaignId),
         JSON.stringify(cart),
@@ -307,51 +341,73 @@ export default function Shop() {
   }, [campaignId, cart, id]);
 
   const activeCharacter =
-    characters.find((character) => character.id === activeCharacterId) ??
-    characters[0];
+    characters.find(
+      (character) =>
+        character.id === activeCharacterId,
+    ) ?? characters[0];
 
   const cartRows = useMemo(
     () =>
       cart.flatMap((entry) => {
         const item = items.find(
-          (candidate) => candidate.id === entry.itemId,
+          (candidate) =>
+            candidate.id === entry.itemId,
         );
 
-        return item ? [{ item, quantity: entry.quantity }] : [];
+        return item
+          ? [{ item, quantity: entry.quantity }]
+          : [];
       }),
     [cart, items],
   );
 
   const cartCount = cartRows.reduce(
-    (sum, entry) => sum + entry.quantity,
+    (sum, entry) =>
+      sum + entry.quantity,
     0,
   );
 
   const cartTotal = cartRows.reduce(
-    (sum, entry) => sum + entry.item.preco * entry.quantity,
+    (sum, entry) =>
+      sum +
+      entry.item.preco *
+        entry.quantity,
     0,
   );
 
   const filteredItems = useMemo(() => {
-    const query = search.trim().toLowerCase();
+    const query =
+      search.trim().toLowerCase();
 
     return [...items]
       .filter((item) => {
         const matchesSearch =
           !query ||
-          item.nome.toLowerCase().includes(query) ||
-          item.categoria.toLowerCase().includes(query) ||
-          item.subcategoria.toLowerCase().includes(query);
+          item.nome
+            .toLowerCase()
+            .includes(query) ||
+          item.categoria
+            .toLowerCase()
+            .includes(query) ||
+          item.subcategoria
+            .toLowerCase()
+            .includes(query);
 
         const matchesCategory =
           selectedCategory === "Todas" ||
-          item.categoria === selectedCategory;
+          item.categoria ===
+            selectedCategory;
 
         const matchesRarity =
           selectedRarity === "Todas" ||
-          item.raridade === selectedRarity;
+          item.raridade ===
+            selectedRarity;
 
-        return matchesSearch && matchesCategory && matchesRarity;
+        return (
+          matchesSearch &&
+          matchesCategory &&
+          matchesRarity
+        );
       })
       .sort((a, b) => {
         switch (sortBy) {
@@ -362,10 +418,14 @@ export default function Shop() {
             return b.preco - a.preco;
 
           case "z-a":
-            return b.nome.localeCompare(a.nome);
+            return b.nome.localeCompare(
+              a.nome,
+            );
 
           default:
-            return a.nome.localeCompare(b.nome);
+            return a.nome.localeCompare(
+              b.nome,
+            );
         }
       });
   }, [
@@ -376,16 +436,26 @@ export default function Shop() {
     sortBy,
   ]);
 
-  const addToCart = (item: ShopItem) => {
+  const addToCart = (
+    item: ShopItem,
+  ) => {
     if (!item.disponivel) {
-      window.alert("Este item está temporariamente indisponível.");
+      window.alert(
+        "Este item está temporariamente indisponível.",
+      );
       return;
     }
 
     const quantityInCart =
-      cart.find((entry) => entry.itemId === item.id)?.quantity ?? 0;
+      cart.find(
+        (entry) =>
+          entry.itemId === item.id,
+      )?.quantity ?? 0;
 
-    if (item.estoque <= quantityInCart) {
+    if (
+      item.estoque <=
+      quantityInCart
+    ) {
       window.alert(
         "Não há estoque suficiente para adicionar mais unidades.",
       );
@@ -393,18 +463,25 @@ export default function Shop() {
     }
 
     setCart((previous) => {
-      const existing = previous.find(
-        (entry) => entry.itemId === item.id,
-      );
+      const existing =
+        previous.find(
+          (entry) =>
+            entry.itemId ===
+            item.id,
+        );
 
       if (existing) {
-        return previous.map((entry) =>
-          entry.itemId === item.id
-            ? {
-                ...entry,
-                quantity: entry.quantity + 1,
-              }
-            : entry,
+        return previous.map(
+          (entry) =>
+            entry.itemId ===
+            item.id
+              ? {
+                  ...entry,
+                  quantity:
+                    entry.quantity +
+                    1,
+                }
+              : entry,
         );
       }
 
@@ -431,7 +508,10 @@ export default function Shop() {
               ...entry,
               quantity: Math.max(
                 1,
-                Math.min(item.estoque, quantity),
+                Math.min(
+                  item.estoque,
+                  quantity,
+                ),
               ),
             }
           : entry,
@@ -439,10 +519,13 @@ export default function Shop() {
     );
   };
 
-  const removeFromCart = (itemId: string) => {
+  const removeFromCart = (
+    itemId: string,
+  ) => {
     setCart((previous) =>
       previous.filter(
-        (entry) => entry.itemId !== itemId,
+        (entry) =>
+          entry.itemId !== itemId,
       ),
     );
   };
@@ -459,10 +542,12 @@ export default function Shop() {
       return;
     }
 
-    const unavailableEntry = cartRows.find(
-      ({ item, quantity }) =>
-        !item.disponivel || item.estoque < quantity,
-    );
+    const unavailableEntry =
+      cartRows.find(
+        ({ item, quantity }) =>
+          !item.disponivel ||
+          item.estoque < quantity,
+      );
 
     if (unavailableEntry) {
       window.alert(
@@ -511,41 +596,62 @@ export default function Shop() {
       <div className="shop-page">
         <header className="shop-header">
           <div className="shop-header-title">
-            <span className="shop-kicker">Loja</span>
-            <h1>Escolher campanha</h1>
+            <span className="shop-kicker">
+              Loja
+            </span>
+
+            <h1>
+              Escolher campanha
+            </h1>
           </div>
         </header>
 
         {campaignsLoading ? (
-          <p>Carregando campanhas...</p>
+          <p>
+            Carregando campanhas...
+          </p>
         ) : campaignsError ? (
-          <p role="alert">{campaignsError}</p>
+          <p role="alert">
+            {campaignsError}
+          </p>
         ) : availableCampaigns.length ? (
           <div className="shop-campaign-list">
-            {availableCampaigns.map((campaign) => (
-              <Link
-                className="shop-campaign-option"
-                key={campaign.id}
-                to={`/campanha/${campaign.id}/loja`}
-              >
-                <strong>{campaign.nome}</strong>
+            {availableCampaigns.map(
+              (campaign) => (
+                <Link
+                  className="shop-campaign-option"
+                  key={campaign.id}
+                  to={`/campanha/${campaign.id}/loja`}
+                >
+                  <strong>
+                    {campaign.nome}
+                  </strong>
 
-                <span>
-                  {campaign.sistema || "Sistema não informado"}
-                </span>
+                  <span>
+                    {campaign.sistema ||
+                      "Sistema não informado"}
+                  </span>
 
-                <span>
-                  {campaign.ouro_inicial ?? 0} PO iniciais por jogador
-                </span>
-              </Link>
-            ))}
+                  <span>
+                    {campaign.ouro_inicial ??
+                      0}{" "}
+                    PO iniciais por
+                    jogador
+                  </span>
+                </Link>
+              ),
+            )}
           </div>
         ) : (
           <div className="shop-empty">
-            <h2>Nenhuma campanha disponível</h2>
+            <h2>
+              Nenhuma campanha disponível
+            </h2>
 
             <p>
-              Crie uma campanha ou entre em uma para acessar sua loja.
+              Crie uma campanha ou
+              entre em uma para
+              acessar sua loja.
             </p>
 
             <Link
@@ -561,7 +667,9 @@ export default function Shop() {
   }
 
   const isCartPage =
-    location.pathname.endsWith("/carrinho");
+    location.pathname.endsWith(
+      "/carrinho",
+    );
 
   if (isCartPage) {
     return (
@@ -572,13 +680,19 @@ export default function Shop() {
               Loja da campanha
             </span>
 
-            <h1>Carrinho</h1>
+            <h1>
+              Carrinho
+            </h1>
           </div>
 
           <div className="shop-wallet">
-            <span>Moeda da campanha</span>
+            <span>
+              Moeda da campanha
+            </span>
 
-            <strong>PO • Ouro</strong>
+            <strong>
+              PO • Ouro
+            </strong>
           </div>
         </header>
 
@@ -604,102 +718,128 @@ export default function Shop() {
               className="shop-cart-list"
               aria-label="Itens do carrinho"
             >
-              {cartRows.map(({ item, quantity }) => (
-                <article
-                  className="shop-cart-entry"
-                  key={item.id}
-                  aria-label={item.nome}
-                >
-                  <div className="shop-cart-entry-image">
-                    {item.imagem ? (
-                      <img
-                        src={item.imagem}
-                        alt=""
-                      />
-                    ) : (
-                      <span>
-                        {item.nome
-                          .slice(0, 2)
-                          .toUpperCase()}
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="shop-cart-entry-info">
-                    <span className="shop-kicker">
-                      {item.raridade} • {item.categoria}
-                    </span>
-
-                    <h2>{item.nome}</h2>
-
-                    <span>
-                      {item.preco} PO cada
-                    </span>
-                  </div>
-
-                  <div
-                    className="shop-cart-quantity"
-                    aria-label={`Quantidade de ${item.nome}`}
-                  >
-                    <button
-                      type="button"
-                      aria-label={`Diminuir ${item.nome}`}
-                      onClick={() =>
-                        setCartQuantity(
-                          item,
-                          quantity - 1,
-                        )
-                      }
-                    >
-                      −
-                    </button>
-
-                    <span>{quantity}</span>
-
-                    <button
-                      type="button"
-                      aria-label={`Aumentar ${item.nome}`}
-                      disabled={quantity >= item.estoque}
-                      onClick={() =>
-                        setCartQuantity(
-                          item,
-                          quantity + 1,
-                        )
-                      }
-                    >
-                      +
-                    </button>
-                  </div>
-
-                  <strong className="shop-cart-entry-total">
-                    {item.preco * quantity} PO
-                  </strong>
-
-                  <button
-                    type="button"
-                    className="shop-remove-button"
-                    onClick={() =>
-                      removeFromCart(item.id)
+              {cartRows.map(
+                ({ item, quantity }) => (
+                  <article
+                    className="shop-cart-entry"
+                    key={item.id}
+                    aria-label={
+                      item.nome
                     }
                   >
-                    Remover
-                  </button>
-                </article>
-              ))}
+                    <div className="shop-cart-entry-image">
+                      {item.imagem ? (
+                        <img
+                          src={item.imagem}
+                          alt=""
+                        />
+                      ) : (
+                        <span>
+                          {item.nome
+                            .slice(
+                              0,
+                              2,
+                            )
+                            .toUpperCase()}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="shop-cart-entry-info">
+                      <span className="shop-kicker">
+                        {item.raridade} •{" "}
+                        {item.categoria}
+                      </span>
+
+                      <h2>
+                        {item.nome}
+                      </h2>
+
+                      <span>
+                        {item.preco} PO
+                        cada
+                      </span>
+                    </div>
+
+                    <div
+                      className="shop-cart-quantity"
+                      aria-label={`Quantidade de ${item.nome}`}
+                    >
+                      <button
+                        type="button"
+                        aria-label={`Diminuir ${item.nome}`}
+                        onClick={() =>
+                          setCartQuantity(
+                            item,
+                            quantity - 1,
+                          )
+                        }
+                      >
+                        −
+                      </button>
+
+                      <span>
+                        {quantity}
+                      </span>
+
+                      <button
+                        type="button"
+                        aria-label={`Aumentar ${item.nome}`}
+                        disabled={
+                          quantity >=
+                          item.estoque
+                        }
+                        onClick={() =>
+                          setCartQuantity(
+                            item,
+                            quantity + 1,
+                          )
+                        }
+                      >
+                        +
+                      </button>
+                    </div>
+
+                    <strong className="shop-cart-entry-total">
+                      {item.preco *
+                        quantity}{" "}
+                      PO
+                    </strong>
+
+                    <button
+                      type="button"
+                      className="shop-remove-button"
+                      onClick={() =>
+                        removeFromCart(
+                          item.id,
+                        )
+                      }
+                    >
+                      Remover
+                    </button>
+                  </article>
+                ),
+              )}
             </section>
 
             <section className="shop-cart-checkout">
               <div>
-                <span>Total do pedido</span>
+                <span>
+                  Total do pedido
+                </span>
 
-                <strong>{cartTotal} PO</strong>
+                <strong>
+                  {cartTotal} PO
+                </strong>
               </div>
 
               <button
                 className="btn-primary"
                 type="button"
                 onClick={checkout}
-                disabled={checkoutLoading}
+                disabled={
+                  checkoutLoading
+                }
               >
                 {checkoutLoading
                   ? "Processando..."
@@ -709,10 +849,13 @@ export default function Shop() {
           </>
         ) : (
           <div className="shop-empty">
-            <h2>Sua sacola está vazia</h2>
+            <h2>
+              Sua sacola está vazia
+            </h2>
 
             <p>
-              Adicione itens do catálogo para montar seu pedido.
+              Adicione itens do catálogo
+              para montar seu pedido.
             </p>
 
             <Link
@@ -740,47 +883,73 @@ export default function Shop() {
 
         <div className="shop-header-actions">
           <div className="shop-wallet">
-            <span>Bolsa</span>
+            <span>
+              Bolsa
+            </span>
 
-            <strong>PO • Ouro</strong>
+            <strong>
+              PO • Ouro
+            </strong>
           </div>
 
           <Link
             className="shop-cart-link"
             to={`/campanha/${campaignId}/loja/carrinho`}
           >
-            Carrinho <span>{cartCount}</span>
+            Carrinho{" "}
+            <span>
+              {cartCount}
+            </span>
           </Link>
         </div>
       </header>
 
       <div className="shop-topbar">
         <label className="shop-search">
-          <span>Livro de registros</span>
+          <span>
+            Livro de registros
+          </span>
 
           <input
             aria-label="Procurar no catálogo"
             value={search}
             onChange={(event) =>
-              setSearch(event.target.value)
+              setSearch(
+                event.target.value,
+              )
             }
             placeholder="Procurar no catálogo..."
           />
         </label>
 
         <label className="shop-select">
-          <span>Ordenar</span>
+          <span>
+            Ordenar
+          </span>
 
           <select
             value={sortBy}
             onChange={(event) =>
-              setSortBy(event.target.value)
+              setSortBy(
+                event.target.value,
+              )
             }
           >
-            <option value="nome">Nome A-Z</option>
-            <option value="z-a">Nome Z-A</option>
-            <option value="menor-preco">Menor preço</option>
-            <option value="maior-preco">Maior preço</option>
+            <option value="nome">
+              Nome A-Z
+            </option>
+
+            <option value="z-a">
+              Nome Z-A
+            </option>
+
+            <option value="menor-preco">
+              Menor preço
+            </option>
+
+            <option value="maior-preco">
+              Maior preço
+            </option>
           </select>
         </label>
       </div>
@@ -792,22 +961,27 @@ export default function Shop() {
           </span>
 
           <div className="shop-filter-pills">
-            {CATEGORIAS.map((category) => (
-              <button
-                key={category}
-                type="button"
-                className={
-                  category === selectedCategory
-                    ? "is-active"
-                    : ""
-                }
-                onClick={() =>
-                  setSelectedCategory(category)
-                }
-              >
-                {category}
-              </button>
-            ))}
+            {CATEGORIAS.map(
+              (category) => (
+                <button
+                  key={category}
+                  type="button"
+                  className={
+                    category ===
+                    selectedCategory
+                      ? "is-active"
+                      : ""
+                  }
+                  onClick={() =>
+                    setSelectedCategory(
+                      category,
+                    )
+                  }
+                >
+                  {category}
+                </button>
+              ),
+            )}
           </div>
         </div>
 
@@ -817,22 +991,27 @@ export default function Shop() {
           </span>
 
           <div className="shop-filter-pills">
-            {RARIDADES.map((rarity) => (
-              <button
-                key={rarity}
-                type="button"
-                className={
-                  rarity === selectedRarity
-                    ? "is-active"
-                    : ""
-                }
-                onClick={() =>
-                  setSelectedRarity(rarity)
-                }
-              >
-                {rarity}
-              </button>
-            ))}
+            {RARIDADES.map(
+              (rarity) => (
+                <button
+                  key={rarity}
+                  type="button"
+                  className={
+                    rarity ===
+                    selectedRarity
+                      ? "is-active"
+                      : ""
+                  }
+                  onClick={() =>
+                    setSelectedRarity(
+                      rarity,
+                    )
+                  }
+                >
+                  {rarity}
+                </button>
+              ),
+            )}
           </div>
         </div>
       </div>
@@ -844,16 +1023,16 @@ export default function Shop() {
               Administração
             </span>
 
-            <h2>Administrar loja</h2>
+            <h2>
+              Administrar loja
+            </h2>
 
             <p>
-              O catálogo global de itens será conectado
-              à administração da campanha na próxima etapa.
+              O catálogo global de
+              itens será conectado à
+              administração da campanha
+              na próxima etapa.
             </p>
-
-            <small>
-              Ouro inicial configurado: {startingGold} PO
-            </small>
           </div>
         </section>
       )}
@@ -865,11 +1044,15 @@ export default function Shop() {
               className="shop-persona-mark"
               aria-hidden="true"
             >
-              {(activeCharacter?.nome ?? "Personagem")
+              {(activeCharacter?.nome ??
+                "Personagem")
                 .split(/\s+/)
                 .filter(Boolean)
                 .slice(0, 2)
-                .map((part) => part[0])
+                .map(
+                  (part) =>
+                    part[0],
+                )
                 .join("")
                 .toUpperCase()}
             </span>
@@ -888,18 +1071,24 @@ export default function Shop() {
 
           <div className="shop-persona-stats">
             <div className="shop-persona-stat">
-              <span>Classe</span>
+              <span>
+                Classe
+              </span>
 
               <strong>
-                {activeCharacter?.classe ?? "—"}
+                {activeCharacter?.classe ??
+                  "—"}
               </strong>
             </div>
 
             <div className="shop-persona-stat shop-persona-level">
-              <span>Nível</span>
+              <span>
+                Nível
+              </span>
 
               <strong>
-                {activeCharacter?.nivel ?? "—"}
+                {activeCharacter?.nivel ??
+                  "—"}
               </strong>
             </div>
           </div>
@@ -910,20 +1099,28 @@ export default function Shop() {
             Sacola do mercador
           </span>
 
-          <h3>Seu carrinho</h3>
+          <h3>
+            Seu carrinho
+          </h3>
 
           <p>
             {cartCount
               ? `${cartCount} ${
-                  cartCount === 1 ? "item" : "itens"
+                  cartCount === 1
+                    ? "item"
+                    : "itens"
                 } na sacola`
               : "Nenhum item selecionado"}
           </p>
 
           <div className="shop-cart-total">
-            <span>Total</span>
+            <span>
+              Total
+            </span>
 
-            <strong>{cartTotal} PO</strong>
+            <strong>
+              {cartTotal} PO
+            </strong>
           </div>
 
           <Link
@@ -942,106 +1139,151 @@ export default function Shop() {
         >
           {loadingItems ? (
             <div className="shop-empty">
-              <h3>Carregando loja...</h3>
+              <h3>
+                Carregando loja...
+              </h3>
 
               <p>
-                Buscando os itens cadastrados nesta campanha.
+                Buscando os itens
+                cadastrados nesta
+                campanha.
               </p>
             </div>
           ) : itemsError ? (
             <div className="shop-empty">
-              <h3>Não foi possível carregar a loja</h3>
+              <h3>
+                Não foi possível
+                carregar a loja
+              </h3>
 
-              <p role="alert">{itemsError}</p>
+              <p role="alert">
+                {itemsError}
+              </p>
             </div>
-          ) : filteredItems.length === 0 ? (
+          ) : filteredItems.length ===
+            0 ? (
             <div className="shop-empty">
-              <h3>Nenhum item encontrado</h3>
+              <h3>
+                Nenhum item
+                encontrado
+              </h3>
 
               <p>
-                Esta loja ainda não possui itens disponíveis
-                para venda.
+                Esta loja ainda não
+                possui itens
+                disponíveis para
+                venda.
               </p>
             </div>
           ) : (
-            filteredItems.map((item) => (
-              <article
-                key={item.id}
-                className="shop-card"
-                aria-label={item.nome}
-              >
-                <div className="shop-card-image">
-                  {item.imagem ? (
-                    <img
-                      src={item.imagem}
-                      alt={item.nome}
-                    />
-                  ) : (
-                    <div className="shop-card-placeholder">
-                      {item.nome
-                        .slice(0, 2)
-                        .toUpperCase()}
+            filteredItems.map(
+              (item) => (
+                <article
+                  key={item.id}
+                  className="shop-card"
+                  aria-label={
+                    item.nome
+                  }
+                >
+                  <div className="shop-card-image">
+                    {item.imagem ? (
+                      <img
+                        src={
+                          item.imagem
+                        }
+                        alt={
+                          item.nome
+                        }
+                      />
+                    ) : (
+                      <div className="shop-card-placeholder">
+                        {item.nome
+                          .slice(
+                            0,
+                            2,
+                          )
+                          .toUpperCase()}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="shop-card-body">
+                    <div className="shop-card-header">
+                      <h3>
+                        {item.nome}
+                      </h3>
+
+                      <span
+                        className={`rarity rarity-${item.raridade.toLowerCase()}`}
+                      >
+                        {
+                          item.raridade
+                        }
+                      </span>
                     </div>
-                  )}
-                </div>
 
-                <div className="shop-card-body">
-                  <div className="shop-card-header">
-                    <h3>{item.nome}</h3>
-
-                    <span
-                      className={`rarity rarity-${item.raridade.toLowerCase()}`}
-                    >
-                      {item.raridade}
-                    </span>
-                  </div>
-
-                  <p className="shop-card-meta">
-                    {item.categoria} • {item.subcategoria}
-                  </p>
-
-                  <div className="shop-price-row">
-                    <strong>{item.preco} PO</strong>
-
-                    <span>
-                      {item.estoque} em estoque
-                    </span>
-                  </div>
-
-                  <div className="shop-card-actions">
-                    <button
-                      type="button"
-                      className="btn-secondary"
-                      onClick={() =>
-                        setSelectedItem(item)
+                    <p className="shop-card-meta">
+                      {item.categoria}{" "}
+                      •{" "}
+                      {
+                        item.subcategoria
                       }
-                    >
-                      Examinar
-                    </button>
+                    </p>
 
-                    <button
-                      type="button"
-                      className="btn-primary"
-                      onClick={() =>
-                        addToCart(item)
-                      }
-                      disabled={
-                        !item.disponivel ||
-                        item.estoque <=
-                          (cart.find(
-                            (entry) =>
-                              entry.itemId === item.id,
-                          )?.quantity ?? 0)
-                      }
-                    >
-                      {item.estoque > 0
-                        ? "Adicionar"
-                        : "Sem estoque"}
-                    </button>
+                    <div className="shop-price-row">
+                      <strong>
+                        {item.preco} PO
+                      </strong>
+
+                      <span>
+                        {item.estoque}{" "}
+                        em estoque
+                      </span>
+                    </div>
+
+                    <div className="shop-card-actions">
+                      <button
+                        type="button"
+                        className="btn-secondary"
+                        onClick={() =>
+                          setSelectedItem(
+                            item,
+                          )
+                        }
+                      >
+                        Examinar
+                      </button>
+
+                      <button
+                        type="button"
+                        className="btn-primary"
+                        onClick={() =>
+                          addToCart(
+                            item,
+                          )
+                        }
+                        disabled={
+                          !item.disponivel ||
+                          item.estoque <=
+                            (cart.find(
+                              (entry) =>
+                                entry.itemId ===
+                                item.id,
+                            )
+                              ?.quantity ??
+                              0)
+                        }
+                      >
+                        {item.estoque >
+                        0
+                          ? "Adicionar"
+                          : "Sem estoque"}
+                      </button>
+                    </div>
                   </div>
-                </div>
-              </article>
-            ))
+                </article>
+              ),
+            )
           )}
         </section>
       </div>
@@ -1065,14 +1307,20 @@ export default function Shop() {
                   Pergaminho de item
                 </span>
 
-                <h2>{selectedItem.nome}</h2>
+                <h2>
+                  {
+                    selectedItem.nome
+                  }
+                </h2>
               </div>
 
               <button
                 type="button"
                 className="shop-close"
                 onClick={() =>
-                  setSelectedItem(null)
+                  setSelectedItem(
+                    null,
+                  )
                 }
               >
                 Fechar
@@ -1083,13 +1331,20 @@ export default function Shop() {
               <div className="shop-modal-art">
                 {selectedItem.imagem ? (
                   <img
-                    src={selectedItem.imagem}
-                    alt={selectedItem.nome}
+                    src={
+                      selectedItem.imagem
+                    }
+                    alt={
+                      selectedItem.nome
+                    }
                   />
                 ) : (
                   <div className="shop-card-placeholder large">
                     {selectedItem.nome
-                      .slice(0, 2)
+                      .slice(
+                        0,
+                        2,
+                      )
                       .toUpperCase()}
                   </div>
                 )}
@@ -1097,16 +1352,27 @@ export default function Shop() {
 
               <div className="shop-modal-content">
                 <p className="shop-card-meta">
-                  {selectedItem.categoria} •{" "}
-                  {selectedItem.subcategoria} •{" "}
-                  {selectedItem.raridade}
+                  {
+                    selectedItem.categoria
+                  }{" "}
+                  •{" "}
+                  {
+                    selectedItem.subcategoria
+                  }{" "}
+                  •{" "}
+                  {
+                    selectedItem.raridade
+                  }
                 </p>
 
                 <p className="shop-modal-description">
-                  {selectedItem.descricao}
+                  {
+                    selectedItem.descricao
+                  }
                 </p>
 
-                {selectedItem.efeitos.length > 0 && (
+                {selectedItem.efeitos
+                  .length > 0 && (
                   <ul className="shop-effects">
                     {selectedItem.efeitos.map(
                       (efeito) => (
@@ -1120,11 +1386,16 @@ export default function Shop() {
 
                 <div className="shop-modal-footer">
                   <span>
-                    Preço: {selectedItem.preco} PO
+                    Preço:{" "}
+                    {selectedItem.preco}{" "}
+                    PO
                   </span>
 
                   <span>
-                    Estoque: {selectedItem.estoque}
+                    Estoque:{" "}
+                    {
+                      selectedItem.estoque
+                    }
                   </span>
                 </div>
 
@@ -1132,10 +1403,16 @@ export default function Shop() {
                   type="button"
                   className="btn-primary"
                   onClick={() => {
-                    addToCart(selectedItem);
-                    setSelectedItem(null);
+                    addToCart(
+                      selectedItem,
+                    );
+                    setSelectedItem(
+                      null,
+                    );
                   }}
-                  disabled={!selectedItem.disponivel}
+                  disabled={
+                    !selectedItem.disponivel
+                  }
                 >
                   Adicionar ao carrinho
                 </button>
