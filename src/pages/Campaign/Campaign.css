@@ -1,0 +1,414 @@
+/* Estilos da Página da Campanha e Painel do Mestre */
+
+.campaign-detail-page {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 24px 16px 64px;
+}
+
+.campaign-detail-header {
+  border: 1px solid var(--border-bronze, rgba(201, 162, 39, 0.45));
+  background: linear-gradient(180deg, rgba(38, 26, 17, 0.85) 0%, rgba(18, 13, 9, 0.95) 100%);
+  border-radius: 8px;
+  padding: 24px 28px;
+  margin-bottom: 24px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35), inset 0 0 0 1px rgba(240, 207, 110, 0.12);
+  position: relative;
+}
+
+.campaign-detail-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.campaign-back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--gold-bright, #f0cf6e);
+  text-decoration: none;
+  font-size: 0.88rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 4px;
+  background: rgba(201, 162, 39, 0.1);
+  border: 1px solid rgba(201, 162, 39, 0.25);
+  transition: all 0.15s ease;
+}
+
+.campaign-back-link:hover {
+  background: rgba(201, 162, 39, 0.25);
+  border-color: var(--gold-bright, #f0cf6e);
+  transform: translateX(-2px);
+}
+
+.campaign-header-badges {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.campaign-badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 4px;
+  border: 1px solid rgba(201, 162, 39, 0.4);
+  background: rgba(201, 162, 39, 0.12);
+  color: var(--gold-bright, #f0cf6e);
+}
+
+.campaign-badge-master {
+  border-color: #f59e0b;
+  background: linear-gradient(180deg, rgba(245, 158, 11, 0.25), rgba(180, 83, 9, 0.35));
+  color: #fef3c7;
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.2);
+}
+
+.campaign-detail-title {
+  margin: 10px 0 8px;
+  font-family: var(--font-display, serif);
+  font-size: 2.2rem;
+  color: var(--gold-bright, #f0cf6e);
+  letter-spacing: 0.04em;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+}
+
+.campaign-detail-desc {
+  color: var(--muted, rgba(236, 223, 192, 0.8));
+  font-size: 1.05rem;
+  line-height: 1.6;
+  max-width: 800px;
+  margin-bottom: 20px;
+}
+
+.campaign-actions-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(201, 162, 39, 0.2);
+}
+
+/* Dados da Campanha Grid */
+.campaign-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  margin-bottom: 28px;
+}
+
+.campaign-meta-card {
+  background: rgba(22, 16, 11, 0.65);
+  border: 1px solid rgba(201, 162, 39, 0.25);
+  border-radius: 6px;
+  padding: 12px 16px;
+}
+
+.campaign-meta-card span {
+  display: block;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted, rgba(236, 223, 192, 0.65));
+  margin-bottom: 4px;
+}
+
+.campaign-meta-card strong {
+  font-size: 1.15rem;
+  color: var(--parchment, #fff0cc);
+  font-family: var(--font-display, inherit);
+}
+
+.campaign-code-highlight {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.campaign-code-highlight strong {
+  font-size: 1.3rem;
+  color: var(--gold-bright, #f0cf6e);
+  letter-spacing: 0.1em;
+}
+
+.campaign-copy-btn {
+  font-size: 0.72rem;
+  padding: 3px 8px;
+}
+
+/* Seções e Painéis */
+.campaign-section {
+  border: 1px solid var(--border-bronze, rgba(201, 162, 39, 0.35));
+  background: rgba(20, 14, 9, 0.7);
+  border-radius: 8px;
+  padding: 22px;
+  margin-bottom: 24px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+}
+
+.campaign-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(201, 162, 39, 0.2);
+}
+
+.campaign-section-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.campaign-section-title h2 {
+  margin: 0;
+  font-family: var(--font-display, serif);
+  font-size: 1.4rem;
+  color: var(--gold-bright, #f0cf6e);
+}
+
+.campaign-section-badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 12px;
+  background: rgba(201, 162, 39, 0.15);
+  color: var(--gold-bright, #f0cf6e);
+}
+
+/* Painel do Mestre - Acompanhamento do Grupo */
+.party-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+  margin-top: 14px;
+}
+
+.party-char-card {
+  border: 1px solid rgba(201, 162, 39, 0.35);
+  background: linear-gradient(180deg, rgba(28, 20, 13, 0.9) 0%, rgba(16, 11, 7, 0.95) 100%);
+  border-radius: 6px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.party-char-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--gold-bright, #f0cf6e);
+}
+
+.party-char-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.party-char-portrait {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: 2px solid var(--gold-bright, #f0cf6e);
+  background: rgba(10, 7, 5, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.3rem;
+  font-weight: bold;
+  color: var(--gold-bright, #f0cf6e);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.party-char-portrait img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.party-char-info h3 {
+  margin: 0 0 2px;
+  font-size: 1.15rem;
+  color: var(--parchment, #fff0cc);
+  font-family: var(--font-display, serif);
+}
+
+.party-char-meta {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--muted, rgba(236, 223, 192, 0.7));
+}
+
+.party-char-stats-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 6px;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 6px 8px;
+  border-radius: 4px;
+  text-align: center;
+}
+
+.party-stat-mini span {
+  display: block;
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  color: var(--muted, rgba(236, 223, 192, 0.6));
+}
+
+.party-stat-mini strong {
+  font-size: 0.95rem;
+  color: var(--parchment, #fff0cc);
+}
+
+.party-char-vitals {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.party-char-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 8px;
+  border-top: 1px solid rgba(201, 162, 39, 0.15);
+}
+
+.party-char-actions .btn-primary {
+  flex: 1;
+  text-align: center;
+  text-decoration: none;
+  font-size: 0.82rem;
+  padding: 6px 12px;
+}
+
+/* Ferramenta de Recompensa do Mestre */
+.master-reward-box {
+  background: rgba(36, 24, 15, 0.5);
+  border: 1px dashed rgba(240, 207, 110, 0.4);
+  border-radius: 6px;
+  padding: 14px 18px;
+  margin-top: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.master-reward-info h4 {
+  margin: 0 0 4px;
+  color: var(--gold-bright, #f0cf6e);
+  font-size: 1rem;
+}
+
+.master-reward-info p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--muted, rgba(236, 223, 192, 0.7));
+}
+
+.master-reward-form {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.master-reward-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.master-reward-field label {
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted, rgba(236, 223, 192, 0.7));
+  font-weight: 600;
+}
+
+.master-reward-amount-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.master-reward-input {
+  width: 90px;
+  padding: 8px 10px;
+  border-radius: 4px;
+  border: 1px solid rgba(240, 207, 110, 0.4);
+  background: rgba(10, 7, 5, 0.85);
+  color: var(--gold-bright, #f0cf6e);
+  font-weight: 700;
+  font-size: 1rem;
+  text-align: right;
+}
+
+.master-reward-unit {
+  font-weight: bold;
+  color: var(--gold-bright, #f0cf6e);
+  font-size: 0.95rem;
+}
+
+.master-reward-select {
+  padding: 8px 12px;
+  border-radius: 4px;
+  border: 1px solid rgba(240, 207, 110, 0.4);
+  background: rgba(18, 12, 8, 0.9);
+  color: var(--parchment, #fff0cc);
+  font-weight: 600;
+  font-size: 0.9rem;
+  min-width: 220px;
+  cursor: pointer;
+  height: 38px;
+}
+
+.master-reward-select:focus {
+  border-color: var(--gold-bright, #f0cf6e);
+  outline: none;
+  box-shadow: 0 0 6px rgba(240, 207, 110, 0.3);
+}
+
+.master-reward-submit {
+  padding: 8px 16px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  height: 38px;
+  white-space: nowrap;
+}
+
+/* Empty states */
+.campaign-empty-banner {
+  text-align: center;
+  padding: 28px 16px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px dashed rgba(201, 162, 39, 0.25);
+  border-radius: 6px;
+  color: var(--muted, rgba(236, 223, 192, 0.75));
+}
+
+.campaign-empty-banner p {
+  margin: 0 0 12px;
+}

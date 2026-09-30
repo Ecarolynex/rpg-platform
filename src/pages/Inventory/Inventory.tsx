@@ -1,6 +1,12 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
-import { getInventory } from "../../services/api";
+import { Link, useParams } from "react-router-dom";
+import {
+  getCharacterById,
+  getCharacters,
+  getInventory,
+  listarPersonagensDaCampanha,
+} from "../../services/api";
+import type { Character } from "../../types/character";
 
 type InventoryItem = {
   personagem_id: string;
@@ -19,29 +25,70 @@ type InventoryItem = {
 };
 
 export default function Inventory() {
-  const { characterId } = useParams<{
-    characterId: string;
+  const { id, characterId } = useParams<{
+    id?: string;
+    characterId?: string;
   }>();
 
+  const [activeChar, setActiveChar] = useState<Character | null>(null);
+  const [partyChars, setPartyChars] = useState<Character[]>([]);
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    async function loadInventory() {
-      if (!characterId) {
-        setError("Personagem não identificado na URL.");
-        setLoading(false);
-        return;
-      }
-
+    async function loadData() {
       try {
         setLoading(true);
         setError("");
 
-        const data = await getInventory(characterId);
+        let targetCharId = characterId;
+
+        // Se characterId não foi passado, investiga se `id` é characterId ou campaignId
+        if (!targetCharId && id) {
+          try {
+            const char = await getCharacterById(id);
+            if (char) {
+              targetCharId = char.id;
+              setActiveChar(char);
+            }
+          } catch {
+            // id não era de um personagem, provavelmente é de uma campanha
+          }
+
+          if (!targetCharId) {
+            // Tenta carregar os personagens da campanha
+            const [daCampanha, meus] = await Promise.all([
+              listarPersonagensDaCampanha(id).catch(() => []),
+              getCharacters().catch(() => []),
+            ]);
+
+            setPartyChars(daCampanha);
+
+            // Procura o personagem do próprio usuário nesta campanha
+            const meu = meus.find((c) => c.campanhaId === id);
+            if (meu) {
+              targetCharId = meu.id;
+              setActiveChar(meu);
+            } else if (daCampanha[0]) {
+              targetCharId = daCampanha[0].id;
+              setActiveChar(daCampanha[0]);
+            }
+          }
+        } else if (targetCharId) {
+          const char = await getCharacterById(targetCharId).catch(() => null);
+          if (char) setActiveChar(char);
+        }
+
+        if (!targetCharId) {
+          setError("Nenhum personagem foi selecionado para visualizar o inventário.");
+          return;
+        }
+
+        const data = await getInventory(targetCharId);
 
         const normalizedItems: InventoryItem[] = data.map(
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           (row: any) => ({
             personagem_id: row.personagem_id,
             item_id: row.item_id,
@@ -56,7 +103,6 @@ export default function Inventory() {
         setItems(normalizedItems);
       } catch (err) {
         console.error("Erro ao carregar inventário:", err);
-
         setError(
           err instanceof Error
             ? err.message
@@ -67,58 +113,125 @@ export default function Inventory() {
       }
     }
 
-    loadInventory();
-  }, [characterId]);
+    loadData();
+  }, [id, characterId]);
 
   if (loading) {
-    return <p>Carregando inventário...</p>;
-  }
-
-  if (error) {
-    return <p>{error}</p>;
+    return (
+      <div style={{ maxWidth: 800, margin: "40px auto", padding: "0 16px" }}>
+        <p>Carregando inventário e pertences...</p>
+      </div>
+    );
   }
 
   return (
-    <section>
-      <h1>Inventário</h1>
+    <section style={{ maxWidth: 900, margin: "24px auto", padding: "0 16px" }}>
+      <div style={{ marginBottom: 16 }}>
+        {activeChar?.campanhaId ? (
+          <Link to={"/campanha/" + activeChar.campanhaId} className="btn-ghost" style={{ fontSize: "0.85rem", textDecoration: "none" }}>
+            ← Voltar para a Campanha
+          </Link>
+        ) : activeChar?.id ? (
+          <Link to={"/personagem/" + activeChar.id} className="btn-ghost" style={{ fontSize: "0.85rem", textDecoration: "none" }}>
+            ← Voltar para a Ficha
+          </Link>
+        ) : (
+          <Link to="/campanhas" className="btn-ghost" style={{ fontSize: "0.85rem", textDecoration: "none" }}>
+            ← Campanhas
+          </Link>
+        )}
+      </div>
 
-      {items.length === 0 ? (
-        <p>Seu inventário está vazio.</p>
+      <header style={{ borderBottom: "1px solid rgba(201, 162, 39, 0.3)", paddingBottom: 16, marginBottom: 20 }}>
+        <h1 style={{ fontFamily: "var(--font-display)", color: "var(--gold-bright)", margin: "0 0 6px" }}>
+          Inventário de Campanha
+        </h1>
+        {activeChar && (
+          <p style={{ color: "var(--muted)", margin: 0 }}>
+            Pertences e itens de <strong>{activeChar.nome}</strong> ({activeChar.raca} · {activeChar.classe})
+          </p>
+        )}
+      </header>
+
+      {/* Seletor de personagens caso existam múltiplos na campanha */}
+      {partyChars.length > 1 && (
+        <div style={{ marginBottom: 20, display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: "0.85rem", color: "var(--muted)" }}>Alternar aventureiro:</span>
+          {partyChars.map((p) => (
+            <Link
+              key={p.id}
+              to={id ? `/campanha/${id}/inventario/${p.id}` : `/personagem/${p.id}/inventario`}
+              className={p.id === activeChar?.id ? "btn-primary" : "btn-ghost"}
+              style={{ fontSize: "0.78rem", padding: "4px 10px", textDecoration: "none" }}
+            >
+              {p.nome}
+            </Link>
+          ))}
+        </div>
+      )}
+
+      {error ? (
+        <div style={{ padding: 16, background: "rgba(160, 30, 30, 0.2)", border: "1px solid #f87171", borderRadius: 6, color: "#fca5a5" }}>
+          <p style={{ margin: 0 }}>{error}</p>
+        </div>
+      ) : items.length === 0 ? (
+        <div style={{ padding: 32, textAlign: "center", background: "rgba(0, 0, 0, 0.25)", border: "1px dashed rgba(201, 162, 39, 0.3)", borderRadius: 8 }}>
+          <p style={{ color: "var(--muted)", margin: "0 0 12px" }}>O inventário deste personagem está vazio.</p>
+          {activeChar?.campanhaId && (
+            <Link to={"/campanha/" + activeChar.campanhaId + "/loja"} className="btn-primary" style={{ textDecoration: "none", fontSize: "0.85rem" }}>
+              Visitar o Mercado & Loja
+            </Link>
+          )}
+        </div>
       ) : (
-        <div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 14 }}>
           {items.map((item) => (
-            <article key={item.item_id}>
-              <h2>
-                {item.itens
-                  ? item.itens.nome
-                  : "Item desconhecido"}
-              </h2>
+            <article
+              key={item.item_id}
+              style={{
+                border: "1px solid rgba(201, 162, 39, 0.3)",
+                background: "rgba(22, 16, 11, 0.75)",
+                borderRadius: 6,
+                padding: 14,
+                display: "flex",
+                flexDirection: "column",
+                gap: 8,
+              }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+                <h2 style={{ fontSize: "1.1rem", margin: 0, color: "var(--parchment)", fontFamily: "var(--font-display)" }}>
+                  {item.itens ? item.itens.nome : "Item desconhecido"}
+                </h2>
+                <span style={{ fontSize: "0.8rem", fontWeight: "bold", background: "rgba(201, 162, 39, 0.2)", padding: "2px 8px", borderRadius: 4, color: "var(--gold-bright)" }}>
+                  x{item.quantidade}
+                </span>
+              </div>
 
-              <p>Quantidade: {item.quantidade}</p>
+              {item.itens?.tipo && (
+                <span style={{ fontSize: "0.72rem", textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--muted)" }}>
+                  {item.itens.tipo} {item.itens.raridade ? `· ${item.itens.raridade}` : ""}
+                </span>
+              )}
 
-              {item.itens?.tipo ? (
-                <p>Tipo: {item.itens.tipo}</p>
-              ) : null}
+              {item.itens?.descricao && (
+                <p style={{ fontSize: "0.85rem", color: "var(--muted)", margin: "4px 0 0", lineHeight: 1.4 }}>
+                  {item.itens.descricao}
+                </p>
+              )}
 
-              {item.itens?.raridade ? (
-                <p>Raridade: {item.itens.raridade}</p>
-              ) : null}
+              {item.itens?.efeito && (
+                <p style={{ fontSize: "0.8rem", color: "var(--gold-bright)", margin: "4px 0 0" }}>
+                  ✨ {item.itens.efeito}
+                </p>
+              )}
 
-              {item.itens?.descricao ? (
-                <p>{item.itens.descricao}</p>
-              ) : null}
-
-              {item.itens?.efeito ? (
-                <p>Efeito: {item.itens.efeito}</p>
-              ) : null}
-
-              {item.itens?.imagem_url ? (
+              {item.itens?.imagem_url && (
                 <img
                   src={item.itens.imagem_url}
                   alt={item.itens.nome}
-                  width={120}
+                  style={{ width: "100%", maxHeight: 120, objectFit: "cover", borderRadius: 4, marginTop: "auto" }}
                 />
-              ) : null}
+              )}
             </article>
           ))}
         </div>
