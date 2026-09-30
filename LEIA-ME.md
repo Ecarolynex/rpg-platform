@@ -1,4 +1,4 @@
-# Frontend do Aldermoor — como integrar
+# Frontend do Elementum — como integrar
 
 ## 1. Instalar dependência nova
 Este frontend usa rotas, então instale o React Router no seu projeto:
@@ -51,7 +51,7 @@ o formato do seu backend.
 - Paleta e tokens de cor ficam em `src/index.css` (`:root`), então dá
   para ajustar o tom geral (mais escuro, mais dourado etc.) em um só
   lugar.
-- "Aldermoor" é um nome de exemplo — troque pelo nome do seu mundo em
+- "Elementum" é um nome de exemplo — troque pelo nome do seu mundo em
   `Login.tsx` e `AppShell.tsx`.
 
 ## 7. Próximos passos sugeridos

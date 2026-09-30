@@ -27,7 +27,7 @@ export const mockCharacters: Character[] = [
       { id: "i3", nome: "Ração de viagem", quantidade: 6 },
     ],
     spells: [],
-    notas: "Ex-soldado do exército de Aldermoor, busca vingança contra o Barão Negro.",
+    notas: "Ex-soldado do exército de Elementum, busca vingança contra o Barão Negro.",
   },
   {
     id: "2",

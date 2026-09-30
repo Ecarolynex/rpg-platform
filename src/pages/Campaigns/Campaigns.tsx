@@ -18,6 +18,7 @@ export default function Campaigns() {
   const [descricao, setDescricao] = useState("");
   const [sistema, setSistema] = useState("");
   const [moeda, setMoeda] = useState("");
+  const [ouroInicial, setOuroInicial] = useState("1250");
 
   const [codigo, setCodigo] = useState("");
 
@@ -62,6 +63,7 @@ export default function Campaigns() {
         descricao,
         sistema,
         moeda_principal: moeda,
+        ouro_inicial: Number(ouroInicial),
       });
 
       setCodigoCriado(campanha.codigo_convite);
@@ -71,6 +73,7 @@ export default function Campaigns() {
       setDescricao("");
       setSistema("");
       setMoeda("");
+      setOuroInicial("1250");
 
       await carregarCampanhas();
     } catch (error) {
@@ -206,6 +209,11 @@ export default function Campaigns() {
                         {campanha.moeda_principal ||
                           "Não informada"}
                       </span>
+
+                      <span>
+                        Ouro inicial por jogador:{" "}
+                        {campanha.ouro_inicial ?? 1250} PO
+                      </span>
                     </div>
 
                     <button
@@ -291,7 +299,7 @@ export default function Campaigns() {
                   onChange={(event) =>
                     setNome(event.target.value)
                   }
-                  placeholder="Ex.: As Ruínas de Aldermoor"
+                  placeholder="Ex.: As Ruínas de Elementum"
                   required
                 />
               </label>
@@ -317,6 +325,21 @@ export default function Campaigns() {
                     setMoeda(event.target.value)
                   }
                   placeholder="Ex.: Ouro"
+                />
+              </label>
+
+              <label className="campaign-field">
+                <span>Ouro inicial por jogador</span>
+
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={ouroInicial}
+                  onChange={(event) =>
+                    setOuroInicial(event.target.value)
+                  }
+                  required
                 />
               </label>
 

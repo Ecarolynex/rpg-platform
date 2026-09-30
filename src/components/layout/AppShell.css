@@ -74,27 +74,54 @@
   .app-shell {
     flex-direction: column;
   }
+
   .app-sidebar {
     width: auto;
+    min-width: 0;
+    flex-wrap: wrap;
     flex-direction: row;
     align-items: center;
     padding: 14px 18px;
   }
+
   .app-sidebar-brand {
     border: none;
     margin: 0;
     padding: 0;
   }
+
   .app-sidebar-nav {
+    order: 3;
     flex-direction: row;
-    flex-grow: 0;
+    flex: 1 1 100%;
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: auto;
+    padding-bottom: 4px;
   }
+
+  .app-sidebar-nav a {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+
   .app-sidebar-footer {
     border: none;
     flex-direction: row;
     margin-left: auto;
+    flex: 0 0 auto;
   }
+
+  .app-sidebar-footer .btn-ghost {
+    width: auto;
+    min-width: 0;
+    padding: 8px 10px;
+  }
+
   .app-content {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
     padding: 24px 20px;
   }
 }

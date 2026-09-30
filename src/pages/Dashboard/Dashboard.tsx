@@ -105,7 +105,7 @@ export default function Dashboard() {
               <span className="creator-kicker">Ficha de aventura</span>
               <h2>Criação de personagem</h2>
             </div>
-            <span className="creator-badge">Aldermoor</span>
+            <span className="creator-badge">Elementum</span>
           </div>
 
           <div className="creator-layout">
@@ -214,7 +214,7 @@ export default function Dashboard() {
                     value={draft.historia}
                     onChange={(event) => updateDraft("historia", event.target.value)}
                     rows={4}
-                    placeholder="Descreva como ele chegou ao mundo de Aldermoor..."
+                    placeholder="Descreva como ele chegou ao mundo de Elementum..."
                   />
                 </label>
                 <label className="field field-wide">

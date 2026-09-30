@@ -93,7 +93,7 @@ export default function Login() {
                 <Crest size={40} />
               </div>
               <div>
-                <h2>Aldermoor</h2>
+                <h2>Elementum</h2>
                 <p>Crônicas e fichas do seu reino</p>
               </div>
             </div>

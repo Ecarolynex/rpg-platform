@@ -6,6 +6,7 @@ import Dashboard from "./pages/Dashboard/Dashboard";
 import CharacterSheet from "./pages/CharacterSheet/CharacterSheet";
 import Campaigns from "./pages/Campaigns/Campaigns";
 import Campaign from "./pages/Campaign/Campaign";
+import Shop from "./pages/Shop/Shop";
 
 function App() {
   return (
@@ -21,7 +22,10 @@ function App() {
       >
         <Route path="/" element={<Dashboard />} />
         <Route path="/campanhas" element={<Campaigns />} />
+        <Route path="/loja" element={<Shop />} />
         <Route path="/campanha/:id" element={<Campaign />} />
+        <Route path="/campanha/:id/loja/carrinho" element={<Shop />} />
+        <Route path="/campanha/:id/loja" element={<Shop />} />
         <Route path="/personagem/:id" element={<CharacterSheet />} />
       </Route>
     </Routes>

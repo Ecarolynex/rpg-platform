@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { listarMinhasCampanhas, type Campaign } from "../../services/api";
 
 export default function Campaign() {
@@ -67,14 +67,20 @@ export default function Campaign() {
       </p>
 
       <p>
+        <strong>Ouro inicial por jogador:</strong> {campaign.ouro_inicial ?? 1250} PO
+      </p>
+
+      <p>
         <strong>Status:</strong> {campaign.status}
       </p>
 
       <hr />
 
+      <Link to={`/campanha/${campaign.id}/loja`}>
+        <button type="button">Loja</button>
+      </Link>
       <button>Jogadores</button>
       <button>Personagens</button>
-      <button>Lojas</button>
       <button>Economia</button>
       <button>Recompensas</button>
       <button>Histórico</button>

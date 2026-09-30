@@ -12,7 +12,7 @@ export function AppShell() {
       <aside className="app-sidebar">
         <div className="app-sidebar-brand">
           <Crest size={30} />
-          <span>Aldermoor</span>
+          <span>Elementum</span>
         </div>
 
         <nav className="app-sidebar-nav">
@@ -22,6 +22,10 @@ export function AppShell() {
 
           <NavLink to="/campanhas">
             Campanhas
+          </NavLink>
+
+          <NavLink to="/loja">
+            Loja
           </NavLink>
 
           <NavLink to="/bestiario">

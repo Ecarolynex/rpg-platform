@@ -176,6 +176,7 @@ export interface Campaign {
   codigo_convite: string;
   created_by: string;
   created_at: string;
+  ouro_inicial: number;
 }
 
 function gerarCodigoConvite(): string {
@@ -200,6 +201,7 @@ export async function criarCampanha(dados: {
   descricao: string;
   sistema: string;
   moeda_principal: string;
+  ouro_inicial: number;
 }): Promise<Campaign> {
   const {
     data: { user },
@@ -219,6 +221,7 @@ export async function criarCampanha(dados: {
         descricao: dados.descricao.trim() || null,
         sistema: dados.sistema.trim() || null,
         moeda_principal: dados.moeda_principal.trim() || null,
+        ouro_inicial: Math.max(0, Math.floor(dados.ouro_inicial)),
         codigo_convite: codigo,
         created_by: user.id,
         status: "ATIVA",
@@ -392,4 +395,44 @@ export async function entrarNaCampanha(
   }
 
   return campanha as Campaign;
+}
+
+export async function getCampaignAccess(campaignId: string): Promise<{
+  isMaster: boolean;
+  startingGold: number;
+}> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { isMaster: false, startingGold: 1250 };
+  }
+
+  const { data: membership, error: membershipError } = await supabase
+    .from("campanha_membros")
+    .select("papel")
+    .eq("campanha_id", campaignId)
+    .eq("user_id", user.id)
+    .eq("status", "ATIVO")
+    .maybeSingle();
+
+  if (membershipError) {
+    throw new Error(membershipError.message || "Não foi possível verificar seu papel na campanha.");
+  }
+
+  const { data: campaign, error: campaignError } = await supabase
+    .from("campanhas")
+    .select("*")
+    .eq("id", campaignId)
+    .maybeSingle();
+
+  if (campaignError) {
+    throw new Error(campaignError.message || "Não foi possível carregar a economia da campanha.");
+  }
+
+  return {
+    isMaster: membership?.papel === "MESTRE",
+    startingGold: campaign?.ouro_inicial ?? 1250,
+  };
 }

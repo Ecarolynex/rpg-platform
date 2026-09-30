@@ -22,4 +22,15 @@ describe('Dashboard', () => {
     expect(screen.getByLabelText(/classe/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/história do personagem/i)).toBeInTheDocument();
   });
+
+  it('mantém a dashboard limpa e não exibe a loja como bloco principal', () => {
+    render(
+      <MemoryRouter>
+        <Dashboard />
+      </MemoryRouter>,
+    );
+
+    expect(screen.queryByRole('heading', { name: /mercado da campanha/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /publicar carta/i })).not.toBeInTheDocument();
+  });
 });
