@@ -141,7 +141,6 @@ export default function Dashboard() {
         ? await enviarRetrato(portraitFile)
         : undefined;
 
-      const campanha = campaigns.find((c) => c.id === selectedCampaignId);
       const nivel = Number(draft.nivel) || 1;
       const classe = draft.classe || "Aventureiro";
       const vidaMaxima = calcularVidaMaxima(
@@ -178,7 +177,7 @@ export default function Dashboard() {
         skills: [],
         inventory: [],
         spells: [],
-        carteira: carteiraInicial(campanha?.ouro_inicial ?? 0),
+        carteira: carteiraInicial(0),
         notas: "",
       };
 

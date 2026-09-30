@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   atualizarPersonagem,
+  excluirCampanha,
   getCampaignAccess,
   getCharacters,
   listarMinhasCampanhas,
@@ -16,6 +17,7 @@ import "./Campaign.css";
 
 export default function Campaign() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
 
   const [campaign, setCampaign] = useState<Campaign | null>(null);
   const [loading, setLoading] = useState(true);
@@ -28,6 +30,9 @@ export default function Campaign() {
   const [escolhido, setEscolhido] = useState("");
 
   const [vinculando, setVinculando] = useState(false);
+  const [confirmandoExclusao, setConfirmandoExclusao] = useState(false);
+  const [excluindo, setExcluindo] = useState(false);
+  const [erroExclusao, setErroExclusao] = useState("");
   const [mensagem, setMensagem] = useState("");
   const [versao, setVersao] = useState(0);
 
@@ -162,6 +167,26 @@ export default function Campaign() {
     setCopiado(true);
     setTimeout(() => setCopiado(false), 2000);
   };
+
+  async function handleExcluirCampanha() {
+    if (!id || !isMaster || excluindo) return;
+
+    setExcluindo(true);
+    setErroExclusao("");
+
+    try {
+      await excluirCampanha(id);
+      navigate("/campanhas", { replace: true });
+    } catch (error) {
+      setErroExclusao(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível excluir a campanha.",
+      );
+    } finally {
+      setExcluindo(false);
+    }
+  }
 
   if (loading) {
     return (
@@ -520,6 +545,66 @@ export default function Campaign() {
               <CharacterCard key={personagem.id} character={personagem} />
             ))}
           </div>
+        </section>
+      )}
+      <nav className="campaign-overview-actions" aria-label="Ações da campanha">
+        <Link className="btn-primary" to={"/campanha/" + campaign.id + "/loja"}>
+          Ir para a loja
+        </Link>
+      </nav>
+
+      {isMaster && (
+        <section className="campaign-danger-zone" aria-labelledby="campaign-danger-title">
+          <div>
+            <h2 id="campaign-danger-title">Zona de perigo</h2>
+            <p>A exclusão remove a campanha e não pode ser desfeita.</p>
+          </div>
+
+          {!confirmandoExclusao ? (
+            <button
+              type="button"
+              className="campaign-delete-trigger"
+              onClick={() => {
+                setErroExclusao("");
+                setConfirmandoExclusao(true);
+              }}
+            >
+              Excluir campanha
+            </button>
+          ) : (
+            <div
+              className="campaign-delete-confirmation"
+              role="alertdialog"
+              aria-labelledby="campaign-delete-confirm-title"
+              aria-describedby="campaign-delete-confirm-description"
+            >
+              <div>
+                <h3 id="campaign-delete-confirm-title">Excluir “{campaign.nome}”?</h3>
+                <p id="campaign-delete-confirm-description">
+                  Esta ação é permanente. Confirme somente se deseja apagar esta campanha.
+                </p>
+              </div>
+              {erroExclusao && <p className="campaign-delete-error" role="alert">{erroExclusao}</p>}
+              <div className="campaign-delete-confirm-actions">
+                <button
+                  type="button"
+                  className="btn-ghost"
+                  onClick={() => setConfirmandoExclusao(false)}
+                  disabled={excluindo}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  className="campaign-delete-confirm-button"
+                  onClick={() => void handleExcluirCampanha()}
+                  disabled={excluindo}
+                >
+                  {excluindo ? "Excluindo..." : "Confirmar exclusão"}
+                </button>
+              </div>
+            </div>
+          )}
         </section>
       )}
     </div>

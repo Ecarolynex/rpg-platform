@@ -3,14 +3,9 @@ import { Link, useLocation, useParams } from "react-router-dom";
 import {
   getCampaignAccess,
   getCharacters,
-  listarItensDaLoja,
   listarMinhasCampanhas,
-  comprarItem,
 } from "../../services/api";
-import type {
-  Campaign,
-  ShopItem as ApiShopItem,
-} from "../../services/api";
+import type { Campaign } from "../../services/api";
 import type { Character } from "../../types/character";
 import "./Shop.css";
 
@@ -28,6 +23,8 @@ interface ShopItem {
     | "Lendário";
   descricao: string;
   efeitos: string[];
+  atributo?: string;
+  bonus?: number;
   preco: number;
   moeda: string;
   estoque: number;
@@ -58,8 +55,144 @@ const RARIDADES = [
   "Lendário",
 ];
 
+const ATRIBUTOS = [
+  "Força",
+  "Destreza",
+  "Constituição",
+  "Inteligência",
+  "Sabedoria",
+  "Carisma",
+];
+
+const initialItemDraft = {
+  nome: "",
+  categoria: "Armas",
+  subcategoria: "",
+  raridade: "Comum" as ShopItem["raridade"],
+  descricao: "",
+  efeitos: "",
+  atributo: "",
+  bonus: "0",
+  preco: "",
+  estoque: "1",
+  imagem: "",
+};
+
+const defaultItems: ShopItem[] = [
+  {
+    id: "item-espada",
+    campaignId: "",
+    nome: "Espada do Crepúsculo",
+    categoria: "Armas",
+    subcategoria: "Espadas",
+    raridade: "Épico",
+    descricao: "Uma lâmina forjada em sombra e orvalho.",
+    efeitos: ["+15 Dano Sombrio", "+5 Força"],
+    atributo: "Força",
+    bonus: 5,
+    preco: 750,
+    moeda: "PO",
+    estoque: 5,
+    disponivel: true,
+    imagem: "",
+  },
+  {
+    id: "item-pocao",
+    campaignId: "",
+    nome: "Poção de Cura",
+    categoria: "Poções",
+    subcategoria: "Cura",
+    raridade: "Comum",
+    descricao: "Um frasco de ervas que restaura o vigor do aventureiro.",
+    efeitos: ["Cura 25 HP", "Recupera energia"],
+    preco: 80,
+    moeda: "PO",
+    estoque: 12,
+    disponivel: true,
+    imagem: "",
+  },
+  {
+    id: "item-amuleto",
+    campaignId: "",
+    nome: "Amuleto do Pescador",
+    categoria: "Acessórios",
+    subcategoria: "Amuletos",
+    raridade: "Incomum",
+    descricao: "Uma joia simples que guarda o espírito do caminho de volta ao lar.",
+    efeitos: ["+2 Sabedoria", "+1 Resistência"],
+    atributo: "Sabedoria",
+    bonus: 2,
+    preco: 180,
+    moeda: "PO",
+    estoque: 3,
+    disponivel: true,
+    imagem: "",
+  },
+];
+
+function getShopStorageKey(campaignId: string) {
+  return `rpg-platform-shop-${campaignId}`;
+}
+
+function getGoldStorageKey(campaignId: string) {
+  return `rpg-platform-gold-${campaignId}`;
+}
+
 function getCartStorageKey(campaignId: string) {
   return `rpg-platform-cart-${campaignId}`;
+}
+
+function getDefaultItems(campaignId: string): ShopItem[] {
+  return defaultItems.map((item) => ({
+    ...item,
+    id: `${campaignId}-${item.id}`,
+    campaignId,
+  }));
+}
+
+function normalizeShopItem(item: ShopItem): ShopItem {
+  if (item.atributo && item.bonus !== undefined) {
+    return item;
+  }
+
+  const effectWithAttribute = (item.efeitos ?? [])
+    .map((effect) => effect.match(/^\s*([+-]?\d+)\s+(Força|Destreza|Constituição|Inteligência|Sabedoria|Carisma)\s*$/i))
+    .find(Boolean);
+
+  return {
+    ...item,
+    atributo: item.atributo ?? effectWithAttribute?.[2],
+    bonus: item.bonus ?? (effectWithAttribute ? Number(effectWithAttribute[1]) : undefined),
+  };
+}
+
+function readStoredItems(campaignId: string): ShopItem[] {
+  if (typeof window === "undefined") {
+    return getDefaultItems(campaignId);
+  }
+
+  const saved = window.localStorage.getItem(getShopStorageKey(campaignId));
+  if (saved === null) {
+    return getDefaultItems(campaignId);
+  }
+
+  try {
+    const parsed = JSON.parse(saved) as ShopItem[];
+    return Array.isArray(parsed)
+      ? parsed.map(normalizeShopItem)
+      : getDefaultItems(campaignId);
+  } catch {
+    return getDefaultItems(campaignId);
+  }
+}
+
+function readStoredGold(campaignId: string): number {
+  if (typeof window === "undefined") {
+    return 0;
+  }
+
+  const saved = window.localStorage.getItem(getGoldStorageKey(campaignId));
+  return saved !== null && Number.isFinite(Number(saved)) ? Number(saved) : 0;
 }
 
 function readStoredCart(campaignId: string): CartEntry[] {
@@ -80,112 +213,16 @@ function readStoredCart(campaignId: string): CartEntry[] {
   }
 }
 
-function mapRarity(
-  value: string | null,
-): ShopItem["raridade"] {
-  switch ((value ?? "").toUpperCase()) {
-    case "COMUM":
-      return "Comum";
-
-    case "INCOMUM":
-      return "Incomum";
-
-    case "RARO":
-      return "Raro";
-
-    case "EPICO":
-    case "ÉPICO":
-      return "Épico";
-
-    case "LENDARIO":
-    case "LENDÁRIO":
-      return "Lendário";
-
-    default:
-      return "Comum";
-  }
-}
-
-function mapCategory(
-  tipo: string | null,
-): {
-  categoria: string;
-  subcategoria: string;
-} {
-  switch ((tipo ?? "").toUpperCase()) {
-    case "ARMA":
-      return {
-        categoria: "Armas",
-        subcategoria: "Equipamentos",
-      };
-
-    case "ARMADURA":
-      return {
-        categoria: "Armaduras",
-        subcategoria: "Equipamentos",
-      };
-
-    case "CONSUMIVEL":
-    case "CONSUMÍVEL":
-      return {
-        categoria: "Poções",
-        subcategoria: "Consumíveis",
-      };
-
-    case "ACESSORIO":
-    case "ACESSÓRIO":
-      return {
-        categoria: "Acessórios",
-        subcategoria: "Acessórios",
-      };
-
-    default:
-      return {
-        categoria: "Diversos",
-        subcategoria: "Outros",
-      };
-  }
-}
-
-function convertApiItem(
-  item: ApiShopItem,
-): ShopItem {
-  const category = mapCategory(item.tipo);
-
-  return {
-    id: item.id,
-    campaignId: item.campanhaId,
-    nome: item.nome,
-    categoria: category.categoria,
-    subcategoria: category.subcategoria,
-    raridade: mapRarity(item.raridade),
-    descricao: item.descricao ?? "",
-    efeitos: item.efeito
-      ? item.efeito
-          .split(/\r?\n/)
-          .map((effect) => effect.trim())
-          .filter(Boolean)
-      : [],
-    preco: Number(item.precoCompra),
-    moeda: "PO",
-    estoque: Number(item.estoque),
-    disponivel:
-      item.ativo && Number(item.estoque) > 0,
-    imagem: item.imagemUrl ?? "",
-  };
-}
-
 export default function Shop() {
   const { id } = useParams();
   const location = useLocation();
 
   const campaignId = id ?? "campanha-demo";
 
-  const [items, setItems] = useState<ShopItem[]>([]);
-  const [loadingItems, setLoadingItems] =
-    useState(Boolean(id));
-  const [itemsError, setItemsError] =
-    useState("");
+  const [items, setItems] = useState<ShopItem[]>(
+    () => readStoredItems(campaignId),
+  );
+  const [gold, setGold] = useState(() => readStoredGold(campaignId));
 
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] =
@@ -201,14 +238,16 @@ export default function Shop() {
 
   const [checkoutMessage, setCheckoutMessage] =
     useState("");
-  const [checkoutLoading, setCheckoutLoading] =
-    useState(false);
+  const checkoutLoading = false;
 
   const [selectedItem, setSelectedItem] =
     useState<ShopItem | null>(null);
 
   const [isMaster, setIsMaster] =
     useState(false);
+  const [showItemForm, setShowItemForm] = useState(false);
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [itemDraft, setItemDraft] = useState(initialItemDraft);
 
   const [characters, setCharacters] =
     useState<Character[]>([]);
@@ -221,35 +260,6 @@ export default function Shop() {
     useState(!id);
   const [campaignsError, setCampaignsError] =
     useState("");
-
-  async function loadShopItems() {
-    if (!id) {
-      return;
-    }
-
-    setLoadingItems(true);
-    setItemsError("");
-
-    try {
-      const data =
-        await listarItensDaLoja(campaignId);
-
-      const converted =
-        data.map(convertApiItem);
-
-      setItems(converted);
-    } catch (error) {
-      setItemsError(
-        error instanceof Error
-          ? error.message
-          : "Não foi possível carregar os itens da loja.",
-      );
-
-      setItems([]);
-    } finally {
-      setLoadingItems(false);
-    }
-  }
 
   useEffect(() => {
     getCharacters()
@@ -264,10 +274,6 @@ export default function Shop() {
         setCharacters([]);
       });
   }, []);
-
-  useEffect(() => {
-    loadShopItems();
-  }, [campaignId, id]);
 
   useEffect(() => {
     if (id) {
@@ -327,6 +333,24 @@ export default function Shop() {
       active = false;
     };
   }, [campaignId, id]);
+
+  useEffect(() => {
+    if (id && typeof window !== "undefined") {
+      window.localStorage.setItem(
+        getShopStorageKey(campaignId),
+        JSON.stringify(items),
+      );
+    }
+  }, [campaignId, id, items]);
+
+  useEffect(() => {
+    if (id && typeof window !== "undefined") {
+      window.localStorage.setItem(
+        getGoldStorageKey(campaignId),
+        String(gold),
+      );
+    }
+  }, [campaignId, gold, id]);
 
   useEffect(() => {
     if (
@@ -530,15 +554,8 @@ export default function Shop() {
     );
   };
 
-  const checkout = async () => {
+  const checkout = () => {
     if (!cartRows.length) {
-      return;
-    }
-
-    if (!activeCharacter) {
-      window.alert(
-        "Você precisa ter um personagem para realizar a compra.",
-      );
       return;
     }
 
@@ -554,41 +571,103 @@ export default function Shop() {
         `O estoque de ${unavailableEntry.item.nome} mudou. Atualize a loja e tente novamente.`,
       );
 
-      await loadShopItems();
       return;
     }
 
-    setCheckoutLoading(true);
-    setCheckoutMessage("");
-
-    try {
-      for (const entry of cartRows) {
-        await comprarItem(
-          activeCharacter.id,
-          entry.item.id,
-          entry.quantity,
-        );
-      }
-
-      setCart([]);
-
-      setCheckoutMessage(
-        "Compra concluída. Os itens foram entregues ao personagem.",
-      );
-
-      await loadShopItems();
-    } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : "Não foi possível concluir a compra.";
-
-      window.alert(message);
-
-      await loadShopItems();
-    } finally {
-      setCheckoutLoading(false);
+    if (gold < cartTotal) {
+      window.alert(`Ouro insuficiente. Você tem ${gold} PO e precisa de ${cartTotal} PO.`);
+      return;
     }
+
+    setGold((current) => current - cartTotal);
+    setItems((current) => current.map((item) => {
+      const entry = cartRows.find((row) => row.item.id === item.id);
+      return entry ? { ...item, estoque: item.estoque - entry.quantity } : item;
+    }));
+    setCart([]);
+    setCheckoutMessage("Compra concluída. Os itens foram entregues ao personagem.");
+  };
+
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+
+    if (!file) return;
+
+    if (file.type !== "image/png") {
+      window.alert("A imagem da carta deve ser um arquivo PNG.");
+      event.target.value = "";
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setItemDraft((current) => ({
+        ...current,
+        imagem: typeof reader.result === "string" ? reader.result : "",
+      }));
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleItemSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    const nextItem: ShopItem = {
+      id: editingItemId ?? `item-${Date.now()}`,
+      campaignId,
+      nome: itemDraft.nome.trim(),
+      categoria: itemDraft.categoria,
+      subcategoria: itemDraft.subcategoria.trim(),
+      raridade: itemDraft.raridade,
+      descricao: itemDraft.descricao.trim(),
+      efeitos: itemDraft.efeitos.split("\n").map((effect) => effect.trim()).filter(Boolean),
+      atributo: itemDraft.atributo || undefined,
+      bonus: itemDraft.atributo ? Number(itemDraft.bonus) : undefined,
+      preco: Number(itemDraft.preco),
+      moeda: "PO",
+      estoque: Number(itemDraft.estoque),
+      disponivel: editingItemId
+        ? items.find((item) => item.id === editingItemId)?.disponivel ?? true
+        : true,
+      imagem: itemDraft.imagem,
+    };
+
+    setItems((current) => editingItemId
+      ? current.map((item) => item.id === editingItemId ? nextItem : item)
+      : [nextItem, ...current]);
+    setItemDraft(initialItemDraft);
+    setEditingItemId(null);
+    setShowItemForm(false);
+  };
+
+  const editItem = (item: ShopItem) => {
+    setItemDraft({
+      nome: item.nome,
+      categoria: item.categoria,
+      subcategoria: item.subcategoria,
+      raridade: item.raridade,
+      descricao: item.descricao,
+      efeitos: item.efeitos.join("\n"),
+      atributo: item.atributo ?? "",
+      bonus: String(item.bonus ?? 0),
+      preco: String(item.preco),
+      estoque: String(item.estoque),
+      imagem: item.imagem ?? "",
+    });
+    setEditingItemId(item.id);
+    setShowItemForm(true);
+  };
+
+  const closeItemForm = () => {
+    setShowItemForm(false);
+    setEditingItemId(null);
+    setItemDraft(initialItemDraft);
+  };
+
+  const toggleItemAvailability = (itemId: string) => {
+    setItems((current) => current.map((item) =>
+      item.id === itemId ? { ...item, disponivel: !item.disponivel } : item,
+    ));
   };
 
   if (!id) {
@@ -691,7 +770,7 @@ export default function Shop() {
             </span>
 
             <strong>
-              PO • Ouro
+              {gold} PO
             </strong>
           </div>
         </header>
@@ -888,7 +967,7 @@ export default function Shop() {
             </span>
 
             <strong>
-              PO • Ouro
+              {gold} PO
             </strong>
           </div>
 
@@ -1028,13 +1107,136 @@ export default function Shop() {
             </h2>
 
             <p>
-              O catálogo global de
-              itens será conectado à
-              administração da campanha
-              na próxima etapa.
+              Publique cartas, ajuste preços e estoque para esta campanha.
             </p>
           </div>
+          <button
+            type="button"
+            className="shop-admin-button"
+            onClick={() => showItemForm ? closeItemForm() : setShowItemForm(true)}
+          >
+            {showItemForm ? "Cancelar" : "+ Adicionar carta"}
+          </button>
         </section>
+      )}
+
+      {isMaster && showItemForm && (
+        <form className="shop-item-form" onSubmit={handleItemSubmit}>
+          <h3>{editingItemId ? "Editar carta da loja" : "Nova carta da loja"}</h3>
+          <div className="shop-item-form-grid">
+            <label>
+              Nome da carta
+              <input
+                required
+                value={itemDraft.nome}
+                onChange={(event) => setItemDraft((current) => ({ ...current, nome: event.target.value }))}
+              />
+            </label>
+            <label>
+              Categoria
+              <select
+                value={itemDraft.categoria}
+                onChange={(event) => setItemDraft((current) => ({ ...current, categoria: event.target.value }))}
+              >
+                {CATEGORIAS.slice(1).map((category) => <option key={category}>{category}</option>)}
+              </select>
+            </label>
+            <label>
+              Subcategoria
+              <input
+                required
+                value={itemDraft.subcategoria}
+                onChange={(event) => setItemDraft((current) => ({ ...current, subcategoria: event.target.value }))}
+              />
+            </label>
+            <label>
+              Raridade
+              <select
+                value={itemDraft.raridade}
+                onChange={(event) => setItemDraft((current) => ({ ...current, raridade: event.target.value as ShopItem["raridade"] }))}
+              >
+                {RARIDADES.slice(1).map((rarity) => <option key={rarity}>{rarity}</option>)}
+              </select>
+            </label>
+            <label>
+              Atributo concedido
+              <select
+                value={itemDraft.atributo}
+                required={Number(itemDraft.bonus) !== 0}
+                onChange={(event) => setItemDraft((current) => ({ ...current, atributo: event.target.value }))}
+              >
+                <option value="">Nenhum</option>
+                {ATRIBUTOS.map((attribute) => <option key={attribute}>{attribute}</option>)}
+              </select>
+            </label>
+            <label>
+              Bônus do atributo
+              <input
+                type="number"
+                step="1"
+                value={itemDraft.bonus}
+                onChange={(event) => setItemDraft((current) => ({ ...current, bonus: event.target.value }))}
+              />
+            </label>
+            <label>
+              Preço em PO
+              <input
+                required
+                type="number"
+                min="0"
+                value={itemDraft.preco}
+                onChange={(event) => setItemDraft((current) => ({ ...current, preco: event.target.value }))}
+              />
+            </label>
+            <label>
+              Estoque
+              <input
+                required
+                type="number"
+                min="0"
+                value={itemDraft.estoque}
+                onChange={(event) => setItemDraft((current) => ({ ...current, estoque: event.target.value }))}
+              />
+            </label>
+            <label className="shop-item-form-wide">
+              Imagem da carta (PNG)
+              <input
+                required={!editingItemId}
+                type="file"
+                accept="image/png"
+                onChange={handleImageUpload}
+              />
+            </label>
+            {itemDraft.imagem && (
+              <img className="shop-item-image-preview" src={itemDraft.imagem} alt="Prévia da carta" />
+            )}
+            <label className="shop-item-form-wide">
+              Descrição
+              <textarea
+                required
+                rows={3}
+                value={itemDraft.descricao}
+                onChange={(event) => setItemDraft((current) => ({ ...current, descricao: event.target.value }))}
+              />
+            </label>
+            <label className="shop-item-form-wide">
+              Efeitos (um por linha)
+              <textarea
+                rows={3}
+                value={itemDraft.efeitos}
+                onChange={(event) => setItemDraft((current) => ({ ...current, efeitos: event.target.value }))}
+              />
+            </label>
+          </div>
+          <div className="shop-item-form-actions">
+            <button className="shop-admin-button" type="submit">
+              {editingItemId ? "Salvar alterações" : "Publicar carta"}
+            </button>
+            <button className="btn-ghost" type="button" onClick={closeItemForm}>
+              Cancelar
+            </button>
+          </div>
+        </form>
       )}
 
       <aside className="shop-sidebar">
@@ -1137,31 +1339,7 @@ export default function Shop() {
           className="shop-catalogue"
           aria-live="polite"
         >
-          {loadingItems ? (
-            <div className="shop-empty">
-              <h3>
-                Carregando loja...
-              </h3>
-
-              <p>
-                Buscando os itens
-                cadastrados nesta
-                campanha.
-              </p>
-            </div>
-          ) : itemsError ? (
-            <div className="shop-empty">
-              <h3>
-                Não foi possível
-                carregar a loja
-              </h3>
-
-              <p role="alert">
-                {itemsError}
-              </p>
-            </div>
-          ) : filteredItems.length ===
-            0 ? (
+          {filteredItems.length === 0 ? (
             <div className="shop-empty">
               <h3>
                 Nenhum item
@@ -1230,6 +1408,13 @@ export default function Shop() {
                       }
                     </p>
 
+                    {item.atributo && item.bonus !== undefined && (
+                      <div className="shop-card-bonus">
+                        <span>Bônus</span>
+                        <strong>{item.bonus > 0 ? "+" : ""}{item.bonus} {item.atributo}</strong>
+                      </div>
+                    )}
+
                     <div className="shop-price-row">
                       <strong>
                         {item.preco} PO
@@ -1280,6 +1465,17 @@ export default function Shop() {
                           : "Sem estoque"}
                       </button>
                     </div>
+
+                    {isMaster && (
+                      <div className="shop-master-actions">
+                        <button type="button" className="btn-secondary" onClick={() => editItem(item)}>
+                          Editar
+                        </button>
+                        <button type="button" className="btn-ghost small" onClick={() => toggleItemAvailability(item.id)}>
+                          {item.disponivel ? "Desativar" : "Ativar"}
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </article>
               ),
@@ -1364,6 +1560,13 @@ export default function Shop() {
                     selectedItem.raridade
                   }
                 </p>
+
+                {selectedItem.atributo && selectedItem.bonus !== undefined && (
+                  <div className="shop-modal-bonus">
+                    <span>Bônus no personagem</span>
+                    <strong>{selectedItem.bonus > 0 ? "+" : ""}{selectedItem.bonus} {selectedItem.atributo}</strong>
+                  </div>
+                )}
 
                 <p className="shop-modal-description">
                   {

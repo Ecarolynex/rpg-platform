@@ -465,13 +465,6 @@ export async function vincularPersonagem(
     );
   }
 
-  const { data: campanha } =
-    await supabase
-      .from("campanhas")
-      .select("ouro_inicial")
-      .eq("id", campanhaId)
-      .maybeSingle();
-
   const {
     data: linha,
     error: linhaError,
@@ -511,28 +504,15 @@ export async function vincularPersonagem(
     );
   }
 
-  const carteira =
-    atual.carteira ?? {
+  const dados = paraDados({
+    ...atual,
+    carteira: {
       pc: 0,
       pp: 0,
       pe: 0,
       po: 0,
       pl: 0,
-    };
-
-  const semMoedas =
-    Object.values(carteira).every(
-      (valor) => valor === 0,
-    );
-
-  const dados = paraDados({
-    ...atual,
-    carteira: semMoedas
-      ? {
-          ...carteira,
-          po: campanha?.ouro_inicial ?? 0,
-        }
-      : carteira,
+    },
   });
 
   const {
@@ -738,6 +718,51 @@ export async function criarCampanha(
   throw new Error(
     "Não foi possível gerar um código de convite exclusivo. Tente novamente.",
   );
+}
+
+export async function excluirCampanha(campanhaId: string): Promise<void> {
+  if (!campanhaId) {
+    throw new Error("Campanha não informada.");
+  }
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    throw new Error("Usuário não autenticado.");
+  }
+
+  const { data: membro, error: membroError } = await supabase
+    .from("campanha_membros")
+    .select("papel")
+    .eq("campanha_id", campanhaId)
+    .eq("user_id", user.id)
+    .eq("status", "ATIVO")
+    .maybeSingle();
+
+  if (membroError) {
+    throw new Error(membroError.message || "Não foi possível verificar sua permissão.");
+  }
+
+  if (membro?.papel !== "MESTRE") {
+    throw new Error("Somente o Mestre pode excluir esta campanha.");
+  }
+
+  const { data, error } = await supabase
+    .from("campanhas")
+    .delete()
+    .eq("id", campanhaId)
+    .select("id")
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message || "Não foi possível excluir a campanha.");
+  }
+
+  if (!data) {
+    throw new Error("Campanha não encontrada ou sem permissão para excluir.");
+  }
 }
 
 /* =========================================================

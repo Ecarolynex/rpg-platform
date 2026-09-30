@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import "./Campaigns.css";
 import {
   criarCampanha,
@@ -27,6 +27,7 @@ export default function Campaigns() {
 
   const [mensagem, setMensagem] = useState("");
   const [codigoCriado, setCodigoCriado] = useState("");
+  const [campanhaCriadaId, setCampanhaCriadaId] = useState("");
 
   const [campanhas, setCampanhas] = useState<Campaign[]>([]);
 
@@ -56,6 +57,7 @@ export default function Campaigns() {
     setLoading(true);
     setMensagem("");
     setCodigoCriado("");
+    setCampanhaCriadaId("");
 
     try {
       const campanha = await criarCampanha({
@@ -67,6 +69,7 @@ export default function Campaigns() {
       });
 
       setCodigoCriado(campanha.codigo_convite);
+      setCampanhaCriadaId(campanha.id);
       setMensagem("Campanha criada com sucesso!");
 
       setNome("");
@@ -180,40 +183,37 @@ export default function Campaigns() {
                     key={campanha.id}
                     className="campaign-card"
                   >
-                    <span className="campaigns-kicker">
+                    <span className="campaign-card-status">
                       {campanha.status}
                     </span>
 
                     <h2>{campanha.nome}</h2>
 
-                    <p>
+                    <p className="campaign-card-description">
                       {campanha.descricao ||
                         "Nenhuma descrição cadastrada."}
                     </p>
 
                     <div className="campaign-card-info">
-                      <span>
-                        Sistema:{" "}
-                        {campanha.sistema || "Não informado"}
-                      </span>
+                      <div className="campaign-card-info-item">
+                        <span>Sistema</span>
+                        <strong>{campanha.sistema || "Não informado"}</strong>
+                      </div>
 
-                      <span>
-                        Código:{" "}
-                        <strong>
-                          {campanha.codigo_convite}
-                        </strong>
-                      </span>
+                      <div className="campaign-card-info-item campaign-card-code">
+                        <span>Convite</span>
+                        <strong>{campanha.codigo_convite}</strong>
+                      </div>
 
-                      <span>
-                        Moeda:{" "}
-                        {campanha.moeda_principal ||
-                          "Não informada"}
-                      </span>
+                      <div className="campaign-card-info-item">
+                        <span>Moeda</span>
+                        <strong>{campanha.moeda_principal || "Não informada"}</strong>
+                      </div>
 
-                      <span>
-                        Ouro inicial por jogador:{" "}
-                        {campanha.ouro_inicial ?? 1250} PO
-                      </span>
+                      <div className="campaign-card-info-item">
+                        <span>Saldo inicial</span>
+                        <strong>0 PO</strong>
+                      </div>
                     </div>
 
                     <button
@@ -373,6 +373,15 @@ export default function Campaigns() {
                   Compartilhe este código com os jogadores que
                   participarão da aventura.
                 </p>
+
+                {campanhaCriadaId && (
+                  <Link
+                    className="btn-primary campaign-manage-store"
+                    to={`/campanha/${campanhaCriadaId}/loja`}
+                  >
+                    Gerenciar loja
+                  </Link>
+                )}
               </div>
             )}
 

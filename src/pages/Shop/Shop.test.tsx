@@ -109,6 +109,7 @@ describe('Shop', () => {
     expect(headerActions?.lastElementChild).toHaveClass('shop-cart-link');
     expect(screen.getAllByText(/espada do crepúsculo/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/poção de cura/i).length).toBeGreaterThan(0);
+    expect(screen.getByText('+2 Sabedoria')).toBeInTheDocument();
   });
 
   it('publica uma carta com PNG enviada pelo mestre', async () => {
@@ -128,6 +129,10 @@ describe('Shop', () => {
 
     fireEvent.change(screen.getByLabelText('Nome da carta'), { target: { value: 'Carta com arte' } });
     fireEvent.change(screen.getByLabelText('Subcategoria'), { target: { value: 'Relíquias' } });
+    const bonusInput = screen.getByLabelText('Bônus do atributo');
+    expect(bonusInput).not.toBeDisabled();
+    fireEvent.change(bonusInput, { target: { value: '5' } });
+    fireEvent.change(screen.getByLabelText('Atributo concedido'), { target: { value: 'Força' } });
     fireEvent.change(screen.getByLabelText('Preço em PO'), { target: { value: '325' } });
     fireEvent.change(screen.getByLabelText('Estoque'), { target: { value: '4' } });
     fireEvent.change(screen.getByLabelText('Descrição'), { target: { value: 'Carta de teste com ilustração.' } });
@@ -141,6 +146,7 @@ describe('Shop', () => {
     const createdCard = screen.getByRole('article', { name: 'Carta com arte' });
     expect(within(createdCard).getByText('325 PO')).toBeInTheDocument();
     expect(within(createdCard).getByText('4 em estoque')).toBeInTheDocument();
+    expect(within(createdCard).getByText('+5 Força')).toBeInTheDocument();
   });
 
   it('mostra as ações de administração abaixo do painel e permite editar cartas', async () => {
@@ -237,6 +243,8 @@ describe('Shop', () => {
   });
 
   it('leva ao carrinho, atualiza quantidades e finaliza a compra', async () => {
+    window.localStorage.setItem('rpg-platform-gold-teste', '1250');
+
     render(
       <MemoryRouter initialEntries={['/campanha/teste/loja']}>
         <Routes>
