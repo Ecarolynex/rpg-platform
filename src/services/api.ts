@@ -1,4 +1,3 @@
-
 import type { Character, User } from "../types/character";
 import { mockCharacters } from "../data/mockCharacters";
 import { supabase } from "./supabase";
@@ -9,9 +8,12 @@ function delay<T>(value: T, ms = 300): Promise<T> {
 
 /* =========================================================
    AUTENTICAÇÃO
-   ========================================================= */
+========================================================= */
 
-export async function login(usuario: string, senha: string): Promise<User> {
+export async function login(
+  usuario: string,
+  senha: string,
+): Promise<User> {
   const cleanInput = usuario.trim();
 
   if (!cleanInput || !senha) {
@@ -123,22 +125,48 @@ export async function registerUser(
 
 /* =========================================================
    PERSONAGENS
-   ========================================================= */
+========================================================= */
+
+/**
+ * Linha da tabela "personagens" no Supabase.
+ * A ficha completa (hp, mp, attributes, skills, etc.) fica na coluna "dados".
+ */
+type PersonagemRow = {
+  id: string;
+  nome?: string | null;
+  nivel?: number | null;
+  dados?: Partial<Character> | null;
+};
+
+/**
+ * Converte a linha do banco no formato Character que os componentes esperam.
+ * Retorna null se a linha não tiver a coluna "dados" preenchida.
+ */
+function rowToCharacter(row: PersonagemRow): Character | null {
+  if (!row.dados) return null;
+
+  return {
+    ...(row.dados as Character),
+    id: row.id,
+    nome: row.nome ?? row.dados.nome ?? "",
+    nivel: row.nivel ?? row.dados.nivel ?? 1,
+  };
+}
 
 export async function getCharacters(): Promise<Character[]> {
-  try {
-    const { data, error } = await supabase
-      .from("personagens")
-      .select("*");
+  const { data, error } = await supabase
+    .from("personagens")
+    .select("*");
 
-    if (!error && data && data.length > 0) {
-      return data as Character[];
-    }
-  } catch {
-    // Fallback temporário para desenvolvimento.
+  if (error) {
+    throw new Error(
+      error.message || "Não foi possível carregar os personagens.",
+    );
   }
 
-  return delay(mockCharacters);
+  return ((data ?? []) as PersonagemRow[])
+    .map(rowToCharacter)
+    .filter((c): c is Character => c !== null);
 }
 
 export async function getCharacterById(
@@ -152,7 +180,11 @@ export async function getCharacterById(
       .single();
 
     if (!error && data) {
-      return data as Character;
+      const personagem = rowToCharacter(data as PersonagemRow);
+
+      if (personagem) {
+        return personagem;
+      }
     }
   } catch {
     // Fallback temporário para desenvolvimento.
@@ -163,7 +195,7 @@ export async function getCharacterById(
 
 /* =========================================================
    CAMPANHAS
-   ========================================================= */
+========================================================= */
 
 export interface Campaign {
   id: string;
@@ -194,7 +226,7 @@ function gerarCodigoConvite(): string {
 
 /* =========================================================
    CRIAR CAMPANHA
-   ========================================================= */
+========================================================= */
 
 export async function criarCampanha(dados: {
   nome: string;
@@ -268,7 +300,7 @@ export async function criarCampanha(dados: {
 
 /* =========================================================
    LISTAR CAMPANHAS DO USUÁRIO
-   ========================================================= */
+========================================================= */
 
 export async function listarMinhasCampanhas(): Promise<Campaign[]> {
   const {
@@ -311,7 +343,7 @@ export async function listarMinhasCampanhas(): Promise<Campaign[]> {
 
 /* =========================================================
    ENTRAR EM CAMPANHA POR CÓDIGO
-   ========================================================= */
+========================================================= */
 
 export async function entrarNaCampanha(
   codigoConvite: string,
@@ -397,6 +429,10 @@ export async function entrarNaCampanha(
   return campanha as Campaign;
 }
 
+/* =========================================================
+   ACESSO À CAMPANHA
+========================================================= */
+
 export async function getCampaignAccess(campaignId: string): Promise<{
   isMaster: boolean;
   startingGold: number;
@@ -406,10 +442,16 @@ export async function getCampaignAccess(campaignId: string): Promise<{
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return { isMaster: false, startingGold: 1250 };
+    return {
+      isMaster: false,
+      startingGold: 1250,
+    };
   }
 
-  const { data: membership, error: membershipError } = await supabase
+  const {
+    data: membership,
+    error: membershipError,
+  } = await supabase
     .from("campanha_membros")
     .select("papel")
     .eq("campanha_id", campaignId)
@@ -418,21 +460,75 @@ export async function getCampaignAccess(campaignId: string): Promise<{
     .maybeSingle();
 
   if (membershipError) {
-    throw new Error(membershipError.message || "Não foi possível verificar seu papel na campanha.");
+    throw new Error(
+      membershipError.message ||
+        "Não foi possível verificar seu papel na campanha.",
+    );
   }
 
-  const { data: campaign, error: campaignError } = await supabase
+  const {
+    data: campaign,
+    error: campaignError,
+  } = await supabase
     .from("campanhas")
     .select("*")
     .eq("id", campaignId)
     .maybeSingle();
 
   if (campaignError) {
-    throw new Error(campaignError.message || "Não foi possível carregar a economia da campanha.");
+    throw new Error(
+      campaignError.message ||
+        "Não foi possível carregar a economia da campanha.",
+    );
   }
 
   return {
     isMaster: membership?.papel === "MESTRE",
     startingGold: campaign?.ouro_inicial ?? 1250,
+  };
+}
+
+/* =========================================================
+   CRIAR PERSONAGEM
+========================================================= */
+
+export async function criarPersonagem(
+  campanhaId: string,
+  personagem: Character,
+): Promise<Character> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    throw new Error("Usuário não autenticado.");
+  }
+
+  if (!campanhaId) {
+    throw new Error("Campanha não informada.");
+  }
+
+  const { data, error } = await supabase
+    .from("personagens")
+    .insert({
+      campanha_id: campanhaId,
+      user_id: user.id,
+      nome: personagem.nome,
+      nivel: personagem.nivel,
+      xp: 0,
+      dados: personagem,
+    })
+    .select()
+    .single();
+
+  if (error || !data) {
+    throw new Error(
+      error?.message || "Não foi possível criar o personagem.",
+    );
+  }
+
+  return {
+    ...personagem,
+    id: data.id,
   };
 }

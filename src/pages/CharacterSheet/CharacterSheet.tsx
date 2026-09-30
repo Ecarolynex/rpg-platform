@@ -20,14 +20,31 @@ type Tab = (typeof TABS)[number];
 export default function CharacterSheet() {
   const { id } = useParams();
   const [character, setCharacter] = useState<Character | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>("Atributos");
 
   useEffect(() => {
     if (!id) return;
-    getCharacterById(id).then((c) => setCharacter(c ?? null));
+
+    setLoading(true);
+    setError(null);
+
+    getCharacterById(id)
+      .then((c) => {
+        console.log("Personagem carregado:", c);
+        setCharacter(c ?? null);
+      })
+      .catch((e) => {
+        console.error("Erro ao buscar personagem:", e);
+        setError(e?.message ?? "Erro ao carregar a ficha.");
+      })
+      .finally(() => setLoading(false));
   }, [id]);
 
-  if (!character) return <p className="sheet-status">Carregando ficha...</p>;
+  if (loading) return <p className="sheet-status">Carregando ficha...</p>;
+  if (error) return <p className="sheet-status">Erro: {error}</p>;
+  if (!character) return <p className="sheet-status">Personagem não encontrado.</p>;
 
   return (
     <div className="sheet">
