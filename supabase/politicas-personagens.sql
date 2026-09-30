@@ -1,9 +1,3 @@
--- Rode no Supabase: SQL Editor > New query > cole tudo > Run. Pode rodar de novo sem problema.
---
--- 1) Personagem passa a poder existir sem campanha (vinculado depois pelo código da campanha).
--- 2) Regra: só o dono do personagem ou o Mestre da campanha lê e altera a ficha.
--- 3) Bucket "retratos" para as fotos.
-
 alter table personagens alter column campanha_id drop not null;
 
 alter table personagens enable row level security;
