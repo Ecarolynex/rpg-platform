@@ -1,4 +1,4 @@
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import { AppShell } from "./components/layout/AppShell";
 import { ProtectedRoute } from "./components/layout/ProtectedRoute";
 import Login from "./pages/Login/Login";
@@ -7,6 +7,7 @@ import CharacterSheet from "./pages/CharacterSheet/CharacterSheet";
 import Campaigns from "./pages/Campaigns/Campaigns";
 import Campaign from "./pages/Campaign/Campaign";
 import Shop from "./pages/Shop/Shop";
+import Inventory from "./pages/Inventory/Inventory";
 
 function App() {
   return (
@@ -22,10 +23,11 @@ function App() {
       >
         <Route path="/" element={<Dashboard />} />
         <Route path="/campanhas" element={<Campaigns />} />
-        <Route path="/loja" element={<Shop />} />
+        <Route path="/loja" element={<Navigate to="/campanhas" replace />} />
         <Route path="/campanha/:id" element={<Campaign />} />
         <Route path="/campanha/:id/loja/carrinho" element={<Shop />} />
         <Route path="/campanha/:id/loja" element={<Shop />} />
+        <Route path="/campanha/:id/inventario" element={<Inventory />} />
         <Route path="/personagem/:id" element={<CharacterSheet />} />
       </Route>
     </Routes>

@@ -155,3 +155,11 @@
 .sheet .field-wide {
   grid-column: 1 / -1;
 }
+
+.cs-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 12px;
+  font-size: 0.9rem;
+}

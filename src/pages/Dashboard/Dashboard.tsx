@@ -1,10 +1,15 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import type { Attributes, Character } from "../../types/character";
 import {
+  buscarCampanhaPorCodigo,
   criarPersonagem,
   enviarRetrato,
+  entrarNaCampanha,
+  excluirPersonagem,
   getCharacters,
   listarMinhasCampanhas,
+  vincularPersonagem,
   type Campaign,
 } from "../../services/api";
 import { CharacterCard } from "../../components/character/CharacterCard";
@@ -18,6 +23,7 @@ import {
   carteiraInicial,
 } from "../../data/dnd";
 import "./Dashboard.css";
+import "./DashboardActions.css";
 
 const initialDraft = {
   nome: "",
@@ -60,6 +66,17 @@ export default function Dashboard() {
   const [portraitFile, setPortraitFile] = useState<File | null>(null);
   const [portraitPreview, setPortraitPreview] = useState("");
 
+  // Entrar em campanha a partir do card
+  const [joining, setJoining] = useState<Character | null>(null);
+  const [joinCode, setJoinCode] = useState("");
+  const [foundCampaign, setFoundCampaign] = useState<Campaign | null>(null);
+  const [joinBusy, setJoinBusy] = useState(false);
+  const [joinMessage, setJoinMessage] = useState("");
+  const [notice, setNotice] = useState("");
+
+  // Exclusão com confirmação
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
   useEffect(() => {
     async function loadData() {
       try {
@@ -70,10 +87,6 @@ export default function Dashboard() {
 
         setCharacters(charactersData);
         setCampaigns(campaignsData);
-
-        if (campaignsData.length > 0) {
-          setSelectedCampaignId(campaignsData[0].id);
-        }
       } catch (error) {
         setErrorMessage(
           error instanceof Error
@@ -119,11 +132,6 @@ export default function Dashboard() {
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-
-    if (!selectedCampaignId) {
-      setErrorMessage("Selecione uma campanha antes de salvar o personagem.");
-      return;
-    }
 
     setSaving(true);
     setErrorMessage("");
@@ -175,7 +183,7 @@ export default function Dashboard() {
       };
 
       const savedCharacter = await criarPersonagem(
-        selectedCampaignId,
+        selectedCampaignId || null,
         createdCharacter,
       );
 
@@ -193,6 +201,96 @@ export default function Dashboard() {
       );
     } finally {
       setSaving(false);
+    }
+  };
+
+  const openJoin = (character: Character) => {
+    setJoining(character);
+    setJoinCode("");
+    setFoundCampaign(null);
+    setJoinMessage("");
+    setNotice("");
+    setDeletingId(null);
+  };
+
+  const closeJoin = () => {
+    setJoining(null);
+    setJoinCode("");
+    setFoundCampaign(null);
+    setJoinMessage("");
+  };
+
+  const handleSearchCampaign = async (
+    event: React.FormEvent<HTMLFormElement>,
+  ) => {
+    event.preventDefault();
+
+    setJoinBusy(true);
+    setJoinMessage("");
+
+    try {
+      setFoundCampaign(await buscarCampanhaPorCodigo(joinCode));
+    } catch (error) {
+      setJoinMessage(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível buscar a campanha.",
+      );
+    } finally {
+      setJoinBusy(false);
+    }
+  };
+
+  const handleConfirmJoin = async () => {
+    if (!joining || !foundCampaign) return;
+
+    setJoinBusy(true);
+    setJoinMessage("");
+
+    try {
+      await entrarNaCampanha(foundCampaign.codigo_convite);
+
+      const linked = await vincularPersonagem(joining.id, foundCampaign.id);
+
+      setCharacters((prev) =>
+        prev.map((item) => (item.id === linked.id ? linked : item)),
+      );
+
+      try {
+        setCampaigns(await listarMinhasCampanhas());
+      } catch {
+        // A lista de campanhas do formulário se atualiza no próximo carregamento.
+      }
+
+      setNotice(linked.nome + " entrou na campanha " + foundCampaign.nome + ".");
+      closeJoin();
+    } catch (error) {
+      setJoinMessage(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível colocar o personagem na campanha.",
+      );
+    } finally {
+      setJoinBusy(false);
+    }
+  };
+
+  const handleDelete = async (character: Character) => {
+    setErrorMessage("");
+    setNotice("");
+
+    try {
+      await excluirPersonagem(character.id);
+      setCharacters((prev) => prev.filter((item) => item.id !== character.id));
+      setDeletingId(null);
+      setNotice(character.nome + " foi excluído.");
+    } catch (error) {
+      setDeletingId(null);
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível excluir o personagem.",
+      );
     }
   };
 
@@ -219,6 +317,8 @@ export default function Dashboard() {
 
       {errorMessage && <p className="dashboard-status">{errorMessage}</p>}
 
+      {notice && <p className="dashboard-status">{notice}</p>}
+
       {showCreator && (
         <form className="character-creator" onSubmit={handleSubmit}>
           <div className="creator-banner">
@@ -234,29 +334,26 @@ export default function Dashboard() {
           <section className="creator-panel">
             <h3>Campanha</h3>
 
-            {campaigns.length === 0 ? (
-              <p className="dashboard-status">
-                Você ainda não participa de nenhuma campanha. Entre em uma
-                campanha antes de criar seu personagem.
-              </p>
-            ) : (
-              <label className="field">
-                <span>Escolha a campanha</span>
+            <label className="field">
+              <span>Vincular a uma campanha (opcional)</span>
 
-                <select
-                  value={selectedCampaignId}
-                  onChange={(event) =>
-                    setSelectedCampaignId(event.target.value)
-                  }
-                >
-                  {campaigns.map((campaign) => (
-                    <option key={campaign.id} value={campaign.id}>
-                      {campaign.nome}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            )}
+              <select
+                value={selectedCampaignId}
+                onChange={(event) =>
+                  setSelectedCampaignId(event.target.value)
+                }
+              >
+                <option value="">
+                  Vincular depois, com o código da campanha
+                </option>
+
+                {campaigns.map((campaign) => (
+                  <option key={campaign.id} value={campaign.id}>
+                    {campaign.nome}
+                  </option>
+                ))}
+              </select>
+            </label>
           </section>
 
           <div className="creator-layout">
@@ -445,7 +542,7 @@ export default function Dashboard() {
             <button
               type="submit"
               className="btn-primary"
-              disabled={saving || campaigns.length === 0}
+              disabled={saving}
             >
               {saving ? "Salvando..." : "Salvar personagem"}
             </button>
@@ -453,17 +550,172 @@ export default function Dashboard() {
         </form>
       )}
 
+      {joining && (
+        <section className="creator-panel dashboard-join">
+          <h3>Entrar em campanha com {joining.nome}</h3>
+
+          {!foundCampaign ? (
+            <form onSubmit={handleSearchCampaign}>
+              <label className="field">
+                <span>Código da campanha</span>
+
+                <input
+                  value={joinCode}
+                  onChange={(event) =>
+                    setJoinCode(event.target.value.toUpperCase())
+                  }
+                  placeholder="Ex.: ALD7K9"
+                  maxLength={6}
+                  required
+                />
+              </label>
+
+              {joinMessage && <p className="dashboard-status">{joinMessage}</p>}
+
+              <div className="creator-actions">
+                <button
+                  type="button"
+                  className="btn-ghost"
+                  onClick={closeJoin}
+                  disabled={joinBusy}
+                >
+                  Cancelar
+                </button>
+
+                <button type="submit" className="btn-primary" disabled={joinBusy}>
+                  {joinBusy ? "Buscando..." : "Buscar campanha"}
+                </button>
+              </div>
+            </form>
+          ) : (
+            <div>
+              <p>
+                Campanha encontrada: <strong>{foundCampaign.nome}</strong>
+              </p>
+
+              <p>
+                {foundCampaign.sistema || "Sistema não informado"}
+                {foundCampaign.descricao ? " · " + foundCampaign.descricao : ""}
+              </p>
+
+              <p>
+                Você deseja colocar <strong>{joining.nome}</strong> nesta
+                campanha?
+              </p>
+
+              {joinMessage && <p className="dashboard-status">{joinMessage}</p>}
+
+              <div className="creator-actions">
+                <button
+                  type="button"
+                  className="btn-ghost"
+                  onClick={closeJoin}
+                  disabled={joinBusy}
+                >
+                  Cancelar
+                </button>
+
+                <button
+                  type="button"
+                  className="btn-primary"
+                  onClick={handleConfirmJoin}
+                  disabled={joinBusy}
+                >
+                  {joinBusy ? "Entrando..." : "Confirmar"}
+                </button>
+              </div>
+            </div>
+          )}
+        </section>
+      )}
+
       {loading ? (
         <p className="dashboard-status">Carregando fichas...</p>
       ) : characters.length === 0 ? (
         <p className="dashboard-status">
-          Você ainda não tem personagens. Crie o primeiro para começar.
+          Você ainda não tem personagens. Crie o primeiro e depois entre em uma
+          campanha com o código do Mestre.
         </p>
       ) : (
         <div className="dashboard-grid">
-          {characters.map((character) => (
-            <CharacterCard key={character.id} character={character} />
-          ))}
+          {characters.map((character) => {
+            const campanha = campaigns.find(
+              (item) => item.id === character.campanhaId,
+            );
+
+            return (
+              <div key={character.id} className="dashboard-card-wrap">
+                <CharacterCard character={character} />
+
+                <div className="card-actions">
+                  {character.campanhaId ? (
+                    <>
+                      <span className="card-campaign-name">
+                        {campanha ? campanha.nome : "Em campanha"}
+                      </span>
+
+                      <Link
+                        className="btn-ghost"
+                        to={"/campanha/" + character.campanhaId}
+                      >
+                        Abrir campanha
+                      </Link>
+
+                      <Link
+                        className="btn-ghost"
+                        to={"/campanha/" + character.campanhaId + "/loja"}
+                      >
+                        Loja
+                      </Link>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      className="btn-ghost"
+                      onClick={() => openJoin(character)}
+                    >
+                      Entrar em campanha
+                    </button>
+                  )}
+
+                  {deletingId === character.id ? (
+                    <>
+                      <span className="card-campaign-name">
+                        Excluir esta ficha?
+                      </span>
+
+                      <button
+                        type="button"
+                        className="btn-ghost"
+                        onClick={() => setDeletingId(null)}
+                      >
+                        Cancelar
+                      </button>
+
+                      <button
+                        type="button"
+                        className="btn-primary"
+                        onClick={() => handleDelete(character)}
+                      >
+                        Excluir
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      className="btn-ghost"
+                      onClick={() => {
+                        setDeletingId(character.id);
+                        setNotice("");
+                      }}
+                    >
+                      Excluir
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

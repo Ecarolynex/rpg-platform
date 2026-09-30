@@ -1,0 +1,9 @@
+/* Título da seção "campanha atual" no menu lateral. */
+.app-sidebar-section {
+  margin: 14px 0 4px;
+  padding: 0 12px;
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.65;
+}

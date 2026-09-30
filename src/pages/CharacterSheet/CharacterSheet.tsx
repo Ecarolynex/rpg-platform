@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import type { Attributes, Character, Wallet } from "../../types/character";
 import {
   atualizarPersonagem,
@@ -333,6 +333,17 @@ export default function CharacterSheet() {
 
   return (
     <div className="sheet">
+      <nav className="cs-nav">
+        <Link to="/">← Meus personagens</Link>
+
+        {character.campanhaId && (
+          <>
+            <Link to={"/campanha/" + character.campanhaId}>Campanha</Link>
+            <Link to={"/campanha/" + character.campanhaId + "/loja"}>Loja</Link>
+          </>
+        )}
+      </nav>
+
       <div className="sheet-banner">
         <div className="cs-portrait-wrap">
           <div className="sheet-portrait">

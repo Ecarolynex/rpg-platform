@@ -31,6 +31,10 @@ export function CharacterCard({ character }: { character: Character }) {
           {character.raca} · {character.classe} · Nível {character.nivel}
         </p>
 
+        {character.campanhaId === null && (
+          <p className="character-card-meta">Sem campanha</p>
+        )}
+
         <StatBar
           label="Vida"
           atual={character.hp.atual}

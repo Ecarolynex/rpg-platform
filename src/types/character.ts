@@ -45,6 +45,8 @@ export interface Character {
   classe: string;
   nivel: number;
   portraitUrl?: string;
+  /** null = personagem ainda sem campanha; vem da coluna campanha_id do banco. */
+  campanhaId?: string | null;
   alinhamento?: string;
   origem?: string;
   idade?: string;
