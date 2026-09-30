@@ -1093,7 +1093,6 @@ export interface ShopItem {
   raridade: string | null;
   efeito: string | null;
   imagemUrl: string | null;
-  moedaId: string;
   precoCompra: number;
   precoVenda: number | null;
   estoque: number;
@@ -1105,16 +1104,15 @@ type LojaItemRow = {
   id: string;
   loja_id: string;
   item_id: string;
-  moeda_id: string;
   preco_compra: number | string;
   preco_venda: number | string | null;
   estoque: number;
   venda_permitida: boolean;
   ativo: boolean;
+
   itens:
     | {
         id: string;
-        campanha_id: string;
         nome: string;
         descricao: string | null;
         tipo: string | null;
@@ -1124,7 +1122,6 @@ type LojaItemRow = {
       }
     | {
         id: string;
-        campanha_id: string;
         nome: string;
         descricao: string | null;
         tipo: string | null;
@@ -1133,113 +1130,114 @@ type LojaItemRow = {
         imagem_url: string | null;
       }[]
     | null;
+
+  lojas:
+    | {
+        id: string;
+        campanha_id: string;
+        ativa: boolean;
+      }
+    | {
+        id: string;
+        campanha_id: string;
+        ativa: boolean;
+      }[]
+    | null;
 };
 
 export async function listarItensDaLoja(
   campanhaId: string,
 ): Promise<ShopItem[]> {
-  const {
-    data,
-    error,
-  } = await supabase
-    .from("loja_itens")
+  const { data, error } = await supabase
+    .from("lojas")
     .select(`
       id,
-      loja_id,
-      item_id,
-      moeda_id,
-      preco_compra,
-      preco_venda,
-      estoque,
-      venda_permitida,
-      ativo,
-      itens (
+      campanha_id,
+      ativa,
+      loja_itens (
         id,
-        campanha_id,
-        nome,
-        descricao,
-        tipo,
-        raridade,
-        efeito,
-        imagem_url
-      ),
-      lojas!inner (
-        id,
-        campanha_id,
-        ativa
+        item_id,
+        preco_compra,
+        preco_venda,
+        estoque,
+        venda_permitida,
+        ativo,
+        itens (
+          id,
+          nome,
+          descricao,
+          tipo,
+          raridade,
+          efeito,
+          imagem_url
+        )
       )
     `)
-    .eq(
-      "lojas.campanha_id",
-      campanhaId,
-    )
-    .eq(
-      "lojas.ativa",
-      true,
-    )
-    .eq(
-      "ativo",
-      true,
-    );
+    .eq("campanha_id", campanhaId)
+    .eq("ativa", true)
+    .single();
 
   if (error) {
     throw new Error(
-      error.message ||
-        "Não foi possível carregar os itens da loja.",
+      error.message || "Não foi possível carregar a loja.",
     );
   }
 
-  const resultado: ShopItem[] = [];
-
-  for (
-    const row of (data ?? []) as unknown as LojaItemRow[]
-  ) {
-    const item =
-      Array.isArray(row.itens)
-        ? row.itens[0]
-        : row.itens;
-
-    if (!item) {
-      continue;
-    }
-
-    resultado.push({
-      id: row.id,
-      lojaId: row.loja_id,
-      itemId: row.item_id,
-      campanhaId:
-        item.campanha_id,
-      nome: item.nome,
-      descricao:
-        item.descricao,
-      tipo: item.tipo,
-      raridade:
-        item.raridade,
-      efeito: item.efeito,
-      imagemUrl:
-        item.imagem_url,
-      moedaId:
-        row.moeda_id,
-      precoCompra:
-        Number(
-          row.preco_compra,
-        ),
-      precoVenda:
-        row.preco_venda === null
-          ? null
-          : Number(
-              row.preco_venda,
-            ),
-      estoque:
-        row.estoque,
-      vendaPermitida:
-        row.venda_permitida,
-      ativo:
-        row.ativo,
-    });
+  if (!data) {
+    return [];
   }
 
-  return resultado;
+  const loja = data as unknown as {
+    id: string;
+    campanha_id: string;
+    ativa: boolean;
+    loja_itens?: Array<{
+      id: string;
+      item_id: string;
+      preco_compra: number;
+      preco_venda: number | null;
+      estoque: number;
+      venda_permitida: boolean;
+      ativo: boolean;
+      itens:
+        | {
+            id: string;
+            nome: string;
+            descricao: string | null;
+            tipo: string | null;
+            raridade: string | null;
+            efeito: string | null;
+            imagem_url: string | null;
+          }
+        | null;
+    }>;
+  };
+
+  return (loja.loja_itens ?? [])
+    .filter(
+      (lojaItem) =>
+        lojaItem.ativo &&
+        lojaItem.itens !== null,
+    )
+    .map((lojaItem) => ({
+      id: lojaItem.id,
+      campanhaId: loja.campanha_id,
+      itemId: lojaItem.item_id,
+      nome: lojaItem.itens!.nome,
+      descricao: lojaItem.itens!.descricao,
+      tipo: lojaItem.itens!.tipo,
+      raridade: lojaItem.itens!.raridade,
+      efeito: lojaItem.itens!.efeito,
+      imagemUrl: lojaItem.itens!.imagem_url,
+      precoCompra: Number(lojaItem.preco_compra),
+      precoVenda:
+        lojaItem.preco_venda === null
+          ? null
+          : Number(lojaItem.preco_venda),
+      estoque: Number(lojaItem.estoque),
+      vendaPermitida: lojaItem.venda_permitida,
+      ativo: lojaItem.ativo,
+    }));
 }
 
 /* =========================================================
@@ -1275,12 +1273,9 @@ export async function comprarItem(
   } = await supabase.rpc(
     "registrar_compra",
     {
-      p_personagem_id:
-        personagemId,
-      p_loja_item_id:
-        lojaItemId,
-      p_quantidade:
-        quantidade,
+      p_personagem_id: personagemId,
+      p_loja_item_id: lojaItemId,
+      p_quantidade: quantidade,
     },
   );
 
@@ -1299,8 +1294,18 @@ export async function comprarItem(
 
   return data;
 }
-export async function getInventory(personagemId: string) {
-  const { data, error } = await supabase
+
+/* =========================================================
+   INVENTÁRIO
+========================================================= */
+
+export async function getInventory(
+  personagemId: string,
+) {
+  const {
+    data,
+    error,
+  } = await supabase
     .from("inventarios")
     .select(`
       personagem_id,
@@ -1317,12 +1322,24 @@ export async function getInventory(personagemId: string) {
         imagem_url
       )
     `)
-    .eq("personagem_id", personagemId)
-    .order("updated_at", { ascending: false });
+    .eq(
+      "personagem_id",
+      personagemId,
+    )
+    .order(
+      "updated_at",
+      { ascending: false },
+    );
 
   if (error) {
-    console.error("Erro ao carregar inventário:", error);
-    throw new Error(error.message);
+    console.error(
+      "Erro ao carregar inventário:",
+      error,
+    );
+
+    throw new Error(
+      error.message,
+    );
   }
 
   return data ?? [];
