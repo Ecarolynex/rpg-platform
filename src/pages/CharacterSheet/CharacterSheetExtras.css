@@ -1,4 +1,4 @@
-/* Elementos novos da ficha. Se o projeto já tiver variáveis de cor, troque os valores de reserva. */
+/* Elementos novos da ficha. Estilo refinado para D&D e Painel do Mestre */
 
 .sheet .sheet-portrait {
   overflow: hidden;
@@ -33,7 +33,8 @@
 }
 
 .cs-stat {
-  border: 1px solid var(--border, #d8cdb9);
+  border: 1px solid var(--border-bronze, rgba(201, 162, 39, 0.35));
+  background: rgba(26, 18, 12, 0.45);
   border-radius: 8px;
   padding: 10px;
   text-align: center;
@@ -42,6 +43,7 @@
 .cs-stat strong {
   display: block;
   font-size: 1.5rem;
+  color: var(--gold-bright, #f0cf6e);
 }
 
 .cs-stat span {
@@ -52,23 +54,243 @@
 }
 
 .cs-panel {
-  border: 1px solid var(--border, #d8cdb9);
+  border: 1px solid var(--border-bronze, rgba(201, 162, 39, 0.35));
+  background: rgba(23, 16, 10, 0.6);
   border-radius: 8px;
   padding: 16px;
   margin-bottom: 16px;
+  box-shadow: inset 0 0 0 1px rgba(240, 207, 110, 0.05);
+}
+
+.cs-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
 }
 
 .cs-panel h3 {
-  margin: 0 0 12px;
+  margin: 0;
+  font-family: var(--font-display, inherit);
+  color: var(--gold-bright, #f0cf6e);
+  letter-spacing: 0.05em;
 }
 
 .cs-vitals-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 16px;
 }
 
-.cs-adjuster {
+.cs-vital-card {
+  border: 1px solid rgba(201, 162, 39, 0.25);
+  background: rgba(14, 10, 7, 0.55);
+  border-radius: 6px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cs-vital-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.cs-vital-title {
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--parchment, #fff0cc);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* Campos numéricos de edição direta: Atual / Máx */
+.cs-vital-direct {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid rgba(201, 162, 39, 0.15);
+}
+
+.cs-vital-fields {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cs-vital-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cs-vital-field label {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted, rgba(236, 223, 192, 0.65));
+}
+
+.cs-vital-input {
+  width: 76px;
+  text-align: center;
+  font-size: 1.05rem;
+  font-weight: 700;
+  font-family: inherit;
+  padding: 5px 6px;
+  border-radius: 4px;
+  border: 1px solid rgba(201, 162, 39, 0.4);
+  background: rgba(10, 7, 5, 0.7);
+  color: var(--parchment, #fff0cc);
+}
+
+.cs-vital-input:focus {
+  border-color: var(--gold-bright, #f0cf6e);
+  outline: none;
+  box-shadow: 0 0 6px rgba(240, 207, 110, 0.3);
+}
+
+.cs-vital-sep {
+  font-size: 1.4rem;
+  color: rgba(201, 162, 39, 0.4);
+  margin-top: 10px;
+}
+
+.cs-vital-quick-btns {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.cs-btn-stepper {
+  min-width: 38px;
+  padding: 5px 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border-radius: 4px;
+  border: 1px solid rgba(201, 162, 39, 0.35);
+  background: rgba(36, 24, 15, 0.6);
+  color: var(--parchment, #fff0cc);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.cs-btn-stepper:hover:not(:disabled) {
+  background: rgba(70, 48, 28, 0.8);
+  border-color: var(--gold-bright, #f0cf6e);
+  color: var(--gold-bright, #f0cf6e);
+  transform: translateY(-1px);
+}
+
+.cs-btn-stepper:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.cs-btn-action {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 6px 12px;
+  border-radius: 4px;
+  border: 1px solid rgba(201, 162, 39, 0.5);
+  background: linear-gradient(180deg, rgba(82, 57, 28, 0.7), rgba(41, 28, 14, 0.8));
+  color: var(--gold-bright, #f0cf6e);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.cs-btn-action:hover:not(:disabled) {
+  background: linear-gradient(180deg, rgba(120, 84, 42, 0.85), rgba(65, 45, 22, 0.95));
+  border-color: var(--gold-bright, #f0cf6e);
+  box-shadow: 0 0 8px rgba(240, 207, 110, 0.25);
+}
+
+/* Carteira / Dinheiro */
+.cs-wallet-container {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.cs-wallet-main {
+  background: linear-gradient(180deg, rgba(34, 24, 15, 0.85), rgba(18, 13, 8, 0.95));
+  border: 1px solid rgba(240, 207, 110, 0.4);
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: inset 0 0 14px rgba(201, 162, 39, 0.07);
+}
+
+.cs-wallet-gold-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.cs-wallet-gold-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cs-wallet-gold-title strong {
+  font-size: 1.4rem;
+  color: var(--gold-bright, #f0cf6e);
+  font-family: var(--font-display, inherit);
+}
+
+.cs-wallet-gold-title span {
+  font-size: 0.85rem;
+  color: var(--muted, rgba(236, 223, 192, 0.7));
+}
+
+.cs-wallet-direct-gold {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cs-wallet-input {
+  width: 130px;
+  text-align: right;
+  font-size: 1.25rem;
+  font-weight: 700;
+  font-family: inherit;
+  padding: 6px 10px;
+  border-radius: 4px;
+  border: 1px solid rgba(240, 207, 110, 0.45);
+  background: rgba(10, 7, 5, 0.85);
+  color: var(--gold-bright, #f0cf6e);
+}
+
+.cs-wallet-input:focus {
+  border-color: var(--gold-bright, #f0cf6e);
+  outline: none;
+  box-shadow: 0 0 8px rgba(240, 207, 110, 0.35);
+}
+
+.cs-wallet-unit {
+  font-size: 1rem;
+  font-weight: bold;
+  color: var(--gold-bright, #f0cf6e);
+}
+
+.cs-wallet-steppers {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
@@ -76,38 +298,139 @@
   margin-top: 8px;
 }
 
-.cs-adjuster input {
-  width: 72px;
-  text-align: center;
-}
-
-.cs-adjuster button {
-  min-width: 36px;
-  padding: 4px 8px;
-  cursor: pointer;
-}
-
-.cs-adjuster button:disabled,
-.cs-adjuster input:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.cs-wallet {
+.cs-wallet-extras {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 10px;
+  margin-top: 8px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(201, 162, 39, 0.15);
 }
 
-.cs-coin {
-  border: 1px solid var(--border, #d8cdb9);
-  border-radius: 8px;
-  padding: 10px;
+.cs-coin-sub {
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(201, 162, 39, 0.18);
+  border-radius: 6px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
-.cs-coin small {
-  margin-left: 6px;
-  opacity: 0.7;
+.cs-coin-sub-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  color: var(--muted, rgba(236, 223, 192, 0.7));
+}
+
+.cs-coin-sub-input {
+  width: 100%;
+  text-align: center;
+  padding: 4px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  border-radius: 3px;
+  border: 1px solid rgba(201, 162, 39, 0.25);
+  background: rgba(10, 7, 5, 0.6);
+  color: var(--parchment, #fff0cc);
+}
+
+/* Master Badge & Back link */
+.cs-master-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 10px 14px;
+  margin-bottom: 14px;
+  border: 1px solid rgba(240, 207, 110, 0.4);
+  background: linear-gradient(90deg, rgba(82, 57, 28, 0.4), rgba(41, 28, 14, 0.25));
+  border-radius: 6px;
+  color: var(--gold-bright, #f0cf6e);
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.cs-back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--gold-bright, #f0cf6e);
+  text-decoration: none;
+  font-size: 0.88rem;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: rgba(201, 162, 39, 0.1);
+  border: 1px solid rgba(201, 162, 39, 0.25);
+  transition: all 0.15s ease;
+}
+
+.cs-back-link:hover {
+  background: rgba(201, 162, 39, 0.22);
+  border-color: var(--gold-bright, #f0cf6e);
+  transform: translateX(-2px);
+}
+
+/* Interactive list additions (Items, Magias, Perícias) */
+.cs-list-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.cs-btn-icon {
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(201, 162, 39, 0.3);
+  color: var(--parchment, #fff0cc);
+  border-radius: 3px;
+  padding: 2px 7px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.cs-btn-icon:hover {
+  background: rgba(201, 162, 39, 0.25);
+  border-color: var(--gold-bright, #f0cf6e);
+  color: var(--gold-bright, #f0cf6e);
+}
+
+.cs-btn-icon-del:hover {
+  background: rgba(160, 30, 30, 0.4);
+  border-color: #f87171;
+  color: #fca5a5;
+}
+
+.cs-inline-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px dashed rgba(201, 162, 39, 0.35);
+  border-radius: 6px;
+}
+
+.cs-inline-form input,
+.cs-inline-form select {
+  padding: 6px 10px;
+  border-radius: 4px;
+  border: 1px solid rgba(201, 162, 39, 0.3);
+  background: rgba(12, 8, 6, 0.7);
+  color: var(--parchment, #fff0cc);
+  font: inherit;
+  font-size: 0.85rem;
+}
+
+.cs-inline-form input:focus {
+  border-color: var(--gold-bright, #f0cf6e);
+  outline: none;
 }
 
 .cs-editbar {

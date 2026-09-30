@@ -28,7 +28,9 @@ function App() {
         <Route path="/campanha/:id/loja/carrinho" element={<Shop />} />
         <Route path="/campanha/:id/loja" element={<Shop />} />
         <Route path="/campanha/:id/inventario" element={<Inventory />} />
+        <Route path="/campanha/:id/inventario/:characterId" element={<Inventory />} />
         <Route path="/personagem/:id" element={<CharacterSheet />} />
+        <Route path="/personagem/:id/inventario" element={<Inventory />} />
       </Route>
     </Routes>
   );

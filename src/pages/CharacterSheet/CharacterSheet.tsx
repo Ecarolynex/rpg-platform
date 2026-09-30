@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import type { Attributes, Character, Wallet } from "../../types/character";
+import type { Attributes, Character, InventoryItem, Spell, Wallet } from "../../types/character";
 import {
   atualizarPersonagem,
   enviarRetrato,
@@ -55,66 +55,213 @@ const CARTEIRA_VAZIA: Wallet = {
   pl: 0,
 };
 
+/** Garante que valores de moedas não fiquem negativos ou estourem em Number.MAX_SAFE_INTEGER */
+function sanitizarMoeda(valor?: number | null): number {
+  if (valor === undefined || valor === null || isNaN(valor) || valor < 0) return 0;
+  // Bugfix: se estiver corrompido com Number.MAX_SAFE_INTEGER (9007199254740991), recupera para valor sensato
+  if (valor >= 9000000000000000) return 1250;
+  return Math.min(9999999, Math.floor(valor));
+}
+
 /* ---------- componentes auxiliares ---------- */
 
-function Ajustador({
-  valor,
+function ControleVital({
+  titulo,
+  atual,
+  max,
+  tom,
   passos,
-  maximo,
   desabilitado,
-  onChange,
+  onAtualizarAtual,
+  onAtualizarMax,
+  onRestaurar,
+  textoRestaurar,
 }: {
-  valor: number;
+  titulo: string;
+  atual: number;
+  max: number;
+  tom: "wine" | "forest";
   passos: number[];
-  maximo?: number;
   desabilitado: boolean;
-  onChange: (valor: number) => void;
+  onAtualizarAtual: (val: number) => void;
+  onAtualizarMax: (val: number) => void;
+  onRestaurar: () => void;
+  textoRestaurar: string;
 }) {
-  const limitar = (n: number) =>
-    Math.min(
-      maximo ?? Number.MAX_SAFE_INTEGER,
-      Math.max(0, n),
-    );
+  return (
+    <div className="cs-vital-card">
+      <div className="cs-vital-head">
+        <span className="cs-vital-title">{titulo}</span>
+        <button
+          type="button"
+          className="cs-btn-action"
+          disabled={desabilitado || atual === max}
+          onClick={onRestaurar}
+          title={textoRestaurar}
+        >
+          {textoRestaurar}
+        </button>
+      </div>
+
+      <StatBar label={titulo} atual={atual} max={max} tone={tom} />
+
+      <div className="cs-vital-direct">
+        <div className="cs-vital-fields">
+          <div className="cs-vital-field">
+            <label>Atual</label>
+            <input
+              type="number"
+              className="cs-vital-input"
+              min={0}
+              max={max}
+              value={atual}
+              disabled={desabilitado}
+              onChange={(e) => {
+                const val = parseInt(e.target.value, 10);
+                onAtualizarAtual(isNaN(val) ? 0 : Math.max(0, Math.min(max, val)));
+              }}
+            />
+          </div>
+
+          <span className="cs-vital-sep">/</span>
+
+          <div className="cs-vital-field">
+            <label>Máximo</label>
+            <input
+              type="number"
+              className="cs-vital-input"
+              min={1}
+              max={9999}
+              value={max}
+              disabled={desabilitado}
+              onChange={(e) => {
+                const val = parseInt(e.target.value, 10);
+                onAtualizarMax(isNaN(val) ? 1 : Math.max(1, Math.min(9999, val)));
+              }}
+            />
+          </div>
+        </div>
+
+        <div className="cs-vital-quick-btns">
+          {passos.map((p) => (
+            <button
+              key={p}
+              type="button"
+              className="cs-btn-stepper"
+              disabled={desabilitado}
+              onClick={() => {
+                const novo = Math.max(0, Math.min(max, atual + p));
+                onAtualizarAtual(novo);
+              }}
+            >
+              {p > 0 ? `+${p}` : p}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ControleCarteira({
+  carteira,
+  desabilitado,
+  onAlterarMoeda,
+}: {
+  carteira: Wallet;
+  desabilitado: boolean;
+  onAlterarMoeda: (chave: keyof Wallet, valor: number) => void;
+}) {
+  const [mostrarOutras, setMostrarOutras] = useState(false);
+
+  const poLimpo = sanitizarMoeda(carteira.po);
+
+  const ajustarPO = (delta: number) => {
+    const proximo = Math.max(0, Math.min(9999999, poLimpo + delta));
+    onAlterarMoeda("po", proximo);
+  };
 
   return (
-    <div className="cs-adjuster">
-      {passos
-        .filter((p) => p < 0)
-        .map((p) => (
-          <button
-            key={p}
-            type="button"
-            disabled={desabilitado}
-            onClick={() => onChange(limitar(valor + p))}
-          >
-            {p}
-          </button>
-        ))}
+    <div className="cs-wallet-container">
+      <div className="cs-wallet-main">
+        <div className="cs-wallet-gold-head">
+          <div className="cs-wallet-gold-title">
+            <strong>PO</strong>
+            <span>Peças de Ouro (Moeda Principal)</span>
+          </div>
 
-      <input
-        type="number"
-        min={0}
-        value={valor}
-        disabled={desabilitado}
-        onChange={(event) =>
-          onChange(
-            limitar(Number(event.target.value) || 0),
-          )
-        }
-      />
+          <div className="cs-wallet-direct-gold">
+            <input
+              type="number"
+              className="cs-wallet-input"
+              min={0}
+              max={9999999}
+              value={poLimpo}
+              disabled={desabilitado}
+              onChange={(e) => {
+                const val = parseInt(e.target.value, 10);
+                onAlterarMoeda("po", isNaN(val) ? 0 : Math.max(0, Math.min(9999999, val)));
+              }}
+            />
+            <span className="cs-wallet-unit">PO</span>
+          </div>
+        </div>
 
-      {passos
-        .filter((p) => p > 0)
-        .map((p) => (
+        <div className="cs-wallet-steppers">
+          {[-100, -50, -10, -1, 1, 10, 50, 100].map((delta) => (
+            <button
+              key={delta}
+              type="button"
+              className="cs-btn-stepper"
+              disabled={desabilitado}
+              onClick={() => ajustarPO(delta)}
+            >
+              {delta > 0 ? `+${delta}` : delta}
+            </button>
+          ))}
+
           <button
-            key={p}
             type="button"
-            disabled={desabilitado}
-            onClick={() => onChange(limitar(valor + p))}
+            className="btn-ghost"
+            style={{ fontSize: "0.75rem", padding: "4px 8px", marginLeft: "auto" }}
+            onClick={() => setMostrarOutras((v) => !v)}
           >
-            +{p}
+            {mostrarOutras ? "Ocultar outras moedas ▲" : "Mais moedas (PC, PP, PE, PL) ▼"}
           </button>
-        ))}
+        </div>
+
+        {mostrarOutras && (
+          <div className="cs-wallet-extras">
+            {(
+              [
+                ["pc", "Cobre", "PC"],
+                ["pp", "Prata", "PP"],
+                ["pe", "Electro", "PE"],
+                ["pl", "Platina", "PL"],
+              ] as const
+            ).map(([chave, nome, sigla]) => (
+              <div key={chave} className="cs-coin-sub">
+                <div className="cs-coin-sub-label">
+                  <span>{sigla}</span>
+                  <small>{nome}</small>
+                </div>
+                <input
+                  type="number"
+                  className="cs-coin-sub-input"
+                  min={0}
+                  max={9999999}
+                  value={sanitizarMoeda(carteira[chave])}
+                  disabled={desabilitado}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value, 10);
+                    onAlterarMoeda(chave, isNaN(val) ? 0 : Math.max(0, Math.min(9999999, val)));
+                  }}
+                />
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -142,24 +289,20 @@ function Campo({
         <textarea
           rows={4}
           value={valor}
-          onChange={(event) =>
-            onChange(event.target.value)
-          }
+          onChange={(event) => onChange(event.target.value)}
         />
       ) : (
         <input
           type={tipo}
           value={valor}
-          onChange={(event) =>
-            onChange(event.target.value)
-          }
+          onChange={(event) => onChange(event.target.value)}
         />
       )}
     </label>
   );
 }
 
-/* ---------- página ---------- */
+/* ---------- página principal ---------- */
 
 export default function CharacterSheet() {
   const { id } = useParams();
@@ -167,8 +310,7 @@ export default function CharacterSheet() {
   const idRef = useRef(id);
   idRef.current = id;
 
-  const [character, setCharacter] =
-    useState<Character | null>(null);
+  const [character, setCharacter] = useState<Character | null>(null);
 
   const [acesso, setAcesso] = useState({
     canEdit: false,
@@ -176,29 +318,28 @@ export default function CharacterSheet() {
   });
 
   const [loading, setLoading] = useState(true);
-  const [error, setError] =
-    useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const [tab, setTab] =
-    useState<Tab>("Atributos");
-
+  const [tab, setTab] = useState<Tab>("Atributos");
   const [status, setStatus] = useState("");
 
-  const [editando, setEditando] =
-    useState(false);
+  const [editando, setEditando] = useState(false);
+  const [rascunho, setRascunho] = useState<Character | null>(null);
+  const [salvandoEdicao, setSalvandoEdicao] = useState(false);
 
-  const [rascunho, setRascunho] =
-    useState<Character | null>(null);
+  // Estados locais para adição de novos itens/magias
+  const [novoItemNome, setNovoItemNome] = useState("");
+  const [novoItemQtd, setNovoItemQtd] = useState(1);
+  const [mostrarFormItem, setMostrarFormItem] = useState(false);
 
-  const [salvandoEdicao, setSalvandoEdicao] =
-    useState(false);
+  const [novaMagiaNome, setNovaMagiaNome] = useState("");
+  const [novaMagiaCusto, setNovaMagiaCusto] = useState(1);
+  const [novaMagiaDesc, setNovaMagiaDesc] = useState("");
+  const [mostrarFormMagia, setMostrarFormMagia] = useState(false);
 
   const timer = useRef<number | null>(null);
-
   const pendente = useRef<Character | null>(null);
-
-  const inputFoto =
-    useRef<HTMLInputElement>(null);
+  const inputFoto = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -211,19 +352,27 @@ export default function CharacterSheet() {
       getCharacterAccess(id),
     ])
       .then(([c, a]) => {
-        setCharacter(c ?? null);
+        if (c) {
+          // Auto-sanitiza carteira caso esteja com Number.MAX_SAFE_INTEGER
+          const carteiraLimpa: Wallet = {
+            pc: sanitizarMoeda(c.carteira?.pc),
+            pp: sanitizarMoeda(c.carteira?.pp),
+            pe: sanitizarMoeda(c.carteira?.pe),
+            po: sanitizarMoeda(c.carteira?.po),
+            pl: sanitizarMoeda(c.carteira?.pl),
+          };
+          setCharacter({
+            ...c,
+            carteira: carteiraLimpa,
+          });
+        } else {
+          setCharacter(null);
+        }
         setAcesso(a);
       })
       .catch((e) => {
-        console.error(
-          "Erro ao buscar personagem:",
-          e,
-        );
-
-        setError(
-          e?.message ??
-            "Erro ao carregar a ficha.",
-        );
+        console.error("Erro ao buscar personagem:", e);
+        setError(e?.message ?? "Erro ao carregar a ficha.");
       })
       .finally(() => setLoading(false));
   }, [id]);
@@ -235,16 +384,16 @@ export default function CharacterSheet() {
     if (!alvo || !alvoId) return;
 
     pendente.current = null;
-    setStatus("Salvando...");
+    setStatus("Salvando alterações...");
 
     try {
       await atualizarPersonagem(alvoId, alvo);
-      setStatus("Alterações salvas.");
+      setStatus("Alterações salvas com sucesso.");
     } catch (e) {
       setStatus(
         e instanceof Error
           ? e.message
-          : "Não foi possível salvar.",
+          : "Não foi possível salvar as alterações.",
       );
     }
   };
@@ -254,13 +403,10 @@ export default function CharacterSheet() {
       window.clearTimeout(timer.current);
       timer.current = null;
     }
-
     pendente.current = null;
   };
 
-  const agendarSalvamento = (
-    proximo: Character,
-  ) => {
+  const agendarSalvamento = (proximo: Character) => {
     setCharacter(proximo);
     pendente.current = proximo;
 
@@ -271,7 +417,7 @@ export default function CharacterSheet() {
     timer.current = window.setTimeout(() => {
       timer.current = null;
       void salvarPendente();
-    }, 700);
+    }, 600);
   };
 
   useEffect(() => {
@@ -286,77 +432,114 @@ export default function CharacterSheet() {
   }, []);
 
   if (loading) {
-    return (
-      <p className="sheet-status">
-        Carregando ficha...
-      </p>
-    );
+    return <p className="sheet-status">Carregando ficha do personagem...</p>;
   }
 
   if (error) {
-    return (
-      <p className="sheet-status">
-        Erro: {error}
-      </p>
-    );
+    return <p className="sheet-status">Erro: {error}</p>;
   }
 
   if (!character) {
-    return (
-      <p className="sheet-status">
-        Personagem não encontrado.
-      </p>
-    );
+    return <p className="sheet-status">Personagem não encontrado.</p>;
   }
 
   const podeEditar = acesso.canEdit;
 
-  const view: Character =
-    editando && rascunho
-      ? rascunho
-      : character;
+  const view: Character = editando && rascunho ? rascunho : character;
 
-  const carteira =
-    character.carteira ?? CARTEIRA_VAZIA;
+  const carteira: Wallet = {
+    pc: sanitizarMoeda(view.carteira?.pc),
+    pp: sanitizarMoeda(view.carteira?.pp),
+    pe: sanitizarMoeda(view.carteira?.pe),
+    po: sanitizarMoeda(view.carteira?.po),
+    pl: sanitizarMoeda(view.carteira?.pl),
+  };
 
-  const modDestreza = modificador(
-    view.attributes.destreza,
-  );
+  const modDestreza = modificador(view.attributes.destreza);
 
-  /* ---------- ações ---------- */
+  /* ---------- ações de vida, mana e dinheiro ---------- */
 
-  const alterarHp = (atual: number) =>
+  const alterarHp = (atual: number) => {
+    const max = character.hp.max;
+    const valido = Math.max(0, Math.min(max, atual));
     agendarSalvamento({
       ...character,
       hp: {
         ...character.hp,
-        atual,
+        atual: valido,
       },
     });
+  };
 
-  const alterarMp = (atual: number) =>
+  const alterarHpMax = (max: number) => {
+    const maxValido = Math.max(1, max);
+    agendarSalvamento({
+      ...character,
+      hp: {
+        max: maxValido,
+        atual: Math.min(character.hp.atual, maxValido),
+      },
+    });
+  };
+
+  const curarTudo = () => {
+    agendarSalvamento({
+      ...character,
+      hp: {
+        ...character.hp,
+        atual: character.hp.max,
+      },
+    });
+  };
+
+  const alterarMp = (atual: number) => {
+    const max = character.mp.max;
+    const valido = Math.max(0, Math.min(max, atual));
     agendarSalvamento({
       ...character,
       mp: {
         ...character.mp,
-        atual,
+        atual: valido,
       },
     });
+  };
 
-  const alterarOuro = (valor: number) =>
+  const alterarMpMax = (max: number) => {
+    const maxValido = Math.max(0, max);
+    agendarSalvamento({
+      ...character,
+      mp: {
+        max: maxValido,
+        atual: Math.min(character.mp.atual, maxValido),
+      },
+    });
+  };
+
+  const restaurarMana = () => {
+    agendarSalvamento({
+      ...character,
+      mp: {
+        ...character.mp,
+        atual: character.mp.max,
+      },
+    });
+  };
+
+  const alterarMoeda = (chave: keyof Wallet, valor: number) => {
+    const carteiraAtual = character.carteira ?? CARTEIRA_VAZIA;
     agendarSalvamento({
       ...character,
       carteira: {
-        ...carteira,
-        po: valor,
+        ...carteiraAtual,
+        [chave]: sanitizarMoeda(valor),
       },
     });
+  };
+
+  /* ---------- modo edição completa ---------- */
 
   const iniciarEdicao = () => {
-    setRascunho(
-      structuredClone(character),
-    );
-
+    setRascunho(structuredClone(character));
     setEditando(true);
     setStatus("");
   };
@@ -366,19 +549,12 @@ export default function CharacterSheet() {
     setRascunho(null);
   };
 
-  const atualizarRascunho = <
-    K extends keyof Character
-  >(
+  const atualizarRascunho = <K extends keyof Character>(
     chave: K,
     valor: Character[K],
   ) => {
     setRascunho((prev) =>
-      prev
-        ? {
-            ...prev,
-            [chave]: valor,
-          }
-        : prev,
+      prev ? { ...prev, [chave]: valor } : prev,
     );
   };
 
@@ -387,82 +563,162 @@ export default function CharacterSheet() {
 
     const ajustado: Character = {
       ...rascunho,
-
-      nome:
-        rascunho.nome.trim() ||
-        character.nome,
-
+      nome: rascunho.nome.trim() || character.nome,
       hp: {
-        max: rascunho.hp.max,
-        atual: Math.min(
-          rascunho.hp.atual,
-          rascunho.hp.max,
-        ),
+        max: Math.max(1, rascunho.hp.max),
+        atual: Math.max(0, Math.min(rascunho.hp.atual, rascunho.hp.max)),
       },
-
       mp: {
-        max: rascunho.mp.max,
-        atual: Math.min(
-          rascunho.mp.atual,
-          rascunho.mp.max,
-        ),
+        max: Math.max(0, rascunho.mp.max),
+        atual: Math.max(0, Math.min(rascunho.mp.atual, rascunho.mp.max)),
+      },
+      carteira: {
+        pc: sanitizarMoeda(rascunho.carteira?.pc),
+        pp: sanitizarMoeda(rascunho.carteira?.pp),
+        pe: sanitizarMoeda(rascunho.carteira?.pe),
+        po: sanitizarMoeda(rascunho.carteira?.po),
+        pl: sanitizarMoeda(rascunho.carteira?.pl),
       },
     };
 
     cancelarPendente();
-
     setSalvandoEdicao(true);
-    setStatus("Salvando...");
+    setStatus("Salvando ficha...");
 
     try {
-      const salvo =
-        await atualizarPersonagem(
-          id,
-          ajustado,
-        );
-
+      const salvo = await atualizarPersonagem(id, ajustado);
       setCharacter(salvo);
       setEditando(false);
       setRascunho(null);
-      setStatus("Ficha atualizada.");
+      setStatus("Ficha atualizada com sucesso.");
     } catch (e) {
       setStatus(
         e instanceof Error
           ? e.message
-          : "Não foi possível salvar.",
+          : "Não foi possível salvar a ficha.",
       );
     } finally {
       setSalvandoEdicao(false);
     }
   };
 
-  const trocarFoto = async (
-    arquivo: File,
-  ) => {
+  const trocarFoto = async (arquivo: File) => {
     if (!id) return;
 
     cancelarPendente();
     setStatus("Enviando foto...");
 
     try {
-      const url =
-        await enviarRetrato(arquivo);
-
-      const salvo =
-        await atualizarPersonagem(id, {
-          ...character,
-          portraitUrl: url,
-        });
+      const url = await enviarRetrato(arquivo);
+      const salvo = await atualizarPersonagem(id, {
+        ...character,
+        portraitUrl: url,
+      });
 
       setCharacter(salvo);
       setStatus("Foto atualizada.");
     } catch (e) {
       setStatus(
-        e instanceof Error
-          ? e.message
-          : "Não foi possível enviar a foto.",
+        e instanceof Error ? e.message : "Não foi possível enviar a foto.",
       );
     }
+  };
+
+  /* ---------- gerenciamento de itens, magias e perícias ---------- */
+
+  const handleAdicionarItem = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!novoItemNome.trim()) return;
+
+    const novoItem: InventoryItem = {
+      id: "item-" + Date.now(),
+      nome: novoItemNome.trim(),
+      quantidade: Math.max(1, novoItemQtd),
+    };
+
+    const proximoInventario = [...character.inventory, novoItem];
+    agendarSalvamento({
+      ...character,
+      inventory: proximoInventario,
+    });
+
+    setNovoItemNome("");
+    setNovoItemQtd(1);
+    setMostrarFormItem(false);
+  };
+
+  const handleAlterarQtdItem = (itemId: string, delta: number) => {
+    const proximoInventario = character.inventory
+      .map((item) => {
+        if (item.id === itemId) {
+          const novaQtd = item.quantidade + delta;
+          return novaQtd > 0 ? { ...item, quantidade: novaQtd } : null;
+        }
+        return item;
+      })
+      .filter((item): item is InventoryItem => item !== null);
+
+    agendarSalvamento({
+      ...character,
+      inventory: proximoInventario,
+    });
+  };
+
+  const handleRemoverItem = (itemId: string) => {
+    const proximoInventario = character.inventory.filter((item) => item.id !== itemId);
+    agendarSalvamento({
+      ...character,
+      inventory: proximoInventario,
+    });
+  };
+
+  const handleAdicionarMagia = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!novaMagiaNome.trim()) return;
+
+    const novaMagia: Spell = {
+      id: "spell-" + Date.now(),
+      nome: novaMagiaNome.trim(),
+      custo: Math.max(0, novaMagiaCusto),
+      descricao: novaMagiaDesc.trim(),
+    };
+
+    agendarSalvamento({
+      ...character,
+      spells: [...character.spells, novaMagia],
+    });
+
+    setNovaMagiaNome("");
+    setNovaMagiaCusto(1);
+    setNovaMagiaDesc("");
+    setMostrarFormMagia(false);
+  };
+
+  const handleRemoverMagia = (spellId: string) => {
+    agendarSalvamento({
+      ...character,
+      spells: character.spells.filter((s) => s.id !== spellId),
+    });
+  };
+
+  const handleTogglePericia = (skillId: string) => {
+    const profBonus = bonusProficiencia(character.nivel);
+    const proximasSkills = character.skills.map((skill) => {
+      if (skill.id === skillId) {
+        const novaTreinada = !skill.treinada;
+        return {
+          ...skill,
+          treinada: novaTreinada,
+          bonus: novaTreinada ? profBonus : 0,
+        };
+      }
+      return skill;
+    });
+
+    agendarSalvamento({
+      ...character,
+      skills: proximasSkills,
+    });
   };
 
   /* ---------- tela ---------- */
@@ -477,31 +733,28 @@ export default function CharacterSheet() {
 
   return (
     <div className="sheet">
+      {/* Banner de permissão do Mestre */}
+      {acesso.isMaster && (
+        <div className="cs-master-banner">
+          <span>👑 Mestre da Campanha: você tem permissão total para alterar vida, mana, dinheiro e atributos desta ficha.</span>
+        </div>
+      )}
+
       <nav className="cs-nav">
-        <Link to="/">
-          ← Meus personagens
-        </Link>
+        {character.campanhaId ? (
+          <Link to={"/campanha/" + character.campanhaId} className="cs-back-link">
+            ← Voltar para a Campanha
+          </Link>
+        ) : (
+          <Link to="/">← Meus personagens</Link>
+        )}
 
         {character.campanhaId && (
           <>
-            <Link
-              to={
-                "/campanha/" +
-                character.campanhaId
-              }
-            >
-              Campanha
+            <Link to={"/campanha/" + character.campanhaId + "/loja"}>
+              Loja da Campanha
             </Link>
-
-            <Link
-              to={
-                "/campanha/" +
-                character.campanhaId +
-                "/loja"
-              }
-            >
-              Loja
-            </Link>
+            <Link to="/">Meus personagens</Link>
           </>
         )}
       </nav>
@@ -525,9 +778,7 @@ export default function CharacterSheet() {
               <button
                 type="button"
                 className="btn-ghost cs-photo-btn"
-                onClick={() =>
-                  inputFoto.current?.click()
-                }
+                onClick={() => inputFoto.current?.click()}
               >
                 Alterar foto
               </button>
@@ -538,13 +789,10 @@ export default function CharacterSheet() {
                 accept="image/*"
                 hidden
                 onChange={(event) => {
-                  const arquivo =
-                    event.target.files?.[0];
-
+                  const arquivo = event.target.files?.[0];
                   if (arquivo) {
                     void trocarFoto(arquivo);
                   }
-
                   event.target.value = "";
                 }}
               />
@@ -556,13 +804,10 @@ export default function CharacterSheet() {
           <h1>{view.nome}</h1>
 
           <p>
-            {view.raca} · {view.classe} · Nível{" "}
-            {view.nivel}
+            {view.raca} · {view.classe} · Nível {view.nivel}
           </p>
 
-          {linhaExtra && (
-            <p>{linhaExtra}</p>
-          )}
+          {linhaExtra && <p>{linhaExtra}</p>}
         </div>
 
         <div className="sheet-vitals">
@@ -584,34 +829,17 @@ export default function CharacterSheet() {
 
       <div className="cs-stats">
         <div className="cs-stat">
-          <strong>
-            {10 + modDestreza}
-          </strong>
-
-          <span>
-            Classe de Armadura
-          </span>
+          <strong>{10 + modDestreza}</strong>
+          <span>Classe de Armadura</span>
         </div>
 
         <div className="cs-stat">
-          <strong>
-            {formatarModificador(
-              modDestreza,
-            )}
-          </strong>
-
+          <strong>{formatarModificador(modDestreza)}</strong>
           <span>Iniciativa</span>
         </div>
 
         <div className="cs-stat">
-          <strong>
-            {formatarModificador(
-              bonusProficiencia(
-                view.nivel,
-              ),
-            )}
-          </strong>
-
+          <strong>{formatarModificador(bonusProficiencia(view.nivel))}</strong>
           <span>Proficiência</span>
         </div>
       </div>
@@ -621,7 +849,7 @@ export default function CharacterSheet() {
           <span className="cs-status">
             {status ||
               (acesso.isMaster
-                ? "Você pode editar esta ficha como Mestre."
+                ? "Você pode alterar esta ficha livremente como Mestre."
                 : "Você pode editar sua ficha.")}
           </span>
 
@@ -630,12 +858,8 @@ export default function CharacterSheet() {
               <button
                 type="button"
                 className="btn-ghost"
-                onClick={
-                  cancelarEdicao
-                }
-                disabled={
-                  salvandoEdicao
-                }
+                onClick={cancelarEdicao}
+                disabled={salvandoEdicao}
               >
                 Cancelar
               </button>
@@ -643,72 +867,50 @@ export default function CharacterSheet() {
               <button
                 type="button"
                 className="btn-primary"
-                onClick={
-                  salvarEdicao
-                }
-                disabled={
-                  salvandoEdicao
-                }
+                onClick={salvarEdicao}
+                disabled={salvandoEdicao}
               >
-                {salvandoEdicao
-                  ? "Salvando..."
-                  : "Salvar ficha"}
+                {salvandoEdicao ? "Salvando..." : "Salvar ficha"}
               </button>
             </>
           ) : (
             <button
               type="button"
               className="btn-ghost"
-              onClick={
-                iniciarEdicao
-              }
+              onClick={iniciarEdicao}
             >
-              Editar ficha
+              Editar ficha completa
             </button>
           )}
         </div>
       )}
 
+      {/* Formulário de edição completa */}
       {editando && rascunho && (
         <section className="cs-panel">
-          <h3>
-            Informações do personagem
-          </h3>
+          <div className="cs-panel-header">
+            <h3>Editar ficha completa</h3>
+          </div>
 
           <div className="cs-edit-grid">
             <Campo
               rotulo="Nome"
               valor={rascunho.nome}
-              onChange={(v) =>
-                atualizarRascunho(
-                  "nome",
-                  v,
-                )
-              }
+              onChange={(v) => atualizarRascunho("nome", v)}
             />
 
             <OptionField
               label="Raça"
               value={rascunho.raca}
               options={RACAS}
-              onChange={(v) =>
-                atualizarRascunho(
-                  "raca",
-                  v,
-                )
-              }
+              onChange={(v) => atualizarRascunho("raca", v)}
             />
 
             <OptionField
               label="Classe"
               value={rascunho.classe}
               options={CLASSES}
-              onChange={(v) =>
-                atualizarRascunho(
-                  "classe",
-                  v,
-                )
-              }
+              onChange={(v) => atualizarRascunho("classe", v)}
             />
 
             <Campo
@@ -718,204 +920,149 @@ export default function CharacterSheet() {
               onChange={(v) =>
                 atualizarRascunho(
                   "nivel",
-                  Math.min(
-                    20,
-                    Math.max(
-                      1,
-                      Number(v) || 1,
-                    ),
-                  ),
+                  Math.min(20, Math.max(1, Number(v) || 1)),
                 )
               }
             />
 
             <OptionField
               label="Alinhamento"
-              value={
-                rascunho.alinhamento ??
-                ""
-              }
+              value={rascunho.alinhamento ?? ""}
               options={ALINHAMENTOS}
-              onChange={(v) =>
-                atualizarRascunho(
-                  "alinhamento",
-                  v,
-                )
-              }
+              onChange={(v) => atualizarRascunho("alinhamento", v)}
             />
 
             <Campo
               rotulo="Origem"
-              valor={
-                rascunho.origem ?? ""
-              }
-              onChange={(v) =>
-                atualizarRascunho(
-                  "origem",
-                  v,
-                )
-              }
+              valor={rascunho.origem ?? ""}
+              onChange={(v) => atualizarRascunho("origem", v)}
             />
 
             <Campo
               rotulo="Idade"
-              valor={
-                rascunho.idade ?? ""
-              }
+              valor={rascunho.idade ?? ""}
+              onChange={(v) => atualizarRascunho("idade", v)}
+            />
+
+            <Campo
+              rotulo="Vida atual"
+              tipo="number"
+              valor={rascunho.hp.atual}
               onChange={(v) =>
-                atualizarRascunho(
-                  "idade",
-                  v,
-                )
+                atualizarRascunho("hp", {
+                  ...rascunho.hp,
+                  atual: Math.max(0, Number(v) || 0),
+                })
               }
             />
 
             <Campo
               rotulo="Vida máxima"
               tipo="number"
-              valor={
-                rascunho.hp.max
-              }
+              valor={rascunho.hp.max}
               onChange={(v) =>
-                atualizarRascunho(
-                  "hp",
-                  {
-                    ...rascunho.hp,
-                    max: Math.max(
-                      1,
-                      Number(v) || 1,
-                    ),
-                  },
-                )
+                atualizarRascunho("hp", {
+                  ...rascunho.hp,
+                  max: Math.max(1, Number(v) || 1),
+                })
+              }
+            />
+
+            <Campo
+              rotulo="Mana atual"
+              tipo="number"
+              valor={rascunho.mp.atual}
+              onChange={(v) =>
+                atualizarRascunho("mp", {
+                  ...rascunho.mp,
+                  atual: Math.max(0, Number(v) || 0),
+                })
               }
             />
 
             <Campo
               rotulo="Mana máxima"
               tipo="number"
-              valor={
-                rascunho.mp.max
-              }
+              valor={rascunho.mp.max}
               onChange={(v) =>
-                atualizarRascunho(
-                  "mp",
-                  {
-                    ...rascunho.mp,
-                    max: Math.max(
-                      0,
-                      Number(v) || 0,
-                    ),
-                  },
-                )
+                atualizarRascunho("mp", {
+                  ...rascunho.mp,
+                  max: Math.max(0, Number(v) || 0),
+                })
+              }
+            />
+
+            <Campo
+              rotulo="Ouro (PO)"
+              tipo="number"
+              valor={sanitizarMoeda(rascunho.carteira?.po)}
+              onChange={(v) =>
+                atualizarRascunho("carteira", {
+                  ...(rascunho.carteira ?? CARTEIRA_VAZIA),
+                  po: sanitizarMoeda(Number(v) || 0),
+                })
               }
             />
           </div>
         </section>
       )}
 
+      {/* Seção rápida de Vida e Mana */}
       <section className="cs-panel">
-        <h3>Vida e mana</h3>
+        <div className="cs-panel-header">
+          <h3>Vida e mana</h3>
+          {podeEditar && (
+            <small style={{ color: "var(--muted)" }}>
+              Você pode digitar valores diretamente nos campos ou usar os atalhos.
+            </small>
+          )}
+        </div>
 
         <div className="cs-vitals-grid">
-          <div className="cs-vital">
-            <StatBar
-              label="Vida"
-              atual={
-                character.hp.atual
-              }
-              max={
-                character.hp.max
-              }
-              tone="wine"
-            />
+          <ControleVital
+            titulo="Vida"
+            atual={character.hp.atual}
+            max={character.hp.max}
+            tom="wine"
+            passos={[-10, -5, -1, 1, 5, 10]}
+            desabilitado={!podeEditar}
+            onAtualizarAtual={alterarHp}
+            onAtualizarMax={alterarHpMax}
+            onRestaurar={curarTudo}
+            textoRestaurar="✨ Curar Total"
+          />
 
-            <Ajustador
-              valor={
-                character.hp.atual
-              }
-              maximo={
-                character.hp.max
-              }
-              passos={[
-                -5,
-                -1,
-                1,
-                5,
-              ]}
-              desabilitado={
-                !podeEditar ||
-                editando
-              }
-              onChange={
-                alterarHp
-              }
-            />
-          </div>
-
-          <div className="cs-vital">
-            <StatBar
-              label="Mana"
-              atual={
-                character.mp.atual
-              }
-              max={
-                character.mp.max
-              }
-              tone="forest"
-            />
-
-            <Ajustador
-              valor={
-                character.mp.atual
-              }
-              maximo={
-                character.mp.max
-              }
-              passos={[
-                -5,
-                -1,
-                1,
-                5,
-              ]}
-              desabilitado={
-                !podeEditar ||
-                editando
-              }
-              onChange={
-                alterarMp
-              }
-            />
-          </div>
+          <ControleVital
+            titulo="Mana"
+            atual={character.mp.atual}
+            max={character.mp.max}
+            tom="forest"
+            passos={[-5, -1, 1, 5]}
+            desabilitado={!podeEditar}
+            onAtualizarAtual={alterarMp}
+            onAtualizarMax={alterarMpMax}
+            onRestaurar={restaurarMana}
+            textoRestaurar="🧪 Restaurar Mana"
+          />
         </div>
       </section>
 
+      {/* Seção de Carteira / Dinheiro */}
       <section className="cs-panel">
-        <h3>Carteira</h3>
-
-        <div className="cs-wallet">
-          <div className="cs-coin">
-            <strong>PO</strong>
-
-            <small>Ouro</small>
-
-            <Ajustador
-              valor={carteira.po}
-              passos={[
-                -10,
-                -1,
-                1,
-                10,
-              ]}
-              desabilitado={
-                !podeEditar ||
-                editando
-              }
-              onChange={
-                alterarOuro
-              }
-            />
-          </div>
+        <div className="cs-panel-header">
+          <h3>Carteira</h3>
+          {podeEditar && (
+            <small style={{ color: "var(--muted)" }}>
+              Digite a quantia exata de ouro ou utilize os botões de incremento/decremento.
+            </small>
+          )}
         </div>
+
+        <ControleCarteira
+          carteira={carteira}
+          desabilitado={!podeEditar}
+          onAlterarMoeda={alterarMoeda}
+        />
       </section>
 
       <nav className="sheet-tabs">
@@ -927,9 +1074,7 @@ export default function CharacterSheet() {
                 ? "sheet-tab sheet-tab--active"
                 : "sheet-tab"
             }
-            onClick={() =>
-              setTab(t)
-            }
+            onClick={() => setTab(t)}
           >
             {t}
           </button>
@@ -944,67 +1089,33 @@ export default function CharacterSheet() {
                 view.attributes,
               ) as (keyof Attributes)[]
             ).map((attr) => (
-              <div
-                key={attr}
-                className="attribute-block"
-              >
+              <div key={attr} className="attribute-block">
                 <span className="attribute-label">
-                  {
-                    ATTRIBUTE_LABELS[
-                      attr
-                    ]
-                  }
+                  {ATTRIBUTE_LABELS[attr]}
                 </span>
 
-                {editando &&
-                rascunho ? (
+                {editando && rascunho ? (
                   <input
                     className="cs-attr-input"
                     type="number"
                     min={1}
                     max={30}
-                    value={
-                      rascunho
-                        .attributes[
-                          attr
-                        ]
-                    }
-                    onChange={(
-                      event,
-                    ) =>
-                      atualizarRascunho(
-                        "attributes",
-                        {
-                          ...rascunho.attributes,
-                          [attr]:
-                            Number(
-                              event
-                                .target
-                                .value,
-                            ) || 1,
-                        },
-                      )
+                    value={rascunho.attributes[attr]}
+                    onChange={(event) =>
+                      atualizarRascunho("attributes", {
+                        ...rascunho.attributes,
+                        [attr]: Number(event.target.value) || 1,
+                      })
                     }
                   />
                 ) : (
                   <span className="attribute-value">
-                    {
-                      view
-                        .attributes[
-                          attr
-                        ]
-                    }
+                    {view.attributes[attr]}
                   </span>
                 )}
 
                 <span className="attribute-mod">
-                  {formatarModificador(
-                    modificador(
-                      view.attributes[
-                        attr
-                      ],
-                    ),
-                  )}
+                  {formatarModificador(modificador(view.attributes[attr]))}
                 </span>
               </div>
             ))}
@@ -1012,167 +1123,243 @@ export default function CharacterSheet() {
         )}
 
         {tab === "Perícias" && (
-          <ul className="sheet-list">
-            {view.skills.map(
-              (skill) => (
+          <div>
+            <ul className="sheet-list">
+              {view.skills.map((skill) => (
                 <li key={skill.id}>
-                  <span>
-                    {skill.nome}
-                  </span>
+                  <span>{skill.nome}</span>
 
                   <span className="sheet-list-tag">
-                    {
-                      ATTRIBUTE_LABELS[
-                        skill
-                          .atributo
-                      ]
-                    }{" "}
-                    ·{" "}
-                    {skill.treinada
-                      ? "Treinada"
-                      : "Não treinada"}
+                    {ATTRIBUTE_LABELS[skill.atributo]} ·{" "}
+                    {skill.treinada ? "Treinada" : "Não treinada"}
                   </span>
 
                   <span className="sheet-list-bonus">
                     +{skill.bonus}
                   </span>
-                </li>
-              ),
-            )}
 
-            {view.skills.length ===
-              0 && (
-              <p className="sheet-empty">
-                Nenhuma perícia
-                registrada.
-              </p>
-            )}
-          </ul>
+                  {podeEditar && !editando && (
+                    <button
+                      type="button"
+                      className="cs-btn-icon"
+                      onClick={() => handleTogglePericia(skill.id)}
+                      title={skill.treinada ? "Tirar treino" : "Treinar perícia"}
+                    >
+                      {skill.treinada ? "✓ Treinada" : "+ Treinar"}
+                    </button>
+                  )}
+                </li>
+              ))}
+
+              {view.skills.length === 0 && (
+                <p className="sheet-empty">Nenhuma perícia registrada.</p>
+              )}
+            </ul>
+          </div>
         )}
 
         {tab === "Inventário" && (
-          <ul className="sheet-list">
-            {view.inventory.map(
-              (item) => (
+          <div>
+            {podeEditar && !editando && (
+              <div style={{ marginBottom: 12 }}>
+                {!mostrarFormItem ? (
+                  <button
+                    type="button"
+                    className="btn-ghost"
+                    style={{ fontSize: "0.82rem", padding: "4px 10px" }}
+                    onClick={() => setMostrarFormItem(true)}
+                  >
+                    + Adicionar item ao inventário
+                  </button>
+                ) : (
+                  <form onSubmit={handleAdicionarItem} className="cs-inline-form">
+                    <input
+                      placeholder="Nome do item (ex: Poção de Cura)"
+                      value={novoItemNome}
+                      onChange={(e) => setNovoItemNome(e.target.value)}
+                      required
+                    />
+                    <input
+                      type="number"
+                      placeholder="Qtd"
+                      min={1}
+                      style={{ width: "70px" }}
+                      value={novoItemQtd}
+                      onChange={(e) => setNovoItemQtd(Number(e.target.value) || 1)}
+                    />
+                    <button type="submit" className="btn-primary" style={{ fontSize: "0.8rem", padding: "4px 10px" }}>
+                      Adicionar
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-ghost"
+                      style={{ fontSize: "0.8rem", padding: "4px 10px" }}
+                      onClick={() => setMostrarFormItem(false)}
+                    >
+                      Cancelar
+                    </button>
+                  </form>
+                )}
+              </div>
+            )}
+
+            <ul className="sheet-list">
+              {view.inventory.map((item) => (
                 <li key={item.id}>
-                  <span>
-                    {item.nome}
-                  </span>
+                  <span>{item.nome}</span>
 
                   <span className="sheet-list-tag">
-                    x
-                    {
-                      item.quantidade
-                    }
+                    x{item.quantidade}
                   </span>
-                </li>
-              ),
-            )}
 
-            {view.inventory.length ===
-              0 && (
-              <p className="sheet-empty">
-                Inventário vazio.
-              </p>
-            )}
-          </ul>
+                  {podeEditar && !editando && (
+                    <div className="cs-list-actions">
+                      <button
+                        type="button"
+                        className="cs-btn-icon"
+                        onClick={() => handleAlterarQtdItem(item.id, -1)}
+                        title="Reduzir quantidade"
+                      >
+                        -
+                      </button>
+                      <button
+                        type="button"
+                        className="cs-btn-icon"
+                        onClick={() => handleAlterarQtdItem(item.id, 1)}
+                        title="Aumentar quantidade"
+                      >
+                        +
+                      </button>
+                      <button
+                        type="button"
+                        className="cs-btn-icon cs-btn-icon-del"
+                        onClick={() => handleRemoverItem(item.id)}
+                        title="Remover do inventário"
+                      >
+                        🗑
+                      </button>
+                    </div>
+                  )}
+                </li>
+              ))}
+
+              {view.inventory.length === 0 && (
+                <p className="sheet-empty">Inventário vazio.</p>
+              )}
+            </ul>
+          </div>
         )}
 
         {tab === "Magias" && (
-          <ul className="sheet-list sheet-list--spells">
-            {view.spells.map(
-              (spell) => (
+          <div>
+            {podeEditar && !editando && (
+              <div style={{ marginBottom: 12 }}>
+                {!mostrarFormMagia ? (
+                  <button
+                    type="button"
+                    className="btn-ghost"
+                    style={{ fontSize: "0.82rem", padding: "4px 10px" }}
+                    onClick={() => setMostrarFormMagia(true)}
+                  >
+                    + Conhecer nova magia
+                  </button>
+                ) : (
+                  <form onSubmit={handleAdicionarMagia} className="cs-inline-form">
+                    <input
+                      placeholder="Nome da magia (ex.: Bola de Fogo)"
+                      value={novaMagiaNome}
+                      onChange={(e) => setNovaMagiaNome(e.target.value)}
+                      required
+                    />
+                    <input
+                      type="number"
+                      placeholder="Custo PM"
+                      min={0}
+                      style={{ width: "90px" }}
+                      value={novaMagiaCusto}
+                      onChange={(e) => setNovaMagiaCusto(Number(e.target.value) || 0)}
+                    />
+                    <input
+                      placeholder="Descrição / Efeito"
+                      style={{ flex: "1 1 200px" }}
+                      value={novaMagiaDesc}
+                      onChange={(e) => setNovaMagiaDesc(e.target.value)}
+                    />
+                    <button type="submit" className="btn-primary" style={{ fontSize: "0.8rem", padding: "4px 10px" }}>
+                      Aprender
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-ghost"
+                      style={{ fontSize: "0.8rem", padding: "4px 10px" }}
+                      onClick={() => setMostrarFormMagia(false)}
+                    >
+                      Cancelar
+                    </button>
+                  </form>
+                )}
+              </div>
+            )}
+
+            <ul className="sheet-list sheet-list--spells">
+              {view.spells.map((spell) => (
                 <li key={spell.id}>
                   <div className="sheet-spell-head">
-                    <span>
-                      {spell.nome}
-                    </span>
+                    <span>{spell.nome}</span>
+                    <span className="sheet-list-tag">{spell.custo} PM</span>
 
-                    <span className="sheet-list-tag">
-                      {spell.custo} PM
-                    </span>
+                    {podeEditar && !editando && (
+                      <button
+                        type="button"
+                        className="cs-btn-icon cs-btn-icon-del"
+                        style={{ marginLeft: "auto" }}
+                        onClick={() => handleRemoverMagia(spell.id)}
+                        title="Esquecer magia"
+                      >
+                        🗑
+                      </button>
+                    )}
                   </div>
 
-                  <p>
-                    {spell.descricao}
-                  </p>
+                  {spell.descricao && <p>{spell.descricao}</p>}
                 </li>
-              ),
-            )}
+              ))}
 
-            {view.spells.length ===
-              0 && (
-              <p className="sheet-empty">
-                Este personagem
-                não conhece
-                magias.
-              </p>
-            )}
-          </ul>
+              {view.spells.length === 0 && (
+                <p className="sheet-empty">Este personagem não conhece magias.</p>
+              )}
+            </ul>
+          </div>
         )}
 
         {tab === "História" && (
           <div className="cs-story">
-            {editando &&
-            rascunho ? (
+            {editando && rascunho ? (
               <div className="cs-edit-grid">
-                {HISTORIA_CAMPOS.map(
-                  ([
-                    chave,
-                    rotulo,
-                  ]) => (
-                    <Campo
-                      key={chave}
-                      rotulo={rotulo}
-                      largo
-                      multilinha
-                      valor={
-                        rascunho[
-                          chave
-                        ] ?? ""
-                      }
-                      onChange={(v) =>
-                        atualizarRascunho(
-                          chave,
-                          v,
-                        )
-                      }
-                    />
-                  ),
-                )}
+                {HISTORIA_CAMPOS.map(([chave, rotulo]) => (
+                  <Campo
+                    key={chave}
+                    rotulo={rotulo}
+                    largo
+                    multilinha
+                    valor={rascunho[chave] ?? ""}
+                    onChange={(v) => atualizarRascunho(chave, v)}
+                  />
+                ))}
               </div>
             ) : (
               <>
-                {HISTORIA_CAMPOS.filter(
-                  ([chave]) =>
-                    view[chave],
-                ).map(
-                  ([
-                    chave,
-                    rotulo,
-                  ]) => (
-                    <div
-                      key={chave}
-                    >
-                      <h4>
-                        {rotulo}
-                      </h4>
-
-                      <p className="sheet-notes">
-                        {view[chave]}
-                      </p>
+                {HISTORIA_CAMPOS.filter(([chave]) => view[chave]).map(
+                  ([chave, rotulo]) => (
+                    <div key={chave}>
+                      <h4>{rotulo}</h4>
+                      <p className="sheet-notes">{view[chave]}</p>
                     </div>
                   ),
                 )}
 
-                {HISTORIA_CAMPOS.every(
-                  ([chave]) =>
-                    !view[chave],
-                ) && (
-                  <p className="sheet-empty">
-                    Nenhuma história
-                    registrada.
-                  </p>
+                {HISTORIA_CAMPOS.every(([chave]) => !view[chave]) && (
+                  <p className="sheet-empty">Nenhuma história registrada.</p>
                 )}
               </>
             )}
@@ -1180,26 +1367,17 @@ export default function CharacterSheet() {
         )}
 
         {tab === "Notas" &&
-          (editando &&
-          rascunho ? (
+          (editando && rascunho ? (
             <Campo
               rotulo="Notas"
               largo
               multilinha
-              valor={
-                rascunho.notas
-              }
-              onChange={(v) =>
-                atualizarRascunho(
-                  "notas",
-                  v,
-                )
-              }
+              valor={rascunho.notas}
+              onChange={(v) => atualizarRascunho("notas", v)}
             />
           ) : (
             <p className="sheet-notes">
-              {view.notas ||
-                "Nenhuma anotação ainda."}
+              {view.notas || "Nenhuma anotação ainda."}
             </p>
           ))}
       </div>
