@@ -1100,51 +1100,6 @@ export interface ShopItem {
   ativo: boolean;
 }
 
-type LojaItemRow = {
-  id: string;
-  loja_id: string;
-  item_id: string;
-  preco_compra: number | string;
-  preco_venda: number | string | null;
-  estoque: number;
-  venda_permitida: boolean;
-  ativo: boolean;
-
-  itens:
-    | {
-        id: string;
-        nome: string;
-        descricao: string | null;
-        tipo: string | null;
-        raridade: string | null;
-        efeito: string | null;
-        imagem_url: string | null;
-      }
-    | {
-        id: string;
-        nome: string;
-        descricao: string | null;
-        tipo: string | null;
-        raridade: string | null;
-        efeito: string | null;
-        imagem_url: string | null;
-      }[]
-    | null;
-
-  lojas:
-    | {
-        id: string;
-        campanha_id: string;
-        ativa: boolean;
-      }
-    | {
-        id: string;
-        campanha_id: string;
-        ativa: boolean;
-      }[]
-    | null;
-};
-
 export async function listarItensDaLoja(
   campanhaId: string,
 ): Promise<ShopItem[]> {
@@ -1214,14 +1169,15 @@ export async function listarItensDaLoja(
   };
 
   return (loja.loja_itens ?? [])
-    .filter(
-      (lojaItem) =>
-        lojaItem.ativo &&
-        lojaItem.itens !== null,
-    )
-    .map((lojaItem) => ({
-      id: lojaItem.id,
-      campanhaId: loja.campanha_id,
+  .filter(
+    (lojaItem) =>
+      lojaItem.ativo &&
+      lojaItem.itens !== null,
+  )
+  .map((lojaItem) => ({
+    id: lojaItem.id,
+    lojaId: loja.id,
+    campanhaId: loja.campanha_id,
       itemId: lojaItem.item_id,
       nome: lojaItem.itens!.nome,
       descricao: lojaItem.itens!.descricao,
