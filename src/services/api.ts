@@ -1,10 +1,5 @@
 import type { Character, User } from "../types/character";
-import { mockCharacters } from "../data/mockCharacters";
 import { supabase } from "./supabase";
-
-function delay<T>(value: T, ms = 300): Promise<T> {
-  return new Promise((resolve) => setTimeout(() => resolve(value), ms));
-}
 
 /* =========================================================
    AUTENTICAÇÃO
@@ -26,10 +21,11 @@ export async function login(
     );
   }
 
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email: cleanInput,
-    password: senha,
-  });
+  const { data, error } =
+    await supabase.auth.signInWithPassword({
+      email: cleanInput,
+      password: senha,
+    });
 
   if (error) {
     const mensagem = error.message.toLowerCase();
@@ -90,17 +86,26 @@ export async function registerUser(
   });
 
   if (error) {
-    if (error.message.toLowerCase().includes("already registered")) {
-      throw new Error("Este e-mail já está registrado no Supabase.");
+    if (
+      error.message
+        .toLowerCase()
+        .includes("already registered")
+    ) {
+      throw new Error(
+        "Este e-mail já está registrado no Supabase.",
+      );
     }
 
     throw new Error(
-      error.message || "Não foi possível cadastrar no Supabase.",
+      error.message ||
+        "Não foi possível cadastrar no Supabase.",
     );
   }
 
   if (!data.user) {
-    throw new Error("Erro ao criar aventureiro no Supabase.");
+    throw new Error(
+      "Erro ao criar aventureiro no Supabase.",
+    );
   }
 
   try {
@@ -140,7 +145,7 @@ type PersonagemRow = {
 
 /**
  * Converte a linha do banco no formato Character que os componentes esperam.
- * Retorna null se a linha não tiver a coluna "dados" preenchida.
+ * Retorna null se a coluna "dados" estiver vazia.
  */
 function rowToCharacter(row: PersonagemRow): Character | null {
   if (!row.dados) return null;
@@ -160,7 +165,8 @@ export async function getCharacters(): Promise<Character[]> {
 
   if (error) {
     throw new Error(
-      error.message || "Não foi possível carregar os personagens.",
+      error.message ||
+        "Não foi possível carregar os personagens.",
     );
   }
 
@@ -172,25 +178,152 @@ export async function getCharacters(): Promise<Character[]> {
 export async function getCharacterById(
   id: string,
 ): Promise<Character | undefined> {
-  try {
-    const { data, error } = await supabase
-      .from("personagens")
-      .select("*")
-      .eq("id", id)
-      .single();
+  const { data, error } = await supabase
+    .from("personagens")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
 
-    if (!error && data) {
-      const personagem = rowToCharacter(data as PersonagemRow);
-
-      if (personagem) {
-        return personagem;
-      }
-    }
-  } catch {
-    // Fallback temporário para desenvolvimento.
+  if (error) {
+    throw new Error(
+      error.message ||
+        "Não foi possível carregar o personagem.",
+    );
   }
 
-  return delay(mockCharacters.find((c) => c.id === id));
+  if (!data) {
+    return undefined;
+  }
+
+  const personagem = rowToCharacter(data as PersonagemRow);
+
+  if (!personagem) {
+    throw new Error(
+      "O personagem foi encontrado, mas os dados da ficha estão vazios.",
+    );
+  }
+
+  return personagem;
+}
+
+/* =========================================================
+   EDITAR PERSONAGEM, PERMISSÕES E FOTO
+========================================================= */
+
+export async function atualizarPersonagem(
+  id: string,
+  personagem: Character,
+): Promise<Character> {
+  const dados: Character = { ...personagem, id: "" };
+
+  const { data, error } = await supabase
+    .from("personagens")
+    .update({
+      nome: personagem.nome,
+      nivel: personagem.nivel,
+      dados,
+    })
+    .eq("id", id)
+    .select()
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(
+      error.message || "Não foi possível salvar o personagem.",
+    );
+  }
+
+  if (!data) {
+    throw new Error(
+      "Você não tem permissão para alterar este personagem.",
+    );
+  }
+
+  const atualizado = rowToCharacter(data as PersonagemRow);
+
+  if (!atualizado) {
+    throw new Error("Os dados da ficha ficaram vazios após salvar.");
+  }
+
+  return atualizado;
+}
+
+/**
+ * Quem pode editar a ficha: o dono do personagem ou o Mestre da campanha.
+ * (A regra que vale de verdade fica nas políticas do Supabase.)
+ */
+export async function getCharacterAccess(
+  characterId: string,
+): Promise<{ canEdit: boolean; isMaster: boolean }> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { canEdit: false, isMaster: false };
+  }
+
+  const { data, error } = await supabase
+    .from("personagens")
+    .select("user_id, campanha_id")
+    .eq("id", characterId)
+    .maybeSingle();
+
+  if (error || !data) {
+    return { canEdit: false, isMaster: false };
+  }
+
+  const { data: membership } = await supabase
+    .from("campanha_membros")
+    .select("papel")
+    .eq("campanha_id", data.campanha_id)
+    .eq("user_id", user.id)
+    .eq("status", "ATIVO")
+    .maybeSingle();
+
+  const isMaster = membership?.papel === "MESTRE";
+  const isOwner = data.user_id === user.id;
+
+  return { canEdit: isOwner || isMaster, isMaster };
+}
+
+export async function enviarRetrato(arquivo: File): Promise<string> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    throw new Error("Usuário não autenticado.");
+  }
+
+  if (!arquivo.type.startsWith("image/")) {
+    throw new Error("Escolha um arquivo de imagem.");
+  }
+
+  if (arquivo.size > 3 * 1024 * 1024) {
+    throw new Error("A imagem deve ter no máximo 3 MB.");
+  }
+
+  const extensao = (arquivo.name.split(".").pop() || "png").toLowerCase();
+  const caminho = user.id + "/" + Date.now() + "." + extensao;
+
+  const { error } = await supabase.storage
+    .from("retratos")
+    .upload(caminho, arquivo, {
+      cacheControl: "3600",
+      upsert: false,
+      contentType: arquivo.type,
+    });
+
+  if (error) {
+    throw new Error(
+      error.message || "Não foi possível enviar a imagem.",
+    );
+  }
+
+  const { data } = supabase.storage.from("retratos").getPublicUrl(caminho);
+
+  return data.publicUrl;
 }
 
 /* =========================================================
@@ -212,12 +345,16 @@ export interface Campaign {
 }
 
 function gerarCodigoConvite(): string {
-  const caracteres = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  const caracteres =
+    "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
   let codigo = "";
 
   for (let i = 0; i < 6; i++) {
-    const indice = Math.floor(Math.random() * caracteres.length);
+    const indice = Math.floor(
+      Math.random() * caracteres.length,
+    );
+
     codigo += caracteres[indice];
   }
 
@@ -250,10 +387,16 @@ export async function criarCampanha(dados: {
       .from("campanhas")
       .insert({
         nome: dados.nome.trim(),
-        descricao: dados.descricao.trim() || null,
-        sistema: dados.sistema.trim() || null,
-        moeda_principal: dados.moeda_principal.trim() || null,
-        ouro_inicial: Math.max(0, Math.floor(dados.ouro_inicial)),
+        descricao:
+          dados.descricao.trim() || null,
+        sistema:
+          dados.sistema.trim() || null,
+        moeda_principal:
+          dados.moeda_principal.trim() || null,
+        ouro_inicial: Math.max(
+          0,
+          Math.floor(dados.ouro_inicial),
+        ),
         codigo_convite: codigo,
         created_by: user.id,
         status: "ATIVA",
@@ -262,14 +405,15 @@ export async function criarCampanha(dados: {
       .single();
 
     if (!error && data) {
-      const { error: membroError } = await supabase
-        .from("campanha_membros")
-        .insert({
-          campanha_id: data.id,
-          user_id: user.id,
-          papel: "MESTRE",
-          status: "ATIVO",
-        });
+      const { error: membroError } =
+        await supabase
+          .from("campanha_membros")
+          .insert({
+            campanha_id: data.id,
+            user_id: user.id,
+            papel: "MESTRE",
+            status: "ATIVO",
+          });
 
       if (membroError) {
         await supabase
@@ -288,7 +432,8 @@ export async function criarCampanha(dados: {
 
     if (error?.code !== "23505") {
       throw new Error(
-        error?.message || "Não foi possível criar a campanha.",
+        error?.message ||
+          "Não foi possível criar a campanha.",
       );
     }
   }
@@ -302,7 +447,9 @@ export async function criarCampanha(dados: {
    LISTAR CAMPANHAS DO USUÁRIO
 ========================================================= */
 
-export async function listarMinhasCampanhas(): Promise<Campaign[]> {
+export async function listarMinhasCampanhas(): Promise<
+  Campaign[]
+> {
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -313,18 +460,14 @@ export async function listarMinhasCampanhas(): Promise<Campaign[]> {
 
   const { data, error } = await supabase
     .from("campanha_membros")
-    .select(
-      `
-      campanha_id,
-      campanhas (*)
-      `,
-    )
+    .select("campanha_id, campanhas (*)")
     .eq("user_id", user.id)
     .eq("status", "ATIVO");
 
   if (error) {
     throw new Error(
-      error.message || "Não foi possível carregar suas campanhas.",
+      error.message ||
+        "Não foi possível carregar suas campanhas.",
     );
   }
 
@@ -333,7 +476,10 @@ export async function listarMinhasCampanhas(): Promise<Campaign[]> {
   for (const item of data ?? []) {
     const campanha = item.campanhas;
 
-    if (campanha && !Array.isArray(campanha)) {
+    if (
+      campanha &&
+      !Array.isArray(campanha)
+    ) {
       campanhas.push(campanha as Campaign);
     }
   }
@@ -356,13 +502,19 @@ export async function entrarNaCampanha(
     throw new Error("Usuário não autenticado.");
   }
 
-  const codigo = codigoConvite.trim().toUpperCase();
+  const codigo =
+    codigoConvite.trim().toUpperCase();
 
   if (!codigo) {
-    throw new Error("Informe o código da campanha.");
+    throw new Error(
+      "Informe o código da campanha.",
+    );
   }
 
-  const { data: campanha, error: campanhaError } = await supabase
+  const {
+    data: campanha,
+    error: campanhaError,
+  } = await supabase
     .from("campanhas")
     .select("*")
     .eq("codigo_convite", codigo)
@@ -370,7 +522,9 @@ export async function entrarNaCampanha(
     .single();
 
   if (campanhaError || !campanha) {
-    throw new Error("Campanha não encontrada ou não está ativa.");
+    throw new Error(
+      "Campanha não encontrada ou não está ativa.",
+    );
   }
 
   const {
@@ -391,13 +545,19 @@ export async function entrarNaCampanha(
   }
 
   if (membroExistente) {
-    if (membroExistente.status !== "ATIVO") {
-      const { error: atualizarError } = await supabase
-        .from("campanha_membros")
-        .update({
-          status: "ATIVO",
-        })
-        .eq("id", membroExistente.id);
+    if (
+      membroExistente.status !== "ATIVO"
+    ) {
+      const { error: atualizarError } =
+        await supabase
+          .from("campanha_membros")
+          .update({
+            status: "ATIVO",
+          })
+          .eq(
+            "id",
+            membroExistente.id,
+          );
 
       if (atualizarError) {
         throw new Error(
@@ -410,14 +570,15 @@ export async function entrarNaCampanha(
     return campanha as Campaign;
   }
 
-  const { error: entradaError } = await supabase
-    .from("campanha_membros")
-    .insert({
-      campanha_id: campanha.id,
-      user_id: user.id,
-      papel: "JOGADOR",
-      status: "ATIVO",
-    });
+  const { error: entradaError } =
+    await supabase
+      .from("campanha_membros")
+      .insert({
+        campanha_id: campanha.id,
+        user_id: user.id,
+        papel: "JOGADOR",
+        status: "ATIVO",
+      });
 
   if (entradaError) {
     throw new Error(
@@ -433,7 +594,9 @@ export async function entrarNaCampanha(
    ACESSO À CAMPANHA
 ========================================================= */
 
-export async function getCampaignAccess(campaignId: string): Promise<{
+export async function getCampaignAccess(
+  campaignId: string,
+): Promise<{
   isMaster: boolean;
   startingGold: number;
 }> {
@@ -483,8 +646,10 @@ export async function getCampaignAccess(campaignId: string): Promise<{
   }
 
   return {
-    isMaster: membership?.papel === "MESTRE",
-    startingGold: campaign?.ouro_inicial ?? 1250,
+    isMaster:
+      membership?.papel === "MESTRE",
+    startingGold:
+      campaign?.ouro_inicial ?? 1250,
   };
 }
 
@@ -505,25 +670,29 @@ export async function criarPersonagem(
   }
 
   if (!campanhaId) {
-    throw new Error("Campanha não informada.");
+    throw new Error(
+      "Campanha não informada.",
+    );
   }
 
-  const { data, error } = await supabase
-    .from("personagens")
-    .insert({
-      campanha_id: campanhaId,
-      user_id: user.id,
-      nome: personagem.nome,
-      nivel: personagem.nivel,
-      xp: 0,
-      dados: personagem,
-    })
-    .select()
-    .single();
+  const { data, error } =
+    await supabase
+      .from("personagens")
+      .insert({
+        campanha_id: campanhaId,
+        user_id: user.id,
+        nome: personagem.nome,
+        nivel: personagem.nivel,
+        xp: 0,
+        dados: personagem,
+      })
+      .select()
+      .single();
 
   if (error || !data) {
     throw new Error(
-      error?.message || "Não foi possível criar o personagem.",
+      error?.message ||
+        "Não foi possível criar o personagem.",
     );
   }
 

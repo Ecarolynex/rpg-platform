@@ -1,0 +1,157 @@
+/* Elementos novos da ficha. Se o projeto já tiver variáveis de cor, troque os valores de reserva. */
+
+.sheet .sheet-portrait {
+  overflow: hidden;
+}
+
+.cs-portrait-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.cs-portrait-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+  display: block;
+}
+
+.cs-photo-btn {
+  font-size: 0.8rem;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+
+.cs-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.cs-stat {
+  border: 1px solid var(--border, #d8cdb9);
+  border-radius: 8px;
+  padding: 10px;
+  text-align: center;
+}
+
+.cs-stat strong {
+  display: block;
+  font-size: 1.5rem;
+}
+
+.cs-stat span {
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.75;
+}
+
+.cs-panel {
+  border: 1px solid var(--border, #d8cdb9);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.cs-panel h3 {
+  margin: 0 0 12px;
+}
+
+.cs-vitals-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+.cs-adjuster {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.cs-adjuster input {
+  width: 72px;
+  text-align: center;
+}
+
+.cs-adjuster button {
+  min-width: 36px;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+
+.cs-adjuster button:disabled,
+.cs-adjuster input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.cs-wallet {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 12px;
+}
+
+.cs-coin {
+  border: 1px solid var(--border, #d8cdb9);
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.cs-coin small {
+  margin-left: 6px;
+  opacity: 0.7;
+}
+
+.cs-editbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.cs-status {
+  margin-right: auto;
+  font-size: 0.85rem;
+  opacity: 0.8;
+}
+
+.cs-edit-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.cs-story h4 {
+  margin: 12px 0 4px;
+}
+
+.cs-attr-input {
+  width: 64px;
+  text-align: center;
+}
+
+.attribute-mod {
+  display: block;
+  font-size: 0.85rem;
+  opacity: 0.8;
+}
+
+.sheet .field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sheet .field-wide {
+  grid-column: 1 / -1;
+}

@@ -2,11 +2,21 @@ import { useEffect, useState } from "react";
 import type { Attributes, Character } from "../../types/character";
 import {
   criarPersonagem,
+  enviarRetrato,
   getCharacters,
   listarMinhasCampanhas,
   type Campaign,
 } from "../../services/api";
 import { CharacterCard } from "../../components/character/CharacterCard";
+import { OptionField } from "../../components/ui/OptionField";
+import {
+  ALINHAMENTOS,
+  CLASSES,
+  RACAS,
+  calcularManaMaxima,
+  calcularVidaMaxima,
+  carteiraInicial,
+} from "../../data/dnd";
 import "./Dashboard.css";
 
 const initialDraft = {
@@ -29,6 +39,15 @@ const initialDraft = {
   carisma: 10,
 };
 
+type TextField =
+  | "nome"
+  | "origem"
+  | "idade"
+  | "historia"
+  | "aparencia"
+  | "objetivo"
+  | "defeito";
+
 export default function Dashboard() {
   const [characters, setCharacters] = useState<Character[]>([]);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
@@ -38,6 +57,8 @@ export default function Dashboard() {
   const [errorMessage, setErrorMessage] = useState("");
   const [showCreator, setShowCreator] = useState(false);
   const [draft, setDraft] = useState(initialDraft);
+  const [portraitFile, setPortraitFile] = useState<File | null>(null);
+  const [portraitPreview, setPortraitPreview] = useState("");
 
   useEffect(() => {
     async function loadData() {
@@ -67,31 +88,40 @@ export default function Dashboard() {
     loadData();
   }, []);
 
-  const updateDraft = <
-    K extends keyof typeof initialDraft
-  >(
+  const updateDraft = <K extends keyof typeof initialDraft>(
     field: K,
     value: (typeof initialDraft)[K],
   ) => {
     setDraft((prev) => ({ ...prev, [field]: value }));
   };
 
-  const updateAttribute = (
-    field: keyof Attributes,
-    value: number,
-  ) => {
+  const updateAttribute = (field: keyof Attributes, value: number) => {
     setDraft((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleSubmit = async (
-    event: React.FormEvent<HTMLFormElement>,
-  ) => {
+  const textProps = (field: TextField) => ({
+    value: draft[field],
+    onChange: (
+      event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
+    ) => updateDraft(field, event.target.value),
+  });
+
+  const handlePortrait = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] ?? null;
+
+    if (portraitPreview) {
+      URL.revokeObjectURL(portraitPreview);
+    }
+
+    setPortraitFile(file);
+    setPortraitPreview(file ? URL.createObjectURL(file) : "");
+  };
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     if (!selectedCampaignId) {
-      setErrorMessage(
-        "Selecione uma campanha antes de salvar o personagem.",
-      );
+      setErrorMessage("Selecione uma campanha antes de salvar o personagem.");
       return;
     }
 
@@ -99,20 +129,36 @@ export default function Dashboard() {
     setErrorMessage("");
 
     try {
+      const portraitUrl = portraitFile
+        ? await enviarRetrato(portraitFile)
+        : undefined;
+
+      const campanha = campaigns.find((c) => c.id === selectedCampaignId);
+      const nivel = Number(draft.nivel) || 1;
+      const classe = draft.classe || "Aventureiro";
+      const vidaMaxima = calcularVidaMaxima(
+        classe,
+        nivel,
+        Number(draft.constituicao),
+      );
+      const manaMaxima = calcularManaMaxima(Number(draft.inteligencia));
+
       const createdCharacter: Character = {
         id: "",
         nome: draft.nome || "Novo personagem",
         raca: draft.raca || "Humano",
-        classe: draft.classe || "Aventureiro",
-        nivel: Number(draft.nivel) || 1,
-        hp: {
-          atual: 12 + Number(draft.constituicao),
-          max: 12 + Number(draft.constituicao),
-        },
-        mp: {
-          atual: 8 + Number(draft.inteligencia),
-          max: 8 + Number(draft.inteligencia),
-        },
+        classe,
+        nivel,
+        portraitUrl,
+        alinhamento: draft.alinhamento,
+        origem: draft.origem,
+        idade: draft.idade,
+        historia: draft.historia,
+        aparencia: draft.aparencia,
+        objetivo: draft.objetivo,
+        defeito: draft.defeito,
+        hp: { atual: vidaMaxima, max: vidaMaxima },
+        mp: { atual: manaMaxima, max: manaMaxima },
         attributes: {
           forca: Number(draft.forca),
           destreza: Number(draft.destreza),
@@ -124,27 +170,8 @@ export default function Dashboard() {
         skills: [],
         inventory: [],
         spells: [],
-        notas: [
-          draft.origem ? `Origem: ${draft.origem}` : null,
-          draft.alinhamento
-            ? `Alinhamento: ${draft.alinhamento}`
-            : null,
-          draft.idade ? `Idade: ${draft.idade}` : null,
-          draft.historia
-            ? `História: ${draft.historia}`
-            : null,
-          draft.aparencia
-            ? `Aparência: ${draft.aparencia}`
-            : null,
-          draft.objetivo
-            ? `Objetivo: ${draft.objetivo}`
-            : null,
-          draft.defeito
-            ? `Defeito: ${draft.defeito}`
-            : null,
-        ]
-          .filter(Boolean)
-          .join("\n"),
+        carteira: carteiraInicial(campanha?.ouro_inicial ?? 0),
+        notas: "",
       };
 
       const savedCharacter = await criarPersonagem(
@@ -152,12 +179,11 @@ export default function Dashboard() {
         createdCharacter,
       );
 
-      setCharacters((prev) => [
-        savedCharacter,
-        ...prev,
-      ]);
+      setCharacters((prev) => [savedCharacter, ...prev]);
 
       setDraft(initialDraft);
+      setPortraitFile(null);
+      setPortraitPreview("");
       setShowCreator(false);
     } catch (error) {
       setErrorMessage(
@@ -175,9 +201,7 @@ export default function Dashboard() {
       <header className="dashboard-header">
         <div>
           <h1>Meus personagens</h1>
-          <p>
-            Escolha uma ficha para continuar sua jornada.
-          </p>
+          <p>Escolha uma ficha para continuar sua jornada.</p>
         </div>
 
         <button
@@ -193,29 +217,18 @@ export default function Dashboard() {
 
       <hr className="hairline" />
 
-      {errorMessage && (
-        <p className="dashboard-status">
-          {errorMessage}
-        </p>
-      )}
+      {errorMessage && <p className="dashboard-status">{errorMessage}</p>}
 
       {showCreator && (
-        <form
-          className="character-creator"
-          onSubmit={handleSubmit}
-        >
+        <form className="character-creator" onSubmit={handleSubmit}>
           <div className="creator-banner">
             <div>
-              <span className="creator-kicker">
-                Ficha de aventura
-              </span>
+              <span className="creator-kicker">Ficha de aventura</span>
 
               <h2>Criação de personagem</h2>
             </div>
 
-            <span className="creator-badge">
-              Elementum
-            </span>
+            <span className="creator-badge">Elementum</span>
           </div>
 
           <section className="creator-panel">
@@ -223,9 +236,8 @@ export default function Dashboard() {
 
             {campaigns.length === 0 ? (
               <p className="dashboard-status">
-                Você ainda não participa de nenhuma campanha.
-                Entre em uma campanha antes de criar seu
-                personagem.
+                Você ainda não participa de nenhuma campanha. Entre em uma
+                campanha antes de criar seu personagem.
               </p>
             ) : (
               <label className="field">
@@ -234,16 +246,11 @@ export default function Dashboard() {
                 <select
                   value={selectedCampaignId}
                   onChange={(event) =>
-                    setSelectedCampaignId(
-                      event.target.value,
-                    )
+                    setSelectedCampaignId(event.target.value)
                   }
                 >
                   {campaigns.map((campaign) => (
-                    <option
-                      key={campaign.id}
-                      value={campaign.id}
-                    >
+                    <option key={campaign.id} value={campaign.id}>
                       {campaign.nome}
                     </option>
                   ))}
@@ -262,48 +269,24 @@ export default function Dashboard() {
 
                   <input
                     id="nome-personagem"
-                    value={draft.nome}
-                    onChange={(event) =>
-                      updateDraft(
-                        "nome",
-                        event.target.value,
-                      )
-                    }
                     placeholder="Ex.: Elira Fenra"
+                    {...textProps("nome")}
                   />
                 </label>
 
-                <label className="field">
-                  <span>Raça</span>
+                <OptionField
+                  label="Raça"
+                  value={draft.raca}
+                  options={RACAS}
+                  onChange={(value) => updateDraft("raca", value)}
+                />
 
-                  <input
-                    id="raca-personagem"
-                    value={draft.raca}
-                    onChange={(event) =>
-                      updateDraft(
-                        "raca",
-                        event.target.value,
-                      )
-                    }
-                    placeholder="Humano, elfo..."
-                  />
-                </label>
-
-                <label className="field">
-                  <span>Classe</span>
-
-                  <input
-                    id="classe-personagem"
-                    value={draft.classe}
-                    onChange={(event) =>
-                      updateDraft(
-                        "classe",
-                        event.target.value,
-                      )
-                    }
-                    placeholder="Guerreiro, maga..."
-                  />
-                </label>
+                <OptionField
+                  label="Classe"
+                  value={draft.classe}
+                  options={CLASSES}
+                  onChange={(value) => updateDraft("classe", value)}
+                />
 
                 <label className="field">
                   <span>Nível</span>
@@ -315,10 +298,7 @@ export default function Dashboard() {
                     max={20}
                     value={draft.nivel}
                     onChange={(event) =>
-                      updateDraft(
-                        "nivel",
-                        Number(event.target.value) || 1,
-                      )
+                      updateDraft("nivel", Number(event.target.value) || 1)
                     }
                   />
                 </label>
@@ -327,45 +307,47 @@ export default function Dashboard() {
                   <span>Origem</span>
 
                   <input
-                    value={draft.origem}
-                    onChange={(event) =>
-                      updateDraft(
-                        "origem",
-                        event.target.value,
-                      )
-                    }
                     placeholder="Peste, guilda, reino..."
+                    {...textProps("origem")}
                   />
                 </label>
 
                 <label className="field">
                   <span>Idade</span>
 
-                  <input
-                    value={draft.idade}
-                    onChange={(event) =>
-                      updateDraft(
-                        "idade",
-                        event.target.value,
-                      )
-                    }
-                    placeholder="24 anos"
-                  />
+                  <input placeholder="24 anos" {...textProps("idade")} />
                 </label>
 
+                <OptionField
+                  label="Alinhamento"
+                  value={draft.alinhamento}
+                  options={ALINHAMENTOS}
+                  onChange={(value) => updateDraft("alinhamento", value)}
+                  wide
+                />
+
                 <label className="field field-wide">
-                  <span>Alinhamento</span>
+                  <span>Foto do personagem (opcional)</span>
 
                   <input
-                    value={draft.alinhamento}
-                    onChange={(event) =>
-                      updateDraft(
-                        "alinhamento",
-                        event.target.value,
-                      )
-                    }
-                    placeholder="Leal, caótico, neutro..."
+                    type="file"
+                    accept="image/*"
+                    onChange={handlePortrait}
                   />
+
+                  {portraitPreview && (
+                    <img
+                      src={portraitPreview}
+                      alt="Prévia da foto"
+                      style={{
+                        width: 96,
+                        height: 96,
+                        objectFit: "cover",
+                        borderRadius: 8,
+                        marginTop: 8,
+                      }}
+                    />
+                  )}
                 </label>
               </div>
             </section>
@@ -382,21 +364,14 @@ export default function Dashboard() {
                   ["sabedoria", "Sabedoria"],
                   ["carisma", "Carisma"],
                 ].map(([key, label]) => (
-                  <label
-                    key={key}
-                    className="attribute-field"
-                  >
+                  <label key={key} className="attribute-field">
                     <span>{label}</span>
 
                     <input
                       type="number"
                       min={1}
                       max={20}
-                      value={
-                        draft[
-                          key as keyof typeof draft
-                        ] as number
-                      }
+                      value={draft[key as keyof typeof draft] as number}
                       onChange={(event) =>
                         updateAttribute(
                           key as keyof Attributes,
@@ -420,15 +395,9 @@ export default function Dashboard() {
 
                   <textarea
                     id="historia-personagem"
-                    value={draft.historia}
-                    onChange={(event) =>
-                      updateDraft(
-                        "historia",
-                        event.target.value,
-                      )
-                    }
                     rows={4}
                     placeholder="Descreva como ele chegou ao mundo de Elementum..."
+                    {...textProps("historia")}
                   />
                 </label>
 
@@ -436,15 +405,9 @@ export default function Dashboard() {
                   <span>Aparência</span>
 
                   <textarea
-                    value={draft.aparencia}
-                    onChange={(event) =>
-                      updateDraft(
-                        "aparencia",
-                        event.target.value,
-                      )
-                    }
                     rows={3}
                     placeholder="Olhos, cabelo, marcas, roupas, presença..."
+                    {...textProps("aparencia")}
                   />
                 </label>
 
@@ -452,14 +415,8 @@ export default function Dashboard() {
                   <span>Objetivo</span>
 
                   <input
-                    value={draft.objetivo}
-                    onChange={(event) =>
-                      updateDraft(
-                        "objetivo",
-                        event.target.value,
-                      )
-                    }
                     placeholder="O que move o personagem?"
+                    {...textProps("objetivo")}
                   />
                 </label>
 
@@ -467,14 +424,8 @@ export default function Dashboard() {
                   <span>Defeito</span>
 
                   <input
-                    value={draft.defeito}
-                    onChange={(event) =>
-                      updateDraft(
-                        "defeito",
-                        event.target.value,
-                      )
-                    }
                     placeholder="Qual fraqueza o acompanha?"
+                    {...textProps("defeito")}
                   />
                 </label>
               </div>
@@ -494,38 +445,27 @@ export default function Dashboard() {
             <button
               type="submit"
               className="btn-primary"
-              disabled={
-                saving || campaigns.length === 0
-              }
+              disabled={saving || campaigns.length === 0}
             >
-              {saving
-                ? "Salvando..."
-                : "Salvar personagem"}
+              {saving ? "Salvando..." : "Salvar personagem"}
             </button>
           </div>
         </form>
       )}
 
       {loading ? (
-        <p className="dashboard-status">
-          Carregando fichas...
-        </p>
+        <p className="dashboard-status">Carregando fichas...</p>
       ) : characters.length === 0 ? (
         <p className="dashboard-status">
-          Você ainda não tem personagens. Crie o primeiro
-          para começar.
+          Você ainda não tem personagens. Crie o primeiro para começar.
         </p>
       ) : (
         <div className="dashboard-grid">
           {characters.map((character) => (
-            <CharacterCard
-              key={character.id}
-              character={character}
-            />
+            <CharacterCard key={character.id} character={character} />
           ))}
         </div>
       )}
     </div>
   );
 }
-
