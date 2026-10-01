@@ -280,6 +280,12 @@ export async function atualizarPersonagem(
   return atualizado;
 }
 
+export function saveCharacter(personagem: Character): void {
+  void atualizarPersonagem(personagem.id, personagem).catch((error: unknown) => {
+    console.error("Erro ao salvar ficha:", error);
+  });
+}
+
 /* =========================================================
    PERMISSÕES DO PERSONAGEM
 ========================================================= */
@@ -1155,7 +1161,7 @@ export async function listarItensDaLoja(
     `)
     .eq("campanha_id", campanhaId)
     .eq("ativa", true)
-    .single();
+    .maybeSingle();
 
   if (error) {
     throw new Error(
@@ -1221,6 +1227,138 @@ export async function listarItensDaLoja(
     }));
 }
 
+  export interface SaveShopItemInput {
+    campanhaId: string;
+    lojaItemId?: string;
+    nome: string;
+    descricao: string;
+    tipo: string;
+    raridade: string;
+    efeito: string;
+    imagemUrl: string | null;
+    precoCompra: number;
+    estoque: number;
+    ativo: boolean;
+  }
+
+  export async function salvarItemDaLoja(
+    item: SaveShopItemInput,
+  ): Promise<ShopItem> {
+    const { data, error } = await supabase.rpc("salvar_item_loja", {
+      p_campanha_id: item.campanhaId,
+      p_loja_item_id: item.lojaItemId ?? null,
+      p_nome: item.nome,
+      p_descricao: item.descricao,
+      p_tipo: item.tipo,
+      p_raridade: item.raridade,
+      p_efeito: item.efeito,
+      p_imagem_url: item.imagemUrl,
+      p_preco_compra: item.precoCompra,
+      p_estoque: item.estoque,
+      p_ativo: item.ativo,
+    });
+
+    if (error) {
+      throw new Error(error.message || "Não foi possível salvar o item da loja.");
+    }
+
+    if (!data || typeof data !== "object") {
+      throw new Error("O Supabase não confirmou o salvamento do item.");
+    }
+
+    const receipt = data as {
+      loja_id: string;
+      loja_item_id: string;
+      item_id: string;
+    };
+
+    return {
+      id: receipt.loja_item_id,
+      lojaId: receipt.loja_id,
+      itemId: receipt.item_id,
+      campanhaId: item.campanhaId,
+      nome: item.nome,
+      descricao: item.descricao,
+      tipo: item.tipo,
+      raridade: item.raridade,
+      efeito: item.efeito,
+      imagemUrl: item.imagemUrl,
+      precoCompra: item.precoCompra,
+      precoVenda: null,
+      estoque: item.estoque,
+      vendaPermitida: true,
+      ativo: item.ativo,
+    };
+  }
+
+  export type CatalogItem = Pick<
+    ShopItem,
+    "itemId" | "nome" | "descricao" | "tipo" | "raridade" | "efeito" | "imagemUrl"
+  >;
+
+  export async function listarCatalogoItens(): Promise<CatalogItem[]> {
+    const { data, error } = await supabase
+      .from("itens")
+      .select("id, nome, descricao, tipo, raridade, efeito, imagem_url")
+      .order("nome", { ascending: true });
+
+    if (error) {
+      throw new Error(error.message || "Não foi possível carregar o catálogo de cartas.");
+    }
+
+    return (data ?? []).map((item) => ({
+      itemId: item.id,
+      nome: item.nome,
+      descricao: item.descricao,
+      tipo: item.tipo,
+      raridade: item.raridade,
+      efeito: item.efeito,
+      imagemUrl: item.imagem_url,
+    }));
+  }
+
+  export async function adicionarItemExistenteNaLoja(
+    campanhaId: string,
+    itemId: string,
+    precoCompra: number,
+    estoque: number,
+  ): Promise<string> {
+    const { data, error } = await supabase.rpc("adicionar_item_existente_loja", {
+      p_campanha_id: campanhaId,
+      p_item_id: itemId,
+      p_preco_compra: precoCompra,
+      p_estoque: estoque,
+    });
+
+    if (error) {
+      throw new Error(error.message || "Não foi possível adicionar a carta existente.");
+    }
+
+    if (typeof data !== "string") {
+      throw new Error("O Supabase não confirmou a inclusão da carta.");
+    }
+
+    return data;
+  }
+
+  export async function removerItemDaLoja(
+    campanhaId: string,
+    lojaItemId: string,
+  ): Promise<void> {
+    const { data, error } = await supabase.rpc("remover_item_loja", {
+      p_campanha_id: campanhaId,
+      p_loja_item_id: lojaItemId,
+    });
+
+    if (error) {
+      throw new Error(error.message || "Não foi possível remover a carta desta loja.");
+    }
+
+    if (data !== true) {
+      throw new Error("O Supabase não confirmou a remoção da carta.");
+    }
+  }
+
 /* =========================================================
    COMPRAR ITEM
 ========================================================= */
@@ -1230,50 +1368,62 @@ export async function comprarItem(
   lojaItemId: string,
   quantidade: number = 1,
 ) {
+  return comprarCarrinho(personagemId, [
+    { lojaItemId, quantidade },
+  ]);
+}
+
+export interface CartPurchaseLine {
+  lojaItemId: string;
+  quantidade: number;
+}
+
+export interface PurchaseReceipt {
+  personagem_id: string;
+  saldo_po: number;
+  total_gasto: number;
+}
+
+export async function comprarCarrinho(
+  personagemId: string,
+  itens: CartPurchaseLine[],
+): Promise<PurchaseReceipt> {
   if (!personagemId) {
-    throw new Error(
-      "Personagem não informado.",
-    );
+    throw new Error("Personagem não informado.");
   }
 
-  if (!lojaItemId) {
-    throw new Error(
-      "Item da loja não informado.",
-    );
+  if (
+    itens.length === 0 ||
+    itens.some(
+      (item) =>
+        !item.lojaItemId ||
+        !Number.isSafeInteger(item.quantidade) ||
+        item.quantidade <= 0,
+    )
+  ) {
+    throw new Error("O carrinho contém itens ou quantidades inválidas.");
   }
 
-  if (quantidade <= 0) {
-    throw new Error(
-      "A quantidade deve ser maior que zero.",
-    );
-  }
-
-  const {
-    data,
-    error,
-  } = await supabase.rpc(
-    "registrar_compra",
+  const { data, error } = await supabase.rpc(
+    "registrar_compra_carrinho",
     {
       p_personagem_id: personagemId,
-      p_loja_item_id: lojaItemId,
-      p_quantidade: quantidade,
+      p_itens: itens.map((item) => ({
+        loja_item_id: item.lojaItemId,
+        quantidade: item.quantidade,
+      })),
     },
   );
 
   if (error) {
-    throw new Error(
-      error.message ||
-        "Não foi possível realizar a compra.",
-    );
+    throw new Error(error.message || "Não foi possível realizar a compra.");
   }
 
   if (!data) {
-    throw new Error(
-      "A compra não retornou uma confirmação.",
-    );
+    throw new Error("A compra não retornou uma confirmação.");
   }
 
-  return data;
+  return data as PurchaseReceipt;
 }
 
 /* =========================================================
@@ -1292,6 +1442,7 @@ export async function getInventory(
       personagem_id,
       item_id,
       quantidade,
+      equipado,
       updated_at,
       itens (
         id,
@@ -1324,4 +1475,24 @@ export async function getInventory(
   }
 
   return data ?? [];
+}
+
+export async function alterarItemEquipado(
+  personagemId: string,
+  itemId: string,
+  equipado: boolean,
+): Promise<void> {
+  const { data, error } = await supabase.rpc("alterar_item_equipado", {
+    p_personagem_id: personagemId,
+    p_item_id: itemId,
+    p_equipado: equipado,
+  });
+
+  if (error) {
+    throw new Error(error.message || "Não foi possível atualizar o equipamento.");
+  }
+
+  if (!data) {
+    throw new Error("O equipamento não foi atualizado.");
+  }
 }

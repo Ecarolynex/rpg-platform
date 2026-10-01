@@ -74,6 +74,8 @@ export function bonusProficiencia(nivel: number): number {
   return Math.ceil(nivel / 4) + 1;
 }
 
+export const LIMITE_RECURSO = 200;
+
 /** Vida máxima: dado de vida cheio no nível 1, média do dado nos níveis seguintes. */
 export function calcularVidaMaxima(
   classe: string,
@@ -84,12 +86,15 @@ export function calcularVidaMaxima(
   const mod = modificador(constituicao);
   const porNivel = Math.max(1, Math.floor(dado / 2) + 1 + mod);
 
-  return Math.max(1, dado + mod + (nivel - 1) * porNivel);
+  return Math.min(
+    LIMITE_RECURSO,
+    Math.max(1, dado + mod + (nivel - 1) * porNivel),
+  );
 }
 
 /** Mesma regra que o projeto já usava para a mana. */
 export function calcularManaMaxima(inteligencia: number): number {
-  return 8 + inteligencia;
+  return Math.min(LIMITE_RECURSO, Math.max(0, 8 + inteligencia));
 }
 
 export function carteiraInicial(ouro: number): Wallet {

@@ -7,6 +7,7 @@ vi.mock('../../services/api', () => ({
   getCharacters: vi.fn().mockResolvedValue([
     {
       id: 'char-1',
+      campanhaId: 'teste',
       nome: 'Aventureiro Teste',
       raca: 'Humano',
       classe: 'Guerreiro',
@@ -22,6 +23,22 @@ vi.mock('../../services/api', () => ({
     },
   ]),
   getCampaignAccess: vi.fn().mockResolvedValue({ isMaster: true, startingGold: 1250 }),
+  listarPersonagensDaCampanha: vi.fn().mockResolvedValue([{
+    id: 'char-1',
+    campanhaId: 'teste',
+    nome: 'Aventureiro Teste',
+    raca: 'Humano',
+    classe: 'Guerreiro',
+    nivel: 3,
+    hp: { atual: 30, max: 30 },
+    mp: { atual: 10, max: 10 },
+    attributes: { forca: 16, destreza: 14, constituicao: 15, inteligencia: 10, sabedoria: 12, carisma: 8 },
+    skills: [],
+    inventory: [],
+    spells: [],
+    carteira: { pc: 0, pp: 0, pe: 0, po: 1250, pl: 0 },
+    notas: '',
+  }]),
   listarMinhasCampanhas: vi.fn().mockResolvedValue([{
     id: 'campanha-teste',
     nome: 'Crônicas de Elementum',
@@ -85,7 +102,41 @@ vi.mock('../../services/api', () => ({
       vendaPermitida: true,
     },
   ]),
-  comprarItem: vi.fn().mockResolvedValue({ id: 'compra-1' }),
+  listarCatalogoItens: vi.fn().mockResolvedValue([
+    {
+      itemId: 'item-base-reutilizavel',
+      nome: 'Capa Arcana',
+      descricao: 'Uma capa de proteção.',
+      tipo: 'ARMADURA',
+      raridade: 'INCOMUM',
+      efeito: '+2 em Inteligência',
+      imagemUrl: '',
+    },
+  ]),
+  adicionarItemExistenteNaLoja: vi.fn().mockResolvedValue('store-item-added'),
+  removerItemDaLoja: vi.fn().mockResolvedValue(undefined),
+  comprarCarrinho: vi.fn().mockResolvedValue({
+    personagem_id: 'char-1',
+    saldo_po: 890,
+    total_gasto: 360,
+  }),
+  salvarItemDaLoja: vi.fn().mockImplementation(async (input) => ({
+    id: input.lojaItemId ?? 'store-item-created',
+    lojaId: 'loja-teste',
+    itemId: 'item-base-created',
+    campanhaId: input.campanhaId,
+    nome: input.nome,
+    descricao: input.descricao,
+    tipo: input.tipo,
+    raridade: input.raridade,
+    efeito: input.efeito,
+    imagemUrl: input.imagemUrl,
+    precoCompra: input.precoCompra,
+    precoVenda: null,
+    estoque: input.estoque,
+    vendaPermitida: true,
+    ativo: input.ativo,
+  })),
 }));
 
 describe('Shop', () => {
@@ -109,7 +160,8 @@ describe('Shop', () => {
     expect(headerActions?.lastElementChild).toHaveClass('shop-cart-link');
     expect(screen.getAllByText(/espada do crepúsculo/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/poção de cura/i).length).toBeGreaterThan(0);
-    expect(screen.getByText('+2 Sabedoria')).toBeInTheDocument();
+    const amuletCard = screen.getByRole('article', { name: 'Amuleto do Pescador' });
+    expect(within(amuletCard).getByText('180 PO')).toBeInTheDocument();
   });
 
   it('publica uma carta com PNG enviada pelo mestre', async () => {
@@ -175,6 +227,48 @@ describe('Shop', () => {
     expect(within(revisedCard).getByText('999 PO')).toBeInTheDocument();
   });
 
+  it('reutiliza uma carta do catálogo com preço e estoque da campanha', async () => {
+    render(
+      <MemoryRouter initialEntries={['/campanha/teste/loja']}>
+        <Routes>
+          <Route path="/campanha/:id/loja" element={<Shop />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Reutilizar carta' }));
+    expect(await screen.findByRole('option', { name: 'Capa Arcana' })).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Preço em PO'), { target: { value: '400' } });
+    fireEvent.change(screen.getByLabelText('Estoque'), { target: { value: '3' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Adicionar à campanha' }));
+
+    const { adicionarItemExistenteNaLoja } = await import('../../services/api');
+    expect(vi.mocked(adicionarItemExistenteNaLoja)).toHaveBeenCalledWith(
+      'teste',
+      'item-base-reutilizavel',
+      400,
+      3,
+    );
+  });
+
+  it('remove a oferta da campanha sem excluir a carta-base', async () => {
+    render(
+      <MemoryRouter initialEntries={['/campanha/teste/loja']}>
+        <Routes>
+          <Route path="/campanha/:id/loja" element={<Shop />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    const itemCard = await screen.findByRole('article', { name: 'Amuleto do Pescador' });
+    fireEvent.click(within(itemCard).getByRole('button', { name: 'Remover da loja' }));
+
+    const { removerItemDaLoja } = await import('../../services/api');
+    expect(vi.mocked(removerItemDaLoja)).toHaveBeenCalledWith('teste', 'item-3');
+    expect(await screen.findByRole('status')).toHaveTextContent(/continua no catálogo/i);
+    expect(screen.queryByRole('article', { name: 'Amuleto do Pescador' })).not.toBeInTheDocument();
+  });
+
   it('não exibe a administração para um jogador', async () => {
     const { getCampaignAccess } = await import('../../services/api');
     vi.mocked(getCampaignAccess).mockResolvedValueOnce({ isMaster: false, startingGold: 500 });
@@ -207,21 +301,24 @@ describe('Shop', () => {
   });
 
   it('exibe a imagem da carta dentro do modal de exame', async () => {
-    window.localStorage.setItem('rpg-platform-shop-teste', JSON.stringify([{
+    const { listarItensDaLoja } = await import('../../services/api');
+    vi.mocked(listarItensDaLoja).mockResolvedValueOnce([{
       id: 'carta-ilustrada',
-      campaignId: 'teste',
+      lojaId: 'loja-teste',
+      itemId: 'item-base',
+      campanhaId: 'teste',
       nome: 'Carta ilustrada',
-      categoria: 'Armas',
-      subcategoria: 'Espadas',
-      raridade: 'Raro',
       descricao: 'Uma lâmina encantada.',
-      efeitos: ['+2 Força'],
-      preco: 300,
-      moeda: 'PO',
+      tipo: 'ARMA',
+      raridade: 'RARO',
+      efeito: '+2 Força',
+      imagemUrl: 'data:image/png;base64,aW1hZ2U=',
+      precoCompra: 300,
+      precoVenda: null,
       estoque: 2,
-      disponivel: true,
-      imagem: 'data:image/png;base64,aW1hZ2U=',
-    }]));
+      vendaPermitida: true,
+      ativo: true,
+    }]);
 
     render(
       <MemoryRouter initialEntries={['/campanha/teste/loja']}>
@@ -243,8 +340,6 @@ describe('Shop', () => {
   });
 
   it('leva ao carrinho, atualiza quantidades e finaliza a compra', async () => {
-    window.localStorage.setItem('rpg-platform-gold-teste', '1250');
-
     render(
       <MemoryRouter initialEntries={['/campanha/teste/loja']}>
         <Routes>
@@ -265,6 +360,10 @@ describe('Shop', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Finalizar compra' }));
     expect(await screen.findByRole('status')).toHaveTextContent(/compra concluída/i);
+    const { comprarCarrinho } = await import('../../services/api');
+    expect(vi.mocked(comprarCarrinho)).toHaveBeenCalledWith('char-1', [
+      { lojaItemId: 'item-3', quantidade: 2 },
+    ]);
     expect(screen.getByText('890 PO')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Sua sacola está vazia' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Explorar a loja' })).toHaveClass('shop-empty-action');

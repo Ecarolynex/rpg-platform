@@ -1,3 +1,39 @@
+.creator-skill-hint {
+  margin: 0 0 14px;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.creator-skill-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 8px;
+}
+
+.creator-skill-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 9px 11px;
+  border: 1px solid var(--border-bronze);
+  background: var(--ink-panel);
+  color: var(--parchment);
+  cursor: pointer;
+}
+
+.creator-skill-option input {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  accent-color: var(--gold-bright);
+}
+
+.creator-skill-option small {
+  margin-left: auto;
+  color: var(--muted);
+  text-transform: uppercase;
+}
 .dashboard-header {
   display: flex;
   align-items: flex-start;

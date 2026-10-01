@@ -1,3 +1,23 @@
+.equipped-item-tag {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 6px;
+  border: 1px solid var(--gold);
+  color: var(--gold-bright);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+}
+
+.store-item-effect {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.cs-store-inventory {
+  margin-top: 20px;
+}
 /* Elementos novos da ficha. Estilo refinado para D&D e Painel do Mestre */
 
 .sheet .sheet-portrait {

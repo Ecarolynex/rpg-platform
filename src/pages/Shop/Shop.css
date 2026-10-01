@@ -246,6 +246,17 @@
   font-size: 1.4rem;
 }
 
+.shop-admin-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.shop-admin-feedback {
+  margin: -14px 0 20px;
+  color: #ffd18a;
+}
+
 .shop-campaign-list {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));

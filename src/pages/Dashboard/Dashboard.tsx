@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import type { Attributes, Character } from "../../types/character";
+import type { Attributes, Character, Skill } from "../../types/character";
 import {
   buscarCampanhaPorCodigo,
   criarPersonagem,
@@ -18,10 +18,16 @@ import {
   ALINHAMENTOS,
   CLASSES,
   RACAS,
+  LIMITE_RECURSO,
+  bonusProficiencia,
   calcularManaMaxima,
   calcularVidaMaxima,
   carteiraInicial,
 } from "../../data/dnd";
+import {
+  FIXED_SKILLS,
+  calculateTotalPersonaBonuses,
+} from "../../data/personaRules";
 import "./Dashboard.css";
 import "./DashboardActions.css";
 
@@ -54,6 +60,16 @@ type TextField =
   | "objetivo"
   | "defeito";
 
+function createUntrainedSkills(): Skill[] {
+  return FIXED_SKILLS.map((skill) => ({
+    id: skill.id,
+    nome: skill.nome,
+    atributo: skill.atributo,
+    treinada: false,
+    bonus: 0,
+  }));
+}
+
 export default function Dashboard() {
   const [characters, setCharacters] = useState<Character[]>([]);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
@@ -63,6 +79,7 @@ export default function Dashboard() {
   const [errorMessage, setErrorMessage] = useState("");
   const [showCreator, setShowCreator] = useState(false);
   const [draft, setDraft] = useState(initialDraft);
+  const [skillsDraft, setSkillsDraft] = useState<Skill[]>(createUntrainedSkills);
   const [portraitFile, setPortraitFile] = useState<File | null>(null);
   const [portraitPreview, setPortraitPreview] = useState("");
 
@@ -112,6 +129,15 @@ export default function Dashboard() {
     setDraft((prev) => ({ ...prev, [field]: value }));
   };
 
+  const toggleSkillDraft = (skillId: string) => {
+    const proficiency = bonusProficiencia(Number(draft.nivel) || 1);
+    setSkillsDraft((current) => current.map((skill) => {
+      if (skill.id !== skillId) return skill;
+      const treinada = !skill.treinada;
+      return { ...skill, treinada, bonus: treinada ? proficiency : 0 };
+    }));
+  };
+
   const textProps = (field: TextField) => ({
     value: draft[field],
     onChange: (
@@ -143,12 +169,16 @@ export default function Dashboard() {
 
       const nivel = Number(draft.nivel) || 1;
       const classe = draft.classe || "Aventureiro";
-      const vidaMaxima = calcularVidaMaxima(
+      const bonuses = calculateTotalPersonaBonuses(draft.raca || "Humano", classe);
+      const vidaMaxima = Math.min(LIMITE_RECURSO, bonuses.hpBonus + calcularVidaMaxima(
         classe,
         nivel,
         Number(draft.constituicao),
+      ));
+      const manaMaxima = Math.min(
+        LIMITE_RECURSO,
+        bonuses.mpBonus + calcularManaMaxima(Number(draft.inteligencia)),
       );
-      const manaMaxima = calcularManaMaxima(Number(draft.inteligencia));
 
       const createdCharacter: Character = {
         id: "",
@@ -174,7 +204,10 @@ export default function Dashboard() {
           sabedoria: Number(draft.sabedoria),
           carisma: Number(draft.carisma),
         },
-        skills: [],
+        skills: skillsDraft.map((skill) => ({
+          ...skill,
+          bonus: skill.treinada ? bonusProficiencia(nivel) : 0,
+        })),
         inventory: [],
         spells: [],
         carteira: carteiraInicial(0),
@@ -189,6 +222,7 @@ export default function Dashboard() {
       setCharacters((prev) => [savedCharacter, ...prev]);
 
       setDraft(initialDraft);
+      setSkillsDraft(createUntrainedSkills());
       setPortraitFile(null);
       setPortraitPreview("");
       setShowCreator(false);
@@ -482,6 +516,26 @@ export default function Dashboard() {
           </div>
 
           <div className="creator-layout creator-layout-bottom">
+            <section className="creator-panel">
+              <h3>Perícias</h3>
+              <p className="creator-skill-hint">
+                Selecione as perícias treinadas. Você poderá alterá-las na ficha depois.
+              </p>
+              <div className="creator-skill-grid">
+                {skillsDraft.map((skill) => (
+                  <label className="creator-skill-option" key={skill.id}>
+                    <input
+                      type="checkbox"
+                      checked={skill.treinada}
+                      onChange={() => toggleSkillDraft(skill.id)}
+                    />
+                    <span>{skill.nome}</span>
+                    <small>{skill.atributo}</small>
+                  </label>
+                ))}
+              </div>
+            </section>
+
             <section className="creator-panel">
               <h3>História e personalidade</h3>
 

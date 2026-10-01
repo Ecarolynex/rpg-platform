@@ -20,6 +20,8 @@ export interface InventoryItem {
   nome: string;
   quantidade: number;
   descricao?: string;
+  equipado?: boolean;
+  bonusAtributos?: Partial<Record<keyof Attributes, number>>;
 }
 
 export interface Spell {
@@ -54,7 +56,11 @@ export interface Character {
   aparencia?: string;
   objetivo?: string;
   defeito?: string;
-  hp: { atual: number; max: number };
+  filiacao?: string;
+  altura?: number;
+  tracos?: string;
+  defeitos?: string;
+  hp: { atual: number; max: number; temp?: number };
   mp: { atual: number; max: number };
   attributes: Attributes;
   skills: Skill[];

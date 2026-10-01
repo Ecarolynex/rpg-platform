@@ -1,16 +1,28 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useLocation, useParams } from "react-router-dom";
+import { Link, useLocation, useParams, useSearchParams } from "react-router-dom";
 import {
+  adicionarItemExistenteNaLoja,
+  comprarCarrinho,
   getCampaignAccess,
   getCharacters,
   listarMinhasCampanhas,
+  listarPersonagensDaCampanha,
+  listarItensDaLoja,
+  listarCatalogoItens,
+  removerItemDaLoja,
+  salvarItemDaLoja,
 } from "../../services/api";
-import type { Campaign } from "../../services/api";
+import type {
+  Campaign,
+  CatalogItem,
+  ShopItem as DatabaseShopItem,
+} from "../../services/api";
 import type { Character } from "../../types/character";
 import "./Shop.css";
 
 interface ShopItem {
   id: string;
+  itemId?: string;
   campaignId: string;
   nome: string;
   categoria: string;
@@ -134,10 +146,6 @@ function getShopStorageKey(campaignId: string) {
   return `rpg-platform-shop-${campaignId}`;
 }
 
-function getGoldStorageKey(campaignId: string) {
-  return `rpg-platform-gold-${campaignId}`;
-}
-
 function getCartStorageKey(campaignId: string) {
   return `rpg-platform-cart-${campaignId}`;
 }
@@ -166,6 +174,36 @@ function normalizeShopItem(item: ShopItem): ShopItem {
   };
 }
 
+function fromDatabaseShopItem(item: DatabaseShopItem): ShopItem {
+  const categoryByType: Record<string, ShopItem["categoria"]> = {
+    ARMA: "Armas",
+    ARMADURA: "Armaduras",
+    CONSUMIVEL: "Poções",
+    ACESSORIO: "Acessórios",
+  };
+  const raridade: ShopItem["raridade"] =
+    RARIDADES.find(
+      (option) => option !== "Todas" && option.toLowerCase() === item.raridade?.toLowerCase(),
+    ) as ShopItem["raridade"] ?? "Comum";
+
+  return normalizeShopItem({
+    id: item.id,
+    itemId: item.itemId,
+    campaignId: item.campanhaId,
+    nome: item.nome,
+    categoria: categoryByType[item.tipo?.toUpperCase() ?? ""] ?? "Diversos",
+    subcategoria: "",
+    raridade,
+    descricao: item.descricao ?? "",
+    efeitos: item.efeito?.split(/\r?\n/).filter(Boolean) ?? [],
+    preco: item.precoCompra,
+    moeda: "PO",
+    estoque: item.estoque,
+    disponivel: item.ativo && item.estoque > 0,
+    imagem: item.imagemUrl ?? undefined,
+  });
+}
+
 function readStoredItems(campaignId: string): ShopItem[] {
   if (typeof window === "undefined") {
     return getDefaultItems(campaignId);
@@ -184,15 +222,6 @@ function readStoredItems(campaignId: string): ShopItem[] {
   } catch {
     return getDefaultItems(campaignId);
   }
-}
-
-function readStoredGold(campaignId: string): number {
-  if (typeof window === "undefined") {
-    return 0;
-  }
-
-  const saved = window.localStorage.getItem(getGoldStorageKey(campaignId));
-  return saved !== null && Number.isFinite(Number(saved)) ? Number(saved) : 0;
 }
 
 function readStoredCart(campaignId: string): CartEntry[] {
@@ -216,13 +245,16 @@ function readStoredCart(campaignId: string): CartEntry[] {
 export default function Shop() {
   const { id } = useParams();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const requestedCharacterId = searchParams.get("personagem");
 
   const campaignId = id ?? "campanha-demo";
 
   const [items, setItems] = useState<ShopItem[]>(
-    () => readStoredItems(campaignId),
+    () => (id ? [] : readStoredItems(campaignId)),
   );
-  const [gold, setGold] = useState(() => readStoredGold(campaignId));
+  const [itemsLoading, setItemsLoading] = useState(Boolean(id));
+  const [itemsError, setItemsError] = useState("");
 
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] =
@@ -238,7 +270,8 @@ export default function Shop() {
 
   const [checkoutMessage, setCheckoutMessage] =
     useState("");
-  const checkoutLoading = false;
+  const [checkoutError, setCheckoutError] = useState("");
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
 
   const [selectedItem, setSelectedItem] =
     useState<ShopItem | null>(null);
@@ -248,6 +281,13 @@ export default function Shop() {
   const [showItemForm, setShowItemForm] = useState(false);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [itemDraft, setItemDraft] = useState(initialItemDraft);
+  const [itemSaving, setItemSaving] = useState(false);
+  const [itemSaveError, setItemSaveError] = useState("");
+  const [catalogItems, setCatalogItems] = useState<CatalogItem[]>([]);
+  const [showReuseForm, setShowReuseForm] = useState(false);
+  const [reuseItemId, setReuseItemId] = useState("");
+  const [reusePrice, setReusePrice] = useState("100");
+  const [reuseStock, setReuseStock] = useState("1");
 
   const [characters, setCharacters] =
     useState<Character[]>([]);
@@ -262,18 +302,106 @@ export default function Shop() {
     useState("");
 
   useEffect(() => {
-    getCharacters()
-      .then((data) => {
-        setCharacters(data);
+    let active = true;
 
-        if (data[0]) {
-          setActiveCharacterId(data[0].id);
+    async function loadCharacters() {
+      try {
+        const ownedCharacters = await getCharacters();
+        let selectable = ownedCharacters;
+
+        if (id) {
+          const [access, campaignCharacters] = await Promise.all([
+            getCampaignAccess(campaignId),
+            listarPersonagensDaCampanha(campaignId),
+          ]);
+          selectable = access.isMaster
+            ? campaignCharacters
+            : ownedCharacters.filter((character) => character.campanhaId === campaignId);
+          setIsMaster(access.isMaster);
+        }
+
+        if (!active) return;
+
+        setCharacters(selectable);
+        const selectedCharacter =
+          selectable.find((character) => character.id === requestedCharacterId) ??
+          selectable.find((character) => character.campanhaId === campaignId) ??
+          selectable[0];
+        setActiveCharacterId(selectedCharacter?.id ?? "");
+      } catch {
+        if (active) setCharacters([]);
+      }
+    }
+
+    void loadCharacters();
+
+    return () => {
+      active = false;
+    };
+  }, [campaignId, id, requestedCharacterId]);
+
+  useEffect(() => {
+    if (!id) return;
+
+    let active = true;
+    setItemsLoading(true);
+    setItemsError("");
+    setItems([]);
+
+    listarItensDaLoja(campaignId)
+      .then((data) => {
+        if (active) setItems(data.map(fromDatabaseShopItem));
+      })
+      .catch((error) => {
+        if (active) {
+          setItems([]);
+          setItemsError(
+            error instanceof Error
+              ? error.message
+              : "Não foi possível carregar o catálogo da campanha.",
+          );
         }
       })
-      .catch(() => {
-        setCharacters([]);
+      .finally(() => {
+        if (active) setItemsLoading(false);
       });
-  }, []);
+
+    return () => {
+      active = false;
+    };
+  }, [campaignId, id]);
+
+  useEffect(() => {
+    if (!id || !isMaster || !showReuseForm) return;
+
+    let active = true;
+    listarCatalogoItens()
+      .then((data) => {
+        if (!active) return;
+        setCatalogItems(data);
+        const available = data.filter(
+          (catalogItem) => !items.some((item) => item.itemId === catalogItem.itemId),
+        );
+        setReuseItemId((current) =>
+          available.some((item) => item.itemId === current)
+            ? current
+            : available[0]?.itemId ?? "",
+        );
+      })
+      .catch((error) => {
+        if (active) {
+          setItemSaveError(
+            error instanceof Error
+              ? error.message
+              : "Não foi possível carregar as cartas reutilizáveis.",
+          );
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [id, isMaster, items, showReuseForm]);
 
   useEffect(() => {
     if (id) {
@@ -309,32 +437,6 @@ export default function Shop() {
   }, [id]);
 
   useEffect(() => {
-    if (!id) {
-      return;
-    }
-
-    let active = true;
-
-    getCampaignAccess(campaignId)
-      .then(({ isMaster: hasMasterAccess }) => {
-        if (!active) {
-          return;
-        }
-
-        setIsMaster(hasMasterAccess);
-      })
-      .catch(() => {
-        if (active) {
-          setIsMaster(false);
-        }
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [campaignId, id]);
-
-  useEffect(() => {
     if (id && typeof window !== "undefined") {
       window.localStorage.setItem(
         getShopStorageKey(campaignId),
@@ -342,15 +444,6 @@ export default function Shop() {
       );
     }
   }, [campaignId, id, items]);
-
-  useEffect(() => {
-    if (id && typeof window !== "undefined") {
-      window.localStorage.setItem(
-        getGoldStorageKey(campaignId),
-        String(gold),
-      );
-    }
-  }, [campaignId, gold, id]);
 
   useEffect(() => {
     if (
@@ -369,6 +462,13 @@ export default function Shop() {
       (character) =>
         character.id === activeCharacterId,
     ) ?? characters[0];
+  const gold = activeCharacter?.carteira?.po ?? 0;
+  const selectableCharacters = id
+    ? characters.filter((character) => character.campanhaId === campaignId)
+    : characters;
+  const reusableCatalogItems = catalogItems.filter(
+    (catalogItem) => !items.some((item) => item.itemId === catalogItem.itemId),
+  );
 
   const cartRows = useMemo(
     () =>
@@ -554,8 +654,18 @@ export default function Shop() {
     );
   };
 
-  const checkout = () => {
+  const checkout = async () => {
     if (!cartRows.length) {
+      return;
+    }
+
+    if (itemsLoading || itemsError) {
+      setCheckoutError(itemsError || "Aguarde o carregamento do catálogo.");
+      return;
+    }
+
+    if (!activeCharacter) {
+      setCheckoutError("Selecione um personagem da campanha antes de comprar.");
       return;
     }
 
@@ -574,18 +684,40 @@ export default function Shop() {
       return;
     }
 
-    if (gold < cartTotal) {
-      window.alert(`Ouro insuficiente. Você tem ${gold} PO e precisa de ${cartTotal} PO.`);
-      return;
-    }
+    setCheckoutLoading(true);
+    setCheckoutError("");
 
-    setGold((current) => current - cartTotal);
-    setItems((current) => current.map((item) => {
-      const entry = cartRows.find((row) => row.item.id === item.id);
-      return entry ? { ...item, estoque: item.estoque - entry.quantity } : item;
-    }));
-    setCart([]);
-    setCheckoutMessage("Compra concluída. Os itens foram entregues ao personagem.");
+    try {
+      const receipt = await comprarCarrinho(
+        activeCharacter.id,
+        cartRows.map(({ item, quantity }) => ({
+          lojaItemId: item.id,
+          quantidade: quantity,
+        })),
+      );
+
+      setCharacters((current) => current.map((character) => {
+        if (character.id !== activeCharacter.id) return character;
+
+        const carteira = character.carteira ?? { pc: 0, pp: 0, pe: 0, po: 0, pl: 0 };
+        return { ...character, carteira: { ...carteira, po: receipt.saldo_po } };
+      }));
+      setCart([]);
+      setCheckoutMessage("Compra concluída e registrada no inventário do personagem.");
+
+      try {
+        const refreshedItems = await listarItensDaLoja(campaignId);
+        setItems(refreshedItems.map(fromDatabaseShopItem));
+      } catch {
+        setItemsError("Compra concluída. Não foi possível atualizar o estoque agora.");
+      }
+    } catch (error) {
+      setCheckoutError(
+        error instanceof Error ? error.message : "Não foi possível concluir a compra.",
+      );
+    } finally {
+      setCheckoutLoading(false);
+    }
   };
 
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -609,8 +741,11 @@ export default function Shop() {
     reader.readAsDataURL(file);
   };
 
-  const handleItemSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleItemSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+
+    setItemSaving(true);
+    setItemSaveError("");
 
     const nextItem: ShopItem = {
       id: editingItemId ?? `item-${Date.now()}`,
@@ -632,12 +767,47 @@ export default function Shop() {
       imagem: itemDraft.imagem,
     };
 
-    setItems((current) => editingItemId
-      ? current.map((item) => item.id === editingItemId ? nextItem : item)
-      : [nextItem, ...current]);
-    setItemDraft(initialItemDraft);
-    setEditingItemId(null);
-    setShowItemForm(false);
+    const typeByCategory: Record<ShopItem["categoria"], string> = {
+      Armas: "ARMA",
+      Armaduras: "ARMADURA",
+      Poções: "CONSUMIVEL",
+      Acessórios: "ACESSORIO",
+      Diversos: "DIVERSOS",
+    };
+    const effects = [...nextItem.efeitos];
+    if (nextItem.atributo && nextItem.bonus) {
+      effects.push(`+${nextItem.bonus} ${nextItem.atributo}`);
+    }
+
+    try {
+      const saved = await salvarItemDaLoja({
+        campanhaId: campaignId,
+        lojaItemId: editingItemId ?? undefined,
+        nome: nextItem.nome,
+        descricao: nextItem.descricao,
+        tipo: typeByCategory[nextItem.categoria],
+        raridade: nextItem.raridade.toUpperCase(),
+        efeito: effects.join("\n"),
+        imagemUrl: nextItem.imagem ?? null,
+        precoCompra: nextItem.preco,
+        estoque: nextItem.estoque,
+        ativo: nextItem.disponivel,
+      });
+      const savedItem = fromDatabaseShopItem(saved);
+
+      setItems((current) => editingItemId
+        ? current.map((item) => item.id === editingItemId ? savedItem : item)
+        : [savedItem, ...current]);
+      setItemDraft(initialItemDraft);
+      setEditingItemId(null);
+      setShowItemForm(false);
+    } catch (error) {
+      setItemSaveError(
+        error instanceof Error ? error.message : "Não foi possível salvar a carta.",
+      );
+    } finally {
+      setItemSaving(false);
+    }
   };
 
   const editItem = (item: ShopItem) => {
@@ -664,10 +834,81 @@ export default function Shop() {
     setItemDraft(initialItemDraft);
   };
 
-  const toggleItemAvailability = (itemId: string) => {
-    setItems((current) => current.map((item) =>
-      item.id === itemId ? { ...item, disponivel: !item.disponivel } : item,
-    ));
+  const toggleItemAvailability = async (itemId: string) => {
+    const item = items.find((candidate) => candidate.id === itemId);
+    if (!item) return;
+
+    setItemSaveError("");
+    try {
+      const saved = await salvarItemDaLoja({
+        campanhaId: campaignId,
+        lojaItemId: item.id,
+        nome: item.nome,
+        descricao: item.descricao,
+        tipo: {
+          Armas: "ARMA",
+          Armaduras: "ARMADURA",
+          Poções: "CONSUMIVEL",
+          Acessórios: "ACESSORIO",
+          Diversos: "DIVERSOS",
+        }[item.categoria] ?? "DIVERSOS",
+        raridade: item.raridade.toUpperCase(),
+        efeito: item.efeitos.join("\n"),
+        imagemUrl: item.imagem ?? null,
+        precoCompra: item.preco,
+        estoque: item.estoque,
+        ativo: !item.disponivel,
+      });
+      const savedItem = fromDatabaseShopItem(saved);
+      setItems((current) => current.map((entry) => entry.id === item.id ? savedItem : entry));
+    } catch (error) {
+      setItemSaveError(
+        error instanceof Error ? error.message : "Não foi possível alterar a disponibilidade.",
+      );
+    }
+  };
+
+  const handleReuseSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!reuseItemId) return;
+
+    setItemSaving(true);
+    setItemSaveError("");
+    try {
+      await adicionarItemExistenteNaLoja(
+        campaignId,
+        reuseItemId,
+        Number(reusePrice),
+        Number(reuseStock),
+      );
+      const refreshed = await listarItensDaLoja(campaignId);
+      setItems(refreshed.map(fromDatabaseShopItem));
+      setShowReuseForm(false);
+      setReusePrice("100");
+      setReuseStock("1");
+    } catch (error) {
+      setItemSaveError(
+        error instanceof Error ? error.message : "Não foi possível reutilizar esta carta.",
+      );
+    } finally {
+      setItemSaving(false);
+    }
+  };
+
+  const handleRemoveFromShop = async (item: ShopItem) => {
+    setItemSaving(true);
+    setItemSaveError("");
+    try {
+      await removerItemDaLoja(campaignId, item.id);
+      setItems((current) => current.filter((entry) => entry.id !== item.id));
+      setItemSaveError("Carta removida desta loja; ela continua no catálogo para ser reutilizada.");
+    } catch (error) {
+      setItemSaveError(
+        error instanceof Error ? error.message : "Não foi possível remover a carta desta loja.",
+      );
+    } finally {
+      setItemSaving(false);
+    }
   };
 
   if (!id) {
@@ -781,6 +1022,12 @@ export default function Shop() {
         >
           Voltar à loja
         </Link>
+        <Link
+          className="shop-return-link"
+          to={`/campanha/${campaignId}`}
+        >
+          Voltar à campanha
+        </Link>
 
         {checkoutMessage && (
           <p
@@ -788,6 +1035,11 @@ export default function Shop() {
             role="status"
           >
             {checkoutMessage}
+          </p>
+        )}
+        {checkoutError && (
+          <p className="shop-checkout-message" role="alert">
+            {checkoutError}
           </p>
         )}
 
@@ -983,6 +1235,13 @@ export default function Shop() {
         </div>
       </header>
 
+      <Link
+        className="shop-return-link"
+        to={`/campanha/${campaignId}`}
+      >
+        Voltar à campanha
+      </Link>
+
       <div className="shop-topbar">
         <label className="shop-search">
           <span>
@@ -1095,7 +1354,7 @@ export default function Shop() {
         </div>
       </div>
 
-      {isMaster && (
+      {isMaster && !itemsLoading && (
         <section className="shop-admin-panel">
           <div>
             <span className="shop-kicker">
@@ -1110,19 +1369,36 @@ export default function Shop() {
               Publique cartas, ajuste preços e estoque para esta campanha.
             </p>
           </div>
-          <button
-            type="button"
-            className="shop-admin-button"
-            onClick={() => showItemForm ? closeItemForm() : setShowItemForm(true)}
-          >
-            {showItemForm ? "Cancelar" : "+ Adicionar carta"}
-          </button>
+          <div className="shop-admin-actions">
+            <button
+              type="button"
+              className="shop-admin-button"
+              onClick={() => showItemForm ? closeItemForm() : setShowItemForm(true)}
+            >
+              {showItemForm ? "Cancelar" : "+ Adicionar carta"}
+            </button>
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => {
+                setItemSaveError("");
+                setShowReuseForm((show) => !show);
+              }}
+            >
+              {showReuseForm ? "Fechar catálogo" : "Reutilizar carta"}
+            </button>
+          </div>
         </section>
       )}
 
-      {isMaster && showItemForm && (
+      {isMaster && itemSaveError && !showItemForm && (
+        <p className="shop-admin-feedback" role="status">{itemSaveError}</p>
+      )}
+
+      {isMaster && !itemsLoading && showItemForm && (
         <form className="shop-item-form" onSubmit={handleItemSubmit}>
           <h3>{editingItemId ? "Editar carta da loja" : "Nova carta da loja"}</h3>
+          {itemSaveError && <p role="alert">{itemSaveError}</p>}
           <div className="shop-item-form-grid">
             <label>
               Nome da carta
@@ -1144,7 +1420,6 @@ export default function Shop() {
             <label>
               Subcategoria
               <input
-                required
                 value={itemDraft.subcategoria}
                 onChange={(event) => setItemDraft((current) => ({ ...current, subcategoria: event.target.value }))}
               />
@@ -1229,10 +1504,71 @@ export default function Shop() {
             </label>
           </div>
           <div className="shop-item-form-actions">
-            <button className="shop-admin-button" type="submit">
-              {editingItemId ? "Salvar alterações" : "Publicar carta"}
+            <button className="shop-admin-button" type="submit" disabled={itemSaving}>
+              {itemSaving ? "Salvando..." : editingItemId ? "Salvar alterações" : "Publicar carta"}
             </button>
             <button className="btn-ghost" type="button" onClick={closeItemForm}>
+              Cancelar
+            </button>
+          </div>
+        </form>
+      )}
+
+      {isMaster && !itemsLoading && showReuseForm && (
+        <form className="shop-item-form" onSubmit={handleReuseSubmit}>
+          <h3>Reutilizar carta do catálogo</h3>
+          {itemSaveError && <p role="alert">{itemSaveError}</p>}
+          {reusableCatalogItems.length > 0 ? (
+            <div className="shop-item-form-grid">
+              <label className="shop-item-form-wide">
+                Carta existente
+                <select
+                  required
+                  value={reuseItemId}
+                  onChange={(event) => setReuseItemId(event.target.value)}
+                >
+                  {reusableCatalogItems.map((item) => (
+                    <option key={item.itemId} value={item.itemId}>{item.nome}</option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Preço em PO
+                <input
+                  type="number"
+                  min={0}
+                  required
+                  value={reusePrice}
+                  onChange={(event) => setReusePrice(event.target.value)}
+                />
+              </label>
+              <label>
+                Estoque
+                <input
+                  type="number"
+                  min={0}
+                  required
+                  value={reuseStock}
+                  onChange={(event) => setReuseStock(event.target.value)}
+                />
+              </label>
+            </div>
+          ) : (
+            <p className="shop-empty">Todas as cartas do catálogo já estão nesta loja.</p>
+          )}
+          <div className="shop-item-form-actions">
+            <button
+              className="shop-admin-button"
+              type="submit"
+              disabled={itemSaving || !reuseItemId || reusableCatalogItems.length === 0}
+            >
+              {itemSaving ? "Adicionando..." : "Adicionar à campanha"}
+            </button>
+            <button
+              className="btn-ghost"
+              type="button"
+              onClick={() => setShowReuseForm(false)}
+            >
               Cancelar
             </button>
           </div>
@@ -1294,6 +1630,21 @@ export default function Shop() {
               </strong>
             </div>
           </div>
+          {selectableCharacters.length > 1 && (
+            <label className="shop-character-select">
+              <span>Personagem da compra</span>
+              <select
+                value={activeCharacter?.id ?? ""}
+                onChange={(event) => setActiveCharacterId(event.target.value)}
+              >
+                {selectableCharacters.map((character) => (
+                  <option key={character.id} value={character.id}>
+                    {character.nome}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
         </div>
 
         <div className="shop-cart">
@@ -1473,6 +1824,15 @@ export default function Shop() {
                         </button>
                         <button type="button" className="btn-ghost small" onClick={() => toggleItemAvailability(item.id)}>
                           {item.disponivel ? "Desativar" : "Ativar"}
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-ghost small"
+                          disabled={itemSaving}
+                          onClick={() => void handleRemoveFromShop(item)}
+                          title="Remove a oferta desta campanha; mantém a carta no catálogo"
+                        >
+                          Remover da loja
                         </button>
                       </div>
                     )}

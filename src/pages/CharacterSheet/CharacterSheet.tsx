@@ -2,10 +2,12 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import type { Attributes, Character, InventoryItem, Spell, Wallet } from "../../types/character";
 import {
+  alterarItemEquipado,
   atualizarPersonagem,
   enviarRetrato,
   getCharacterAccess,
   getCharacterById,
+  getInventory,
 } from "../../services/api";
 import { StatBar } from "../../components/ui/StatBar";
 import { OptionField } from "../../components/ui/OptionField";
@@ -13,12 +15,15 @@ import {
   ALINHAMENTOS,
   CLASSES,
   RACAS,
+  LIMITE_RECURSO,
   bonusProficiencia,
   formatarModificador,
   modificador,
 } from "../../data/dnd";
 import "./CharacterSheet.css";
 import "./CharacterSheetExtras.css";
+import { FIXED_SKILLS, calculateTotalPersonaBonuses } from "../../data/personaRules";
+import type { BaseAttributeKey } from "../../data/personaRules";
 
 const ATTRIBUTE_LABELS: Record<keyof Attributes, string> = {
   forca: "Força",
@@ -54,6 +59,67 @@ const CARTEIRA_VAZIA: Wallet = {
   po: 0,
   pl: 0,
 };
+
+function completarPericias(skills: Character["skills"] = []): Character["skills"] {
+  const periciasFixas = FIXED_SKILLS.map((definition) => {
+    const existente = skills.find(
+      (skill) => skill.id === definition.id || skill.nome.toLowerCase() === definition.nome.toLowerCase(),
+    );
+    return existente ?? {
+      id: definition.id,
+      nome: definition.nome,
+      atributo: definition.atributo,
+      treinada: false,
+      bonus: 0,
+    };
+  });
+  const periciasExtras = skills.filter(
+    (skill) => !FIXED_SKILLS.some((fixed) => fixed.id === skill.id),
+  );
+
+  return [...periciasFixas, ...periciasExtras];
+}
+
+type StoreInventoryEntry = {
+  personagemId: string;
+  itemId: string;
+  nome: string;
+  quantidade: number;
+  descricao?: string;
+  efeito?: string;
+  equipado: boolean;
+  bonusAtributos: Partial<Record<keyof Attributes, number>>;
+};
+
+type StoreInventoryRow = {
+  personagem_id: string;
+  item_id: string;
+  quantidade: number;
+  equipado?: boolean;
+  itens: {
+    nome: string;
+    descricao: string | null;
+    efeito: string | null;
+  } | Array<{
+    nome: string;
+    descricao: string | null;
+    efeito: string | null;
+  }> | null;
+};
+
+function bonusAtributosDoEfeito(efeito: string | null | undefined) {
+  const bonuses: Partial<Record<keyof Attributes, number>> = {};
+  const pattern = /([+-]?\d+)\s*(?:em\s+)?(Força|Destreza|Constituição|Inteligência|Sabedoria|Carisma)/gi;
+
+  for (const match of efeito?.matchAll(pattern) ?? []) {
+    const atributo = Object.entries(ATTRIBUTE_LABELS).find(
+      ([, label]) => label.toLowerCase() === match[2].toLowerCase(),
+    )?.[0] as keyof Attributes | undefined;
+    if (atributo) bonuses[atributo] = (bonuses[atributo] ?? 0) + Number(match[1]);
+  }
+
+  return bonuses;
+}
 
 /** Garante que valores de moedas não fiquem negativos ou estourem em Number.MAX_SAFE_INTEGER */
 function sanitizarMoeda(valor?: number | null): number {
@@ -131,12 +197,12 @@ function ControleVital({
               type="number"
               className="cs-vital-input"
               min={1}
-              max={9999}
+              max={LIMITE_RECURSO}
               value={max}
               disabled={desabilitado}
               onChange={(e) => {
                 const val = parseInt(e.target.value, 10);
-                onAtualizarMax(isNaN(val) ? 1 : Math.max(1, Math.min(9999, val)));
+                onAtualizarMax(isNaN(val) ? 1 : Math.max(1, Math.min(LIMITE_RECURSO, val)));
               }}
             />
           </div>
@@ -311,6 +377,7 @@ export default function CharacterSheet() {
   idRef.current = id;
 
   const [character, setCharacter] = useState<Character | null>(null);
+  const [storeInventory, setStoreInventory] = useState<StoreInventoryEntry[]>([]);
 
   const [acesso, setAcesso] = useState({
     canEdit: false,
@@ -330,6 +397,8 @@ export default function CharacterSheet() {
   // Estados locais para adição de novos itens/magias
   const [novoItemNome, setNovoItemNome] = useState("");
   const [novoItemQtd, setNovoItemQtd] = useState(1);
+  const [novoItemAtributo, setNovoItemAtributo] = useState<keyof Attributes | "">("");
+  const [novoItemBonus, setNovoItemBonus] = useState(0);
   const [mostrarFormItem, setMostrarFormItem] = useState(false);
 
   const [novaMagiaNome, setNovaMagiaNome] = useState("");
@@ -350,8 +419,9 @@ export default function CharacterSheet() {
     Promise.all([
       getCharacterById(id),
       getCharacterAccess(id),
+      getInventory(id).catch(() => []),
     ])
-      .then(([c, a]) => {
+      .then(([c, a, inventoryRows]) => {
         if (c) {
           // Auto-sanitiza carteira caso esteja com Number.MAX_SAFE_INTEGER
           const carteiraLimpa: Wallet = {
@@ -363,10 +433,37 @@ export default function CharacterSheet() {
           };
           setCharacter({
             ...c,
+            hp: {
+              ...c.hp,
+              max: Math.min(LIMITE_RECURSO, Math.max(1, c.hp.max)),
+              atual: Math.min(LIMITE_RECURSO, Math.max(0, c.hp.atual)),
+            },
+            mp: {
+              ...c.mp,
+              max: Math.min(LIMITE_RECURSO, Math.max(0, c.mp.max)),
+              atual: Math.min(LIMITE_RECURSO, Math.max(0, c.mp.atual)),
+            },
+            skills: completarPericias(c.skills ?? []),
+            inventory: c.inventory ?? [],
             carteira: carteiraLimpa,
           });
+          setStoreInventory((inventoryRows as StoreInventoryRow[]).flatMap((row) => {
+            const item = Array.isArray(row.itens) ? row.itens[0] ?? null : row.itens;
+            if (!item) return [];
+            return [{
+              personagemId: row.personagem_id,
+              itemId: row.item_id,
+              nome: item.nome,
+              quantidade: row.quantidade,
+              descricao: item.descricao ?? undefined,
+              efeito: item.efeito ?? undefined,
+              equipado: Boolean(row.equipado),
+              bonusAtributos: bonusAtributosDoEfeito(item.efeito),
+            }];
+          }));
         } else {
           setCharacter(null);
+          setStoreInventory([]);
         }
         setAcesso(a);
       })
@@ -447,6 +544,31 @@ export default function CharacterSheet() {
 
   const view: Character = editando && rascunho ? rascunho : character;
 
+  const bonusesPersona = calculateTotalPersonaBonuses(
+    view.raca,
+    view.classe,
+    view.filiacao,
+  ).attributeBonuses;
+  const bonusesEquipamento: Partial<Record<keyof Attributes, number>> = {};
+  for (const item of view.inventory ?? []) {
+    if (!item.equipado) continue;
+    for (const [atributo, bonus] of Object.entries(item.bonusAtributos ?? {})) {
+      const chave = atributo as keyof Attributes;
+      bonusesEquipamento[chave] = (bonusesEquipamento[chave] ?? 0) + Number(bonus || 0);
+    }
+  }
+  for (const item of storeInventory) {
+    if (!item.equipado) continue;
+    for (const [atributo, bonus] of Object.entries(item.bonusAtributos)) {
+      const chave = atributo as keyof Attributes;
+      bonusesEquipamento[chave] = (bonusesEquipamento[chave] ?? 0) + Number(bonus || 0);
+    }
+  }
+  const valorAtributo = (atributo: keyof Attributes) =>
+    (view.attributes[atributo] ?? 10) +
+    (bonusesPersona[atributo as BaseAttributeKey] ?? 0) +
+    (bonusesEquipamento[atributo] ?? 0);
+
   const carteira: Wallet = {
     pc: sanitizarMoeda(view.carteira?.pc),
     pp: sanitizarMoeda(view.carteira?.pp),
@@ -455,12 +577,12 @@ export default function CharacterSheet() {
     pl: sanitizarMoeda(view.carteira?.pl),
   };
 
-  const modDestreza = modificador(view.attributes.destreza);
+  const modDestreza = modificador(valorAtributo("destreza"));
 
   /* ---------- ações de vida, mana e dinheiro ---------- */
 
   const alterarHp = (atual: number) => {
-    const max = character.hp.max;
+    const max = Math.min(LIMITE_RECURSO, character.hp.max);
     const valido = Math.max(0, Math.min(max, atual));
     agendarSalvamento({
       ...character,
@@ -472,7 +594,7 @@ export default function CharacterSheet() {
   };
 
   const alterarHpMax = (max: number) => {
-    const maxValido = Math.max(1, max);
+    const maxValido = Math.max(1, Math.min(LIMITE_RECURSO, max));
     agendarSalvamento({
       ...character,
       hp: {
@@ -487,13 +609,13 @@ export default function CharacterSheet() {
       ...character,
       hp: {
         ...character.hp,
-        atual: character.hp.max,
+        atual: Math.min(LIMITE_RECURSO, character.hp.max),
       },
     });
   };
 
   const alterarMp = (atual: number) => {
-    const max = character.mp.max;
+    const max = Math.min(LIMITE_RECURSO, character.mp.max);
     const valido = Math.max(0, Math.min(max, atual));
     agendarSalvamento({
       ...character,
@@ -505,7 +627,7 @@ export default function CharacterSheet() {
   };
 
   const alterarMpMax = (max: number) => {
-    const maxValido = Math.max(0, max);
+    const maxValido = Math.max(0, Math.min(LIMITE_RECURSO, max));
     agendarSalvamento({
       ...character,
       mp: {
@@ -520,7 +642,7 @@ export default function CharacterSheet() {
       ...character,
       mp: {
         ...character.mp,
-        atual: character.mp.max,
+        atual: Math.min(LIMITE_RECURSO, character.mp.max),
       },
     });
   };
@@ -565,12 +687,12 @@ export default function CharacterSheet() {
       ...rascunho,
       nome: rascunho.nome.trim() || character.nome,
       hp: {
-        max: Math.max(1, rascunho.hp.max),
-        atual: Math.max(0, Math.min(rascunho.hp.atual, rascunho.hp.max)),
+        max: Math.max(1, Math.min(LIMITE_RECURSO, rascunho.hp.max)),
+        atual: Math.max(0, Math.min(LIMITE_RECURSO, rascunho.hp.atual, rascunho.hp.max)),
       },
       mp: {
-        max: Math.max(0, rascunho.mp.max),
-        atual: Math.max(0, Math.min(rascunho.mp.atual, rascunho.mp.max)),
+        max: Math.max(0, Math.min(LIMITE_RECURSO, rascunho.mp.max)),
+        atual: Math.max(0, Math.min(LIMITE_RECURSO, rascunho.mp.atual, rascunho.mp.max)),
       },
       carteira: {
         pc: sanitizarMoeda(rascunho.carteira?.pc),
@@ -634,6 +756,10 @@ export default function CharacterSheet() {
       id: "item-" + Date.now(),
       nome: novoItemNome.trim(),
       quantidade: Math.max(1, novoItemQtd),
+      equipado: false,
+      bonusAtributos: novoItemAtributo && novoItemBonus !== 0
+        ? { [novoItemAtributo]: novoItemBonus }
+        : undefined,
     };
 
     const proximoInventario = [...character.inventory, novoItem];
@@ -644,7 +770,30 @@ export default function CharacterSheet() {
 
     setNovoItemNome("");
     setNovoItemQtd(1);
+    setNovoItemAtributo("");
+    setNovoItemBonus(0);
     setMostrarFormItem(false);
+  };
+
+  const handleToggleEquipamento = (itemId: string) => {
+    const proximoInventario = character.inventory.map((item) =>
+      item.id === itemId ? { ...item, equipado: !item.equipado } : item,
+    );
+    agendarSalvamento({ ...character, inventory: proximoInventario });
+  };
+
+  const handleToggleItemDaLoja = async (item: StoreInventoryEntry) => {
+    try {
+      await alterarItemEquipado(character.id, item.itemId, !item.equipado);
+      setStoreInventory((current) => current.map((entry) =>
+        entry.itemId === item.itemId
+          ? { ...entry, equipado: !entry.equipado }
+          : entry,
+      ));
+      setStatus(item.equipado ? "Equipamento removido." : "Equipamento ativado.");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Não foi possível alterar o equipamento.");
+    }
   };
 
   const handleAlterarQtdItem = (itemId: string, delta: number) => {
@@ -751,7 +900,10 @@ export default function CharacterSheet() {
 
         {character.campanhaId && (
           <>
-            <Link to={"/campanha/" + character.campanhaId + "/loja"}>
+            <Link to={"/personagem/" + character.id + "/inventario"}>
+              Inventário completo
+            </Link>
+            <Link to={"/campanha/" + character.campanhaId + "/loja?personagem=" + character.id}>
               Loja da Campanha
             </Link>
             <Link to="/">Meus personagens</Link>
@@ -1110,13 +1262,18 @@ export default function CharacterSheet() {
                   />
                 ) : (
                   <span className="attribute-value">
-                    {view.attributes[attr]}
+                    {valorAtributo(attr)}
                   </span>
                 )}
 
                 <span className="attribute-mod">
-                  {formatarModificador(modificador(view.attributes[attr]))}
+                  {formatarModificador(modificador(valorAtributo(attr)))}
                 </span>
+                {!editando && (bonusesPersona[attr as BaseAttributeKey] || bonusesEquipamento[attr]) ? (
+                  <small className="attribute-bonus-note">
+                    Base {view.attributes[attr]} · Persona {formatarModificador(bonusesPersona[attr as BaseAttributeKey] ?? 0)} · Equipamento {formatarModificador(bonusesEquipamento[attr] ?? 0)}
+                  </small>
+                ) : null}
               </div>
             ))}
           </div>
@@ -1135,7 +1292,10 @@ export default function CharacterSheet() {
                   </span>
 
                   <span className="sheet-list-bonus">
-                    +{skill.bonus}
+                    {formatarModificador(
+                      modificador(valorAtributo(skill.atributo)) +
+                      (skill.treinada ? skill.bonus : 0),
+                    )}
                   </span>
 
                   {podeEditar && !editando && (
@@ -1187,6 +1347,26 @@ export default function CharacterSheet() {
                       value={novoItemQtd}
                       onChange={(e) => setNovoItemQtd(Number(e.target.value) || 1)}
                     />
+                    <select
+                      aria-label="Atributo do bônus do equipamento"
+                      value={novoItemAtributo}
+                      onChange={(event) => setNovoItemAtributo(event.target.value as keyof Attributes | "")}
+                    >
+                      <option value="">Sem bônus</option>
+                      {Object.entries(ATTRIBUTE_LABELS).map(([atributo, rotulo]) => (
+                        <option key={atributo} value={atributo}>{rotulo}</option>
+                      ))}
+                    </select>
+                    <input
+                      aria-label="Valor do bônus do equipamento"
+                      type="number"
+                      min={-20}
+                      max={20}
+                      placeholder="Bônus"
+                      value={novoItemBonus}
+                      disabled={!novoItemAtributo}
+                      onChange={(event) => setNovoItemBonus(Number(event.target.value) || 0)}
+                    />
                     <button type="submit" className="btn-primary" style={{ fontSize: "0.8rem", padding: "4px 10px" }}>
                       Adicionar
                     </button>
@@ -1206,7 +1386,19 @@ export default function CharacterSheet() {
             <ul className="sheet-list">
               {view.inventory.map((item) => (
                 <li key={item.id}>
-                  <span>{item.nome}</span>
+                  <span>
+                    {item.nome}
+                    {item.equipado && <small className="equipped-item-tag">Equipado</small>}
+                  </span>
+
+                  {item.bonusAtributos && (
+                    <span className="sheet-list-tag">
+                      {Object.entries(item.bonusAtributos)
+                        .filter(([, bonus]) => bonus)
+                        .map(([atributo, bonus]) => `${formatarModificador(Number(bonus))} ${ATTRIBUTE_LABELS[atributo as keyof Attributes]}`)
+                        .join(" · ")}
+                    </span>
+                  )}
 
                   <span className="sheet-list-tag">
                     x{item.quantidade}
@@ -1214,6 +1406,14 @@ export default function CharacterSheet() {
 
                   {podeEditar && !editando && (
                     <div className="cs-list-actions">
+                      <button
+                        type="button"
+                        className="cs-btn-icon"
+                        onClick={() => handleToggleEquipamento(item.id)}
+                        aria-pressed={Boolean(item.equipado)}
+                      >
+                        {item.equipado ? "Desequipar" : "Equipar"}
+                      </button>
                       <button
                         type="button"
                         className="cs-btn-icon"
@@ -1243,10 +1443,46 @@ export default function CharacterSheet() {
                 </li>
               ))}
 
-              {view.inventory.length === 0 && (
+              {view.inventory.length === 0 && storeInventory.length === 0 && (
                 <p className="sheet-empty">Inventário vazio.</p>
               )}
             </ul>
+
+            {storeInventory.length > 0 && (
+              <section className="cs-store-inventory">
+                <h3>Comprados na loja</h3>
+                <ul className="sheet-list">
+                  {storeInventory.map((item) => (
+                    <li key={item.itemId}>
+                      <span>
+                        {item.nome}
+                        {item.equipado && <small className="equipped-item-tag">Equipado</small>}
+                        {item.efeito && <small className="store-item-effect">{item.efeito}</small>}
+                      </span>
+                      <span className="sheet-list-tag">x{item.quantidade}</span>
+                      {Object.entries(item.bonusAtributos).some(([, bonus]) => bonus) && (
+                        <span className="sheet-list-tag">
+                          {Object.entries(item.bonusAtributos)
+                            .filter(([, bonus]) => bonus)
+                            .map(([atributo, bonus]) => `${formatarModificador(Number(bonus))} ${ATTRIBUTE_LABELS[atributo as keyof Attributes]}`)
+                            .join(" · ")}
+                        </span>
+                      )}
+                      {podeEditar && !editando && (
+                        <button
+                          type="button"
+                          className="cs-btn-icon"
+                          aria-pressed={item.equipado}
+                          onClick={() => void handleToggleItemDaLoja(item)}
+                        >
+                          {item.equipado ? "Desequipar" : "Equipar"}
+                        </button>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
           </div>
         )}
 
