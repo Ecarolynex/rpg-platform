@@ -399,6 +399,198 @@
   white-space: nowrap;
 }
 
+.campaign-class-bonuses {
+  margin: 20px 0 24px;
+  padding: 18px;
+  border: 1px solid rgba(240, 207, 110, 0.3);
+  border-radius: 8px;
+  background: rgba(10, 7, 5, 0.45);
+}
+
+.campaign-class-bonuses-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.campaign-class-bonuses-heading h3 {
+  margin: 0 0 5px;
+  color: var(--gold-bright, #f0cf6e);
+  font-family: var(--font-display, serif);
+}
+
+.campaign-class-bonuses-heading p {
+  margin: 0;
+  color: var(--muted, rgba(236, 223, 192, 0.75));
+  font-size: 0.88rem;
+}
+
+.campaign-class-bonus-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 330px), 1fr));
+  gap: 12px;
+}
+
+.campaign-class-bonus-card {
+  min-width: 0;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid rgba(201, 162, 39, 0.25);
+  border-radius: 6px;
+}
+
+.campaign-class-bonus-card legend {
+  padding: 0 6px;
+  color: var(--gold-bright, #f0cf6e);
+  font-family: var(--font-display, serif);
+  font-weight: 700;
+}
+
+.campaign-class-bonus-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.campaign-class-bonus-fields label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--muted, rgba(236, 223, 192, 0.75));
+  font-size: 0.76rem;
+}
+
+.campaign-class-bonus-fields input {
+  width: 100%;
+  min-width: 0;
+  padding: 7px 8px;
+  border: 1px solid rgba(240, 207, 110, 0.3);
+  border-radius: 4px;
+  background: rgba(10, 7, 5, 0.85);
+  color: var(--parchment, #fff0cc);
+}
+
+.campaign-class-bonus-fields input:focus {
+  outline: none;
+  border-color: var(--gold-bright, #f0cf6e);
+}
+
+.campaign-class-bonuses-message {
+  margin: 12px 0 0;
+  color: var(--gold-bright, #f0cf6e);
+}
+
+.campaign-content-intro {
+  margin: 0 0 16px;
+  color: var(--muted, rgba(236, 223, 192, 0.75));
+}
+
+.campaign-content-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid rgba(201, 162, 39, 0.25);
+  border-radius: 6px;
+  background: rgba(10, 7, 5, 0.42);
+}
+
+.campaign-content-form > label {
+  display: grid;
+  gap: 5px;
+  color: var(--muted, rgba(236, 223, 192, 0.75));
+  font-size: 0.8rem;
+}
+
+.campaign-content-form input,
+.campaign-content-form select,
+.campaign-content-form textarea {
+  width: 100%;
+  min-width: 0;
+  padding: 8px 9px;
+  border: 1px solid rgba(240, 207, 110, 0.32);
+  border-radius: 4px;
+  background: rgba(8, 10, 9, 0.9);
+  color: var(--parchment, #fff0cc);
+  font: inherit;
+}
+
+.campaign-content-description {
+  grid-column: 1 / -1;
+}
+
+.campaign-new-class-attributes {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-column: 1 / -1;
+  gap: 8px;
+}
+
+.campaign-new-class-attributes label {
+  display: grid;
+  gap: 4px;
+  color: var(--muted, rgba(236, 223, 192, 0.75));
+  font-size: 0.76rem;
+}
+
+.campaign-content-form > button {
+  justify-self: start;
+}
+
+.campaign-content-message {
+  color: var(--gold-bright, #f0cf6e);
+}
+
+.campaign-content-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.campaign-content-card {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 14px;
+  border: 1px solid rgba(201, 162, 39, 0.2);
+  border-radius: 5px;
+  background: rgba(25, 20, 13, 0.55);
+}
+
+.campaign-content-card h3 {
+  margin: 3px 0 5px;
+  color: var(--parchment, #fff0cc);
+}
+
+.campaign-content-card p {
+  margin: 3px 0;
+  color: var(--muted, rgba(236, 223, 192, 0.75));
+  font-size: 0.86rem;
+}
+
+.campaign-content-kind {
+  color: var(--gold-bright, #f0cf6e);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.campaign-content-remove {
+  flex: 0 0 auto;
+  border: 1px solid rgba(172, 80, 74, 0.5);
+  border-radius: 4px;
+  padding: 5px 9px;
+  background: rgba(63, 24, 23, 0.5);
+  color: #e2aaa0;
+}
+
+.campaign-content-empty {
+  color: var(--muted, rgba(236, 223, 192, 0.65));
+}
+
 /* Empty states */
 .campaign-empty-banner {
   text-align: center;
@@ -769,6 +961,22 @@
 }
 
 @media (max-width: 680px) {
+  .campaign-content-form {
+    grid-template-columns: 1fr;
+  }
+
+  .campaign-new-class-attributes {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .campaign-class-bonuses-heading {
+    flex-direction: column;
+  }
+
+  .campaign-class-bonuses-heading .btn-primary {
+    width: 100%;
+  }
+
   .campaign-overview-hero {
     padding: 19px 20px 21px;
   }

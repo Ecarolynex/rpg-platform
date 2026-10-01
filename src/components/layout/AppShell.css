@@ -6,8 +6,8 @@
 .app-sidebar {
   width: 220px;
   flex-shrink: 0;
-  background: var(--ink-panel);
-  border-right: 1px solid var(--border-bronze);
+  background: linear-gradient(180deg, #0f1d1b 0%, #1b322f 100%);
+  border-right: 1px solid rgba(217, 195, 156, 0.28);
   display: flex;
   flex-direction: column;
   padding: 24px 18px;
@@ -42,13 +42,13 @@
 
 .app-sidebar-nav a:hover {
   color: var(--gold-bright);
-  background: rgba(201, 162, 39, 0.06);
+  background: rgba(217, 183, 121, 0.06);
 }
 
 .app-sidebar-nav a.active {
   color: var(--gold-bright);
-  border-left-color: var(--gold);
-  background: rgba(201, 162, 39, 0.1);
+  border-left-color: var(--gold-bright);
+  background: rgba(217, 183, 121, 0.12);
 }
 
 .app-sidebar-footer {
@@ -65,8 +65,8 @@
   gap: 10px;
   min-width: 0;
   padding: 9px;
-  border: 1px solid rgba(201, 162, 39, 0.28);
-  background: linear-gradient(135deg, rgba(201, 162, 39, 0.09), rgba(0, 0, 0, 0.14));
+  border: 1px solid rgba(217, 183, 121, 0.24);
+  background: linear-gradient(135deg, rgba(126, 97, 64, 0.16), rgba(11, 26, 29, 0.4));
 }
 
 .app-sidebar-account-mark {

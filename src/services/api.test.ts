@@ -3,10 +3,13 @@ import {
   adicionarItemExistenteNaLoja,
   comprarCarrinho,
   excluirCampanha,
+  atualizarPersonagem,
   removerItemDaLoja,
+  salvarBonusClassesCampanha,
   salvarItemDaLoja,
   vincularPersonagem,
 } from "./api";
+import { normalizarBonusClassesCampanha } from "../data/personaRules";
 
 const { getUser, from, rpc } = vi.hoisted(() => ({
   getUser: vi.fn(),
@@ -23,6 +26,63 @@ vi.mock("./supabase", () => ({
 }));
 
 const zeroWallet = { pc: 0, pp: 0, pe: 0, po: 0, pl: 0 };
+
+describe("atualizarPersonagem", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("limita vida e mana a 200 ao persistir a ficha", async () => {
+    const query = {
+      update: vi.fn(),
+      eq: vi.fn(),
+      select: vi.fn(),
+      maybeSingle: vi.fn(),
+    };
+    query.update.mockReturnValue(query);
+    query.eq.mockReturnValue(query);
+    query.select.mockReturnValue(query);
+    query.maybeSingle.mockImplementation(async () => {
+      const update = query.update.mock.calls[0][0];
+      return {
+        data: {
+          id: "character-1",
+          campanha_id: null,
+          nome: "Aventureiro",
+          nivel: 1,
+          dados: update.dados,
+        },
+        error: null,
+      };
+    });
+    from.mockReturnValue(query);
+
+    await atualizarPersonagem("character-1", {
+      id: "character-1",
+      nome: "Aventureiro",
+      raca: "Humano",
+      classe: "Guerreiro",
+      nivel: 1,
+      hp: { atual: 250, max: 250 },
+      mp: { atual: 240, max: 240 },
+      attributes: {
+        forca: 10,
+        destreza: 10,
+        constituicao: 10,
+        inteligencia: 10,
+        carisma: 10,
+      },
+      skills: [],
+      inventory: [],
+      spells: [],
+      notas: "",
+    });
+
+    const savedData = query.update.mock.calls[0][0].dados;
+    expect(savedData.hp).toEqual({ atual: 200, max: 200 });
+    expect(savedData.mp).toEqual({ atual: 200, max: 200 });
+  });
+});
 
 describe("comprarCarrinho", () => {
   beforeEach(() => {
@@ -137,7 +197,6 @@ describe("vincularPersonagem", () => {
           destreza: 10,
           constituicao: 10,
           inteligencia: 10,
-          sabedoria: 10,
           carisma: 10,
         },
         skills: [],
@@ -211,5 +270,31 @@ describe("excluirCampanha", () => {
     );
     expect(from).toHaveBeenCalledOnce();
     expect(from).toHaveBeenCalledWith("campanha_membros");
+  });
+});
+
+describe("salvarBonusClassesCampanha", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("recusa alterações feitas por quem não é mestre", async () => {
+    const membershipQuery = {
+      select: vi.fn(),
+      eq: vi.fn(),
+      maybeSingle: vi.fn().mockResolvedValue({
+        data: { papel: "JOGADOR" },
+        error: null,
+      }),
+    };
+    membershipQuery.select.mockReturnValue(membershipQuery);
+    membershipQuery.eq.mockReturnValue(membershipQuery);
+    getUser.mockResolvedValue({ data: { user: { id: "player-1" } }, error: null });
+    from.mockReturnValue(membershipQuery);
+
+    await expect(
+      salvarBonusClassesCampanha("campaign-1", normalizarBonusClassesCampanha()),
+    ).rejects.toThrow("Somente o Mestre pode alterar os bônus da campanha.");
+    expect(from).toHaveBeenCalledTimes(1);
   });
 });

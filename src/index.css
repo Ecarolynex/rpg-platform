@@ -1,19 +1,21 @@
-:root {
-  /* paleta — azul-petróleo, marfim frio e ouro envelhecido */
-  --ink: #0b191b;
-  --ink-panel: #102629;
-  --ink-panel-raised: #173438;
-  --parchment: #edf2ed;
-  --parchment-dim: #c4d1cc;
-  --gold: #b99b5b;
-  --gold-bright: #e3ca8b;
-  --wine: #7a1626;
-  --wine-bright: #a3273c;
-  --forest: #315a50;
-  --muted: #91a6a1;
-  --border-bronze: #29474a;
+@import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=EB+Garamond:wght@400;500;600;700&display=swap");
 
-  --font-display: "Cinzel", "Times New Roman", serif;
+:root {
+  /* fantasia luxuosa: verde de palácio, cinza mineral e dourado real */
+  --ink: #091713;
+  --ink-panel: #102b28;
+  --ink-panel-raised: #1a3d39;
+  --parchment: #f4efe9;
+  --parchment-dim: #d9cdb9;
+  --gold: #c7a66c;
+  --gold-bright: #f0dba2;
+  --wine: #294d46;
+  --wine-bright: #456e67;
+  --forest: #174d48;
+  --muted: #a8b3ae;
+  --border-bronze: #3c625d;
+
+  --font-display: "Cormorant Garamond", "Times New Roman", serif;
   --font-body: "EB Garamond", "Iowan Old Style", serif;
 
   color-scheme: dark;
@@ -39,8 +41,47 @@ body,
 
 body {
   background:
-    radial-gradient(ellipse 900px 500px at 50% -10%, #18383b 0%, transparent 60%),
-    var(--ink);
+    radial-gradient(ellipse 60% 28% at 50% 58%, rgba(127, 158, 143, 0.16), transparent 72%),
+    radial-gradient(ellipse 44% 24% at 14% 66%, rgba(56, 92, 77, 0.26), transparent 74%),
+    radial-gradient(ellipse 48% 28% at 88% 62%, rgba(42, 76, 67, 0.24), transparent 72%),
+    linear-gradient(180deg, #0a1715 0%, #11231f 52%, #091412 100%);
+  background-attachment: fixed;
+}
+
+#root {
+  position: relative;
+  isolation: isolate;
+  min-height: 100%;
+}
+
+#root::before,
+#root::after {
+  position: fixed;
+  inset-inline: 0;
+  z-index: -1;
+  content: "";
+  pointer-events: none;
+}
+
+#root::before {
+  top: 0;
+  bottom: 0;
+  background:
+    linear-gradient(180deg, transparent 42%, rgba(12, 34, 29, 0.08) 53%, rgba(5, 13, 12, 0.42) 100%),
+    radial-gradient(ellipse 48% 9% at 50% 58%, rgba(189, 200, 180, 0.1), transparent 72%);
+}
+
+#root::after {
+  top: auto;
+  bottom: 0;
+  height: min(38vh, 340px);
+  opacity: 0.38;
+  background: linear-gradient(180deg, rgba(36, 69, 57, 0.52), rgba(5, 14, 12, 0.95));
+  clip-path: polygon(
+    0 44%, 8% 34%, 16% 48%, 25% 23%, 35% 43%, 44% 30%,
+    53% 49%, 64% 18%, 74% 41%, 83% 27%, 92% 44%, 100% 31%,
+    100% 100%, 0 100%
+  );
 }
 
 h1,
@@ -91,26 +132,27 @@ button {
 /* --- utilitários de superfície, reaproveitados nas páginas --- */
 
 .panel {
-  background: var(--ink-panel);
+  background: linear-gradient(180deg, var(--ink-panel) 0%, var(--ink) 100%);
   border: 1px solid var(--border-bronze);
   border-radius: 3px;
+  color: var(--parchment);
 }
 
 .parchment-surface {
-  background: linear-gradient(180deg, var(--parchment) 0%, var(--parchment-dim) 100%);
-  color: #2a2015;
+  background: linear-gradient(180deg, var(--parchment) 0%, #d5dfe3 100%);
+  color: var(--ink);
   border: 1px solid var(--border-bronze);
   border-radius: 2px;
 }
 
 .btn-primary {
   background: linear-gradient(180deg, var(--gold-bright) 0%, var(--gold) 100%);
-  color: #241708;
+  color: #150d08;
   font-family: var(--font-display);
   font-weight: 600;
   font-size: 15px;
   letter-spacing: 0.03em;
-  border: 1px solid #8a6a18;
+  border: 1px solid rgba(217, 183, 121, 0.7);
   border-radius: 2px;
   padding: 11px 22px;
   transition: filter 0.15s ease, transform 0.15s ease;
@@ -132,7 +174,7 @@ button {
   transition: border-color 0.15s ease, color 0.15s ease;
 }
 .btn-ghost:hover {
-  border-color: var(--gold);
+  border-color: var(--gold-bright);
   color: var(--gold-bright);
 }
 
@@ -148,14 +190,15 @@ button {
   letter-spacing: 0.03em;
 }
 .field input {
-  background: var(--ink);
+  background: rgba(7, 20, 24, 0.78);
   border: 1px solid var(--border-bronze);
   border-radius: 2px;
   padding: 10px 12px;
   font-size: 16px;
+  color: var(--parchment);
 }
 .field input:focus {
-  border-color: var(--gold);
+  border-color: var(--gold-bright);
 }
 
 .hairline {

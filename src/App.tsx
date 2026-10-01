@@ -8,6 +8,7 @@ import Campaigns from "./pages/Campaigns/Campaigns";
 import Campaign from "./pages/Campaign/Campaign";
 import Shop from "./pages/Shop/Shop";
 import Inventory from "./pages/Inventory/Inventory";
+import ClassCatalog from "./pages/ClassCatalog/ClassCatalog";
 
 function App() {
   return (
@@ -24,6 +25,7 @@ function App() {
       >
         <Route path="/" element={<Dashboard />} />
         <Route path="/campanhas" element={<Campaigns />} />
+        <Route path="/regras/classes" element={<ClassCatalog />} />
         <Route path="/loja" element={<Navigate to="/campanhas" replace />} />
         <Route path="/campanha/:id" element={<Campaign />} />
         <Route path="/campanha/:id/loja/carrinho" element={<Shop />} />

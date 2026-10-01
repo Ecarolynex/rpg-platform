@@ -14,7 +14,6 @@ export const mockCharacters: Character[] = [
       destreza: 12,
       constituicao: 15,
       inteligencia: 9,
-      sabedoria: 10,
       carisma: 11,
     },
     skills: [
@@ -42,7 +41,6 @@ export const mockCharacters: Character[] = [
       destreza: 13,
       constituicao: 11,
       inteligencia: 18,
-      sabedoria: 14,
       carisma: 10,
     },
     skills: [
@@ -72,7 +70,6 @@ export const mockCharacters: Character[] = [
       destreza: 18,
       constituicao: 12,
       inteligencia: 13,
-      sabedoria: 11,
       carisma: 15,
     },
     skills: [

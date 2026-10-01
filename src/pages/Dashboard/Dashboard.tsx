@@ -4,19 +4,20 @@ import type { Attributes, Character, Skill } from "../../types/character";
 import {
   buscarCampanhaPorCodigo,
   criarPersonagem,
+  getCatalogoGlobalClasses,
   enviarRetrato,
   entrarNaCampanha,
   excluirPersonagem,
   getCharacters,
+  listarConteudosClasseCampanha,
   listarMinhasCampanhas,
   vincularPersonagem,
   type Campaign,
+  type CampaignClassContent,
 } from "../../services/api";
 import { CharacterCard } from "../../components/character/CharacterCard";
 import { OptionField } from "../../components/ui/OptionField";
 import {
-  ALINHAMENTOS,
-  CLASSES,
   RACAS,
   LIMITE_RECURSO,
   bonusProficiencia,
@@ -25,8 +26,11 @@ import {
   carteiraInicial,
 } from "../../data/dnd";
 import {
+  ATTRIBUTE_CONFIG,
+  DEFAULT_CLASS_CATALOG,
   FIXED_SKILLS,
   calculateTotalPersonaBonuses,
+  type ClassDefinition,
 } from "../../data/personaRules";
 import "./Dashboard.css";
 import "./DashboardActions.css";
@@ -36,7 +40,7 @@ const initialDraft = {
   raca: "",
   classe: "",
   origem: "",
-  alinhamento: "",
+  qualidades: "",
   idade: "",
   nivel: 1,
   historia: "",
@@ -47,24 +51,47 @@ const initialDraft = {
   destreza: 10,
   constituicao: 10,
   inteligencia: 10,
-  sabedoria: 10,
   carisma: 10,
 };
 
 type TextField =
   | "nome"
   | "origem"
+  | "qualidades"
   | "idade"
   | "historia"
   | "aparencia"
   | "objetivo"
   | "defeito";
 
-function createUntrainedSkills(): Skill[] {
-  return FIXED_SKILLS.map((skill) => ({
+function createUntrainedSkills(
+  classe: ClassDefinition | undefined,
+  campaignSkills: CampaignClassContent[],
+): Skill[] {
+  const classSkills = [
+    ...(classe?.pericias ?? []).map((skill) => ({
+      id: skill.id,
+      nome: skill.nome,
+      atributo: skill.atributo,
+      descricao: skill.descricao,
+    })),
+    ...campaignSkills
+      .filter((skill) => skill.tipo === "PERICIA" && skill.classe_id === classe?.id)
+      .map((skill) => ({
+        id: skill.id,
+        nome: skill.nome,
+        atributo: skill.atributo as NonNullable<Skill["atributo"]>,
+        descricao: skill.descricao,
+      })),
+  ];
+  const definitions = [...FIXED_SKILLS, ...classSkills].filter(
+    (skill, index, skills) => skills.findIndex((item) => item.id === skill.id) === index,
+  );
+  return definitions.map((skill) => ({
     id: skill.id,
     nome: skill.nome,
     atributo: skill.atributo,
+    descricao: "descricao" in skill ? skill.descricao : undefined,
     treinada: false,
     bonus: 0,
   }));
@@ -73,13 +100,17 @@ function createUntrainedSkills(): Skill[] {
 export default function Dashboard() {
   const [characters, setCharacters] = useState<Character[]>([]);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [classCatalog, setClassCatalog] = useState<ClassDefinition[]>(DEFAULT_CLASS_CATALOG);
+  const [campaignClassContents, setCampaignClassContents] = useState<CampaignClassContent[]>([]);
   const [selectedCampaignId, setSelectedCampaignId] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [showCreator, setShowCreator] = useState(false);
   const [draft, setDraft] = useState(initialDraft);
-  const [skillsDraft, setSkillsDraft] = useState<Skill[]>(createUntrainedSkills);
+  const [skillsDraft, setSkillsDraft] = useState<Skill[]>(() =>
+    createUntrainedSkills(undefined, []),
+  );
   const [portraitFile, setPortraitFile] = useState<File | null>(null);
   const [portraitPreview, setPortraitPreview] = useState("");
 
@@ -97,13 +128,15 @@ export default function Dashboard() {
   useEffect(() => {
     async function loadData() {
       try {
-        const [charactersData, campaignsData] = await Promise.all([
+        const [charactersData, campaignsData, classesData] = await Promise.all([
           getCharacters(),
           listarMinhasCampanhas(),
+          getCatalogoGlobalClasses(),
         ]);
 
         setCharacters(charactersData);
         setCampaigns(campaignsData);
+        setClassCatalog(classesData);
       } catch (error) {
         setErrorMessage(
           error instanceof Error
@@ -117,6 +150,55 @@ export default function Dashboard() {
 
     loadData();
   }, []);
+
+  useEffect(() => {
+    if (!selectedCampaignId) {
+      setCampaignClassContents([]);
+      return;
+    }
+
+    listarConteudosClasseCampanha(selectedCampaignId)
+      .then(setCampaignClassContents)
+      .catch((error: unknown) => {
+        setCampaignClassContents([]);
+        setErrorMessage(
+          error instanceof Error
+            ? error.message
+            : "Não foi possível carregar as regras da campanha.",
+        );
+      });
+  }, [selectedCampaignId]);
+
+  const campaignCustomClasses: ClassDefinition[] = campaignClassContents
+    .filter((item) => item.tipo === "CLASSE")
+    .map((item) => ({
+      id: item.classe_id,
+      nome: item.nome,
+      aliases: [],
+      atributoBonus: {
+        forca: item.bonus_atributos.forca ?? 0,
+        destreza: item.bonus_atributos.destreza ?? 0,
+        constituicao: item.bonus_atributos.constituicao ?? 0,
+        inteligencia: item.bonus_atributos.inteligencia ?? 0,
+        carisma: item.bonus_atributos.carisma ?? 0,
+      },
+      hpBonus: item.bonus_hp,
+      mpBonus: item.bonus_mp,
+      pericias: [],
+      habilidades: [],
+    }));
+  const classesParaCriacao = [
+    ...classCatalog,
+    ...campaignCustomClasses.filter(
+      (classe) => !classCatalog.some((item) => item.nome === classe.nome),
+    ),
+  ];
+
+  function selecionarClasse(nome: string) {
+    updateDraft("classe", nome);
+    const classe = classesParaCriacao.find((item) => item.nome === nome);
+    setSkillsDraft(createUntrainedSkills(classe, campaignClassContents));
+  }
 
   const updateDraft = <K extends keyof typeof initialDraft>(
     field: K,
@@ -169,7 +251,37 @@ export default function Dashboard() {
 
       const nivel = Number(draft.nivel) || 1;
       const classe = draft.classe || "Aventureiro";
-      const bonuses = calculateTotalPersonaBonuses(draft.raca || "Humano", classe);
+      const definicaoClasse = classesParaCriacao.find(
+        (item) => item.nome === classe,
+      );
+      const campanhaSelecionada = campaigns.find(
+        (campaign) => campaign.id === selectedCampaignId,
+      );
+      const regrasClasses = classesParaCriacao.map((classDefinition) => ({
+        ...classDefinition,
+        pericias: [
+          ...classDefinition.pericias,
+          ...campaignClassContents
+            .filter(
+              (content) =>
+                content.tipo === "PERICIA" &&
+                content.classe_id === classDefinition.id,
+            )
+            .map((content) => ({
+              id: content.id,
+              nome: content.nome,
+              atributo: content.atributo as NonNullable<Skill["atributo"]>,
+              descricao: content.descricao,
+            })),
+        ],
+      }));
+      const bonuses = calculateTotalPersonaBonuses(
+        draft.raca || "Humano",
+        classe,
+        undefined,
+        campanhaSelecionada?.bonus_classes ?? undefined,
+        regrasClasses,
+      );
       const vidaMaxima = Math.min(LIMITE_RECURSO, bonuses.hpBonus + calcularVidaMaxima(
         classe,
         nivel,
@@ -185,9 +297,10 @@ export default function Dashboard() {
         nome: draft.nome || "Novo personagem",
         raca: draft.raca || "Humano",
         classe,
+        classeId: definicaoClasse?.id,
         nivel,
         portraitUrl,
-        alinhamento: draft.alinhamento,
+        qualidades: draft.qualidades,
         origem: draft.origem,
         idade: draft.idade,
         historia: draft.historia,
@@ -201,7 +314,6 @@ export default function Dashboard() {
           destreza: Number(draft.destreza),
           constituicao: Number(draft.constituicao),
           inteligencia: Number(draft.inteligencia),
-          sabedoria: Number(draft.sabedoria),
           carisma: Number(draft.carisma),
         },
         skills: skillsDraft.map((skill) => ({
@@ -222,7 +334,7 @@ export default function Dashboard() {
       setCharacters((prev) => [savedCharacter, ...prev]);
 
       setDraft(initialDraft);
-      setSkillsDraft(createUntrainedSkills());
+      setSkillsDraft(createUntrainedSkills(undefined, []));
       setPortraitFile(null);
       setPortraitPreview("");
       setShowCreator(false);
@@ -372,9 +484,11 @@ export default function Dashboard() {
 
               <select
                 value={selectedCampaignId}
-                onChange={(event) =>
-                  setSelectedCampaignId(event.target.value)
-                }
+                onChange={(event) => {
+                  setSelectedCampaignId(event.target.value);
+                  updateDraft("classe", "");
+                  setSkillsDraft(createUntrainedSkills(undefined, []));
+                }}
               >
                 <option value="">
                   Vincular depois, com o código da campanha
@@ -414,8 +528,8 @@ export default function Dashboard() {
                 <OptionField
                   label="Classe"
                   value={draft.classe}
-                  options={CLASSES}
-                  onChange={(value) => updateDraft("classe", value)}
+                  options={classesParaCriacao.map((classe) => classe.nome)}
+                  onChange={selecionarClasse}
                 />
 
                 <label className="field">
@@ -448,13 +562,14 @@ export default function Dashboard() {
                   <input placeholder="24 anos" {...textProps("idade")} />
                 </label>
 
-                <OptionField
-                  label="Alinhamento"
-                  value={draft.alinhamento}
-                  options={ALINHAMENTOS}
-                  onChange={(value) => updateDraft("alinhamento", value)}
-                  wide
-                />
+                <label className="field field-wide">
+                  <span>Qualidades</span>
+                  <textarea
+                    rows={3}
+                    placeholder="Corajoso, leal, curioso..."
+                    {...textProps("qualidades")}
+                  />
+                </label>
 
                 <label className="field field-wide">
                   <span>Foto do personagem (opcional)</span>
@@ -486,14 +601,7 @@ export default function Dashboard() {
               <h3>Atributos</h3>
 
               <div className="attribute-grid">
-                {[
-                  ["forca", "Força"],
-                  ["destreza", "Destreza"],
-                  ["constituicao", "Constituição"],
-                  ["inteligencia", "Inteligência"],
-                  ["sabedoria", "Sabedoria"],
-                  ["carisma", "Carisma"],
-                ].map(([key, label]) => (
+                {ATTRIBUTE_CONFIG.map(({ key, label }) => (
                   <label key={key} className="attribute-field">
                     <span>{label}</span>
 
@@ -501,10 +609,10 @@ export default function Dashboard() {
                       type="number"
                       min={1}
                       max={20}
-                      value={draft[key as keyof typeof draft] as number}
+                      value={draft[key]}
                       onChange={(event) =>
                         updateAttribute(
-                          key as keyof Attributes,
+                          key,
                           Number(event.target.value) || 1,
                         )
                       }

@@ -1,0 +1,239 @@
+.class-catalog-page {
+  width: min(1250px, 100%);
+  margin: 0 auto;
+  padding: 30px 20px 64px;
+}
+
+.class-catalog-header {
+  margin-bottom: 24px;
+  padding: 24px;
+  border: 1px solid rgba(201, 162, 39, 0.38);
+  background: linear-gradient(140deg, rgba(33, 26, 15, 0.94), rgba(13, 20, 17, 0.96));
+}
+
+.class-catalog-kicker {
+  color: var(--gold-bright, #f0cf6e);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.class-catalog-header h1 {
+  margin: 8px 0;
+  color: var(--gold-bright, #f0cf6e);
+  font-family: var(--font-display, serif);
+}
+
+.class-catalog-header p,
+.class-catalog-empty {
+  color: var(--muted, rgba(236, 223, 192, 0.75));
+}
+
+.class-catalog-toolbar {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 18px;
+  padding: 14px;
+  border: 1px solid rgba(201, 162, 39, 0.25);
+  background: rgba(17, 14, 10, 0.86);
+}
+
+.class-catalog-add {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.class-catalog-add label,
+.class-editor-bonuses label,
+.class-editor-entry label {
+  display: grid;
+  gap: 4px;
+  color: var(--muted, rgba(236, 223, 192, 0.75));
+  font-size: 0.76rem;
+}
+
+.class-catalog-add input,
+.class-editor-card input,
+.class-editor-card select,
+.class-editor-card textarea {
+  min-width: 0;
+  padding: 8px 9px;
+  border: 1px solid rgba(201, 162, 39, 0.3);
+  border-radius: 4px;
+  background: rgba(8, 10, 9, 0.92);
+  color: var(--parchment, #fff0cc);
+  font: inherit;
+}
+
+.class-catalog-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 410px), 1fr));
+  gap: 16px;
+}
+
+.class-editor-card {
+  position: relative;
+  min-width: 0;
+  margin: 0;
+  padding: 18px;
+  border: 1px solid rgba(201, 162, 39, 0.34);
+  border-radius: 7px;
+  background: linear-gradient(180deg, rgba(29, 24, 16, 0.92), rgba(13, 17, 14, 0.96));
+}
+
+.class-editor-card legend {
+  max-width: calc(100% - 145px);
+  padding: 0 7px;
+}
+
+.class-editor-card legend input {
+  width: 100%;
+  color: var(--gold-bright, #f0cf6e);
+  font-family: var(--font-display, serif);
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.class-editor-delete {
+  position: absolute;
+  top: 13px;
+  right: 15px;
+  border: 1px solid rgba(172, 80, 74, 0.5);
+  border-radius: 4px;
+  padding: 5px 8px;
+  background: rgba(63, 24, 23, 0.5);
+  color: #e2aaa0;
+}
+
+.class-editor-bonuses {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 7px;
+}
+
+.class-editor-section {
+  margin-top: 18px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(201, 162, 39, 0.2);
+}
+
+.class-editor-section h3 {
+  margin: 0 0 10px;
+  color: var(--gold-bright, #f0cf6e);
+  font-family: var(--font-display, serif);
+  font-size: 1rem;
+}
+
+.class-editor-entry,
+.class-editor-new-entry,
+.class-editor-new-ability {
+  display: grid;
+  grid-template-columns: minmax(90px, 1fr) minmax(90px, 0.8fr) minmax(100px, 1.4fr) auto;
+  gap: 6px;
+  align-items: center;
+}
+
+.class-editor-entry + .class-editor-entry,
+.class-editor-ability + .class-editor-ability {
+  margin-top: 7px;
+}
+
+.class-editor-entry button {
+  width: 32px;
+  height: 34px;
+  border: 1px solid rgba(172, 80, 74, 0.5);
+  border-radius: 4px;
+  background: rgba(63, 24, 23, 0.5);
+  color: #e2aaa0;
+  font-size: 1.1rem;
+}
+
+.class-editor-new-entry,
+.class-editor-new-ability {
+  margin-top: 9px;
+}
+
+.class-editor-new-entry button,
+.class-editor-new-ability button {
+  grid-column: 1 / -1;
+  justify-self: start;
+  border: 1px solid rgba(201, 162, 39, 0.38);
+  border-radius: 4px;
+  padding: 6px 9px;
+  background: rgba(92, 70, 27, 0.28);
+  color: var(--gold-bright, #f0cf6e);
+}
+
+.class-editor-ability {
+  padding: 8px;
+  border: 1px solid rgba(201, 162, 39, 0.18);
+  border-radius: 4px;
+}
+
+.class-editor-ability textarea {
+  width: 100%;
+  margin-top: 6px;
+  resize: vertical;
+}
+
+.class-editor-new-ability {
+  grid-template-columns: minmax(120px, 1fr) 75px;
+}
+
+.class-editor-new-ability textarea {
+  grid-column: 1 / -1;
+  resize: vertical;
+}
+
+.class-catalog-message {
+  margin: 0 0 14px;
+  color: var(--gold-bright, #f0cf6e);
+}
+
+.class-catalog-error {
+  color: #ffaaa5;
+}
+
+.class-catalog-empty {
+  padding: 24px;
+  text-align: center;
+}
+
+@media (max-width: 600px) {
+  .class-catalog-page {
+    padding: 18px 12px 44px;
+  }
+
+  .class-catalog-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .class-catalog-toolbar > button,
+  .class-catalog-add > button {
+    width: 100%;
+  }
+
+  .class-catalog-add {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .class-editor-bonuses {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .class-editor-entry {
+    grid-template-columns: 1fr 1fr auto;
+  }
+
+  .class-editor-entry input[placeholder="Descrição"] {
+    grid-column: 1 / -2;
+  }
+}

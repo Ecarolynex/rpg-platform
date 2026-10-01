@@ -1,4 +1,13 @@
-import type { Character, User } from "../types/character";
+import type { Attributes, Character, User } from "../types/character";
+import {
+  DEFAULT_CLASS_CATALOG,
+  normalizarCatalogoClasses,
+  normalizarBonusClassesCampanha,
+  type BaseAttributeKey,
+  type CampaignClassBonuses,
+  type ClassDefinition,
+} from "../data/personaRules";
+import { LIMITE_RECURSO } from "../data/dnd";
 import { supabase } from "./supabase";
 
 /* =========================================================
@@ -146,8 +155,19 @@ function rowToCharacter(
 ): Character | null {
   if (!row.dados) return null;
 
+  const personagem = row.dados as Character;
+  if (!personagem.attributes) return null;
+  const attributes: Attributes = {
+    forca: personagem.attributes.forca,
+    destreza: personagem.attributes.destreza,
+    constituicao: personagem.attributes.constituicao,
+    inteligencia: personagem.attributes.inteligencia,
+    carisma: personagem.attributes.carisma,
+  };
+
   return {
-    ...(row.dados as Character),
+    ...personagem,
+    attributes,
     id: row.id,
     campanhaId: row.campanha_id ?? null,
     nome: row.nome ?? row.dados.nome ?? "",
@@ -158,9 +178,32 @@ function rowToCharacter(
 function paraDados(
   personagem: Character,
 ): Character {
+  const limitarRecurso = (valor: number, minimo: number, maximo: number) =>
+    Number.isFinite(valor)
+      ? Math.max(minimo, Math.min(maximo, Math.trunc(valor)))
+      : minimo;
+  const hpMax = limitarRecurso(personagem.hp.max, 1, LIMITE_RECURSO);
+  const mpMax = limitarRecurso(personagem.mp.max, 0, LIMITE_RECURSO);
   const copia: Character = {
     ...personagem,
     id: "",
+    attributes: {
+      forca: personagem.attributes.forca,
+      destreza: personagem.attributes.destreza,
+      constituicao: personagem.attributes.constituicao,
+      inteligencia: personagem.attributes.inteligencia,
+      carisma: personagem.attributes.carisma,
+    },
+    hp: {
+      ...personagem.hp,
+      max: hpMax,
+      atual: limitarRecurso(personagem.hp.atual, 0, hpMax),
+    },
+    mp: {
+      ...personagem.mp,
+      max: mpMax,
+      atual: limitarRecurso(personagem.mp.atual, 0, mpMax),
+    },
   };
 
   delete copia.campanhaId;
@@ -612,6 +655,241 @@ export interface Campaign {
   created_by: string;
   created_at: string;
   ouro_inicial: number;
+  bonus_classes: CampaignClassBonuses | null;
+}
+
+export interface CampaignClassContent {
+  id: string;
+  campanha_id: string;
+  classe_id: string;
+  tipo: "CLASSE" | "PERICIA" | "HABILIDADE";
+  nome: string;
+  descricao: string;
+  atributo: BaseAttributeKey | null;
+  nivel: number | null;
+  bonus_atributos: Partial<Record<BaseAttributeKey, number>>;
+  bonus_hp: number;
+  bonus_mp: number;
+  created_by: string;
+}
+
+export async function getCatalogoGlobalClasses(): Promise<ClassDefinition[]> {
+  const { data, error } = await supabase
+    .from("global_class_catalog")
+    .select("dados")
+    .eq("id", "global")
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(
+      error.message || "Não foi possível carregar o catálogo de classes.",
+    );
+  }
+
+  return data ? normalizarCatalogoClasses(data.dados) : DEFAULT_CLASS_CATALOG;
+}
+
+export async function salvarCatalogoGlobalClasses(
+  classes: ClassDefinition[],
+): Promise<ClassDefinition[]> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Usuário não autenticado.");
+
+  const normalizadas = normalizarCatalogoClasses(classes);
+  const ids = new Set<string>();
+  const nomes = new Set<string>();
+  for (const classe of normalizadas) {
+    const nome = classe.nome.toLocaleLowerCase();
+    if (ids.has(classe.id) || nomes.has(nome)) {
+      throw new Error("As classes precisam ter nomes e identificadores únicos.");
+    }
+    ids.add(classe.id);
+    nomes.add(nome);
+  }
+
+  const { data, error } = await supabase
+    .from("global_class_catalog")
+    .upsert(
+      { id: "global", dados: normalizadas, updated_at: new Date().toISOString() },
+      { onConflict: "id" },
+    )
+    .select("dados")
+    .single();
+
+  if (error || !data) {
+    throw new Error(error?.message || "Não foi possível salvar o catálogo.");
+  }
+
+  return normalizarCatalogoClasses(data.dados);
+}
+
+export async function listarConteudosClasseCampanha(
+  campaignId: string,
+): Promise<CampaignClassContent[]> {
+  const { data, error } = await supabase
+    .from("campanha_classes_conteudos")
+    .select("*")
+    .eq("campanha_id", campaignId)
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    throw new Error(
+      error.message || "Não foi possível carregar os conteúdos da campanha.",
+    );
+  }
+
+  return (data ?? []) as CampaignClassContent[];
+}
+
+export async function adicionarConteudoClasseCampanha(
+  campaignId: string,
+  conteudo: Omit<CampaignClassContent, "id" | "campanha_id" | "created_by">,
+): Promise<CampaignClassContent> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Usuário não autenticado.");
+
+  const { data: membership, error: membershipError } = await supabase
+    .from("campanha_membros")
+    .select("id")
+    .eq("campanha_id", campaignId)
+    .eq("user_id", user.id)
+    .eq("status", "ATIVO")
+    .maybeSingle();
+
+  if (membershipError) {
+    throw new Error(
+      membershipError.message || "Não foi possível verificar sua participação.",
+    );
+  }
+  if (!membership) {
+    throw new Error("Você precisa participar da campanha para adicionar conteúdo.");
+  }
+
+  const { data, error } = await supabase
+    .from("campanha_classes_conteudos")
+    .insert({
+      ...conteudo,
+      campanha_id: campaignId,
+      created_by: user.id,
+    })
+    .select("*")
+    .single();
+
+  if (error || !data) {
+    throw new Error(
+      error?.message || "Não foi possível adicionar conteúdo à campanha.",
+    );
+  }
+
+  return data as CampaignClassContent;
+}
+
+export async function removerConteudoClasseCampanha(id: string): Promise<void> {
+  const { data, error } = await supabase
+    .from("campanha_classes_conteudos")
+    .delete()
+    .eq("id", id)
+    .select("id")
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message || "Não foi possível remover o conteúdo.");
+  }
+  if (!data) {
+    throw new Error("Conteúdo não encontrado ou você não participa da campanha.");
+  }
+}
+
+export async function getCampaignClassBonuses(
+  campaignId: string,
+): Promise<CampaignClassBonuses> {
+  const [{ data, error }, catalogo] = await Promise.all([
+    supabase
+      .from("campanhas")
+      .select("bonus_classes")
+      .eq("id", campaignId)
+      .maybeSingle(),
+    getCatalogoGlobalClasses(),
+  ]);
+
+  if (error) {
+    throw new Error(
+      error.message || "Não foi possível carregar os bônus da campanha.",
+    );
+  }
+
+  if (!data) {
+    throw new Error("Campanha não encontrada.");
+  }
+
+  const bonusesCatalogo = Object.fromEntries(
+    catalogo.map((classe) => [classe.nome, classe]),
+  );
+  const hasCampaignOverrides =
+    typeof data.bonus_classes === "object" &&
+    data.bonus_classes !== null &&
+    Object.keys(data.bonus_classes).length > 0;
+  return {
+    ...bonusesCatalogo,
+    ...(hasCampaignOverrides
+      ? normalizarBonusClassesCampanha(data.bonus_classes, false)
+      : {}),
+  };
+}
+
+export async function salvarBonusClassesCampanha(
+  campaignId: string,
+  bonuses: CampaignClassBonuses,
+): Promise<CampaignClassBonuses> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    throw new Error("Usuário não autenticado.");
+  }
+
+  const { data: membership, error: membershipError } = await supabase
+    .from("campanha_membros")
+    .select("papel")
+    .eq("campanha_id", campaignId)
+    .eq("user_id", user.id)
+    .eq("status", "ATIVO")
+    .maybeSingle();
+
+  if (membershipError) {
+    throw new Error(
+      membershipError.message || "Não foi possível verificar sua permissão.",
+    );
+  }
+
+  if (membership?.papel !== "MESTRE") {
+    throw new Error("Somente o Mestre pode alterar os bônus da campanha.");
+  }
+
+  const bonusNormalizados = normalizarBonusClassesCampanha(bonuses);
+  const { data, error } = await supabase
+    .from("campanhas")
+    .update({ bonus_classes: bonusNormalizados })
+    .eq("id", campaignId)
+    .select("bonus_classes")
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(
+      error.message || "Não foi possível salvar os bônus da campanha.",
+    );
+  }
+
+  if (!data) {
+    throw new Error("Campanha não encontrada ou sem permissão para alterar.");
+  }
+
+  return normalizarBonusClassesCampanha(data.bonus_classes);
 }
 
 function gerarCodigoConvite(): string {
@@ -1102,9 +1380,13 @@ export async function criarPersonagem(
     );
   }
 
+  const salvo = rowToCharacter(data as PersonagemRow);
+  if (!salvo) {
+    throw new Error("O personagem foi salvo, mas os dados da ficha estão vazios.");
+  }
+
   return {
-    ...personagem,
-    id: data.id,
+    ...salvo,
     campanhaId,
   };
 }
