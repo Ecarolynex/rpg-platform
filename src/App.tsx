@@ -12,6 +12,7 @@ import Inventory from "./pages/Inventory/Inventory";
 function App() {
   return (
     <Routes>
+      <Route path="/entra" element={<Login />} />
       <Route path="/entrar" element={<Login />} />
 
       <Route

@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Baixar código
+      - name: Baixar cï¿½digo
         uses: actions/checkout@v4
 
       - name: Configurar Node.js
@@ -28,11 +28,14 @@ jobs:
           node-version: 20
           cache: npm
 
-      - name: Instalar dependências
+      - name: Instalar dependï¿½ncias
         run: npm ci
 
       - name: Gerar build
         run: npm run build
+
+      - name: Configurar fallback para rotas da SPA
+        run: cp dist/index.html dist/404.html
 
       - name: Configurar GitHub Pages
         uses: actions/configure-pages@v5
