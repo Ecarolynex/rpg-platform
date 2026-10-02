@@ -3,7 +3,6 @@ export interface Attributes {
   destreza: number;
   constituicao: number;
   inteligencia: number;
-  sabedoria: number;
   carisma: number;
 }
 
@@ -11,8 +10,10 @@ export interface Skill {
   id: string;
   nome: string;
   atributo: keyof Attributes;
+  descricao?: string;
   treinada: boolean;
   bonus: number;
+  bonusManual?: number;
 }
 
 export interface InventoryItem {
@@ -20,6 +21,7 @@ export interface InventoryItem {
   nome: string;
   quantidade: number;
   descricao?: string;
+  imagemUrl?: string;
   equipado?: boolean;
   bonusAtributos?: Partial<Record<keyof Attributes, number>>;
 }
@@ -45,11 +47,13 @@ export interface Character {
   nome: string;
   raca: string;
   classe: string;
+  classeId?: string;
   nivel: number;
   portraitUrl?: string;
   /** null = personagem ainda sem campanha; vem da coluna campanha_id do banco. */
   campanhaId?: string | null;
   alinhamento?: string;
+  qualidades?: string;
   origem?: string;
   idade?: string;
   historia?: string;

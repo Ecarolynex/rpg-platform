@@ -72,7 +72,6 @@ const ATRIBUTOS = [
   "Destreza",
   "Constituição",
   "Inteligência",
-  "Sabedoria",
   "Carisma",
 ];
 
@@ -126,13 +125,13 @@ const defaultItems: ShopItem[] = [
   {
     id: "item-amuleto",
     campaignId: "",
-    nome: "Amuleto do Pescador",
+    nome: "Amuleto de Vitalidade",
     categoria: "Acessórios",
     subcategoria: "Amuletos",
     raridade: "Incomum",
     descricao: "Uma joia simples que guarda o espírito do caminho de volta ao lar.",
-    efeitos: ["+2 Sabedoria", "+1 Resistência"],
-    atributo: "Sabedoria",
+    efeitos: ["+2 Constituição", "+1 Resistência"],
+    atributo: "Constituição",
     bonus: 2,
     preco: 180,
     moeda: "PO",
@@ -164,7 +163,7 @@ function normalizeShopItem(item: ShopItem): ShopItem {
   }
 
   const effectWithAttribute = (item.efeitos ?? [])
-    .map((effect) => effect.match(/^\s*([+-]?\d+)\s+(Força|Destreza|Constituição|Inteligência|Sabedoria|Carisma)\s*$/i))
+    .map((effect) => effect.match(/^\s*([+-]?\d+)\s+(Força|Destreza|Constituição|Inteligência|Carisma)\s*$/i))
     .find(Boolean);
 
   return {
@@ -172,6 +171,19 @@ function normalizeShopItem(item: ShopItem): ShopItem {
     atributo: item.atributo ?? effectWithAttribute?.[2],
     bonus: item.bonus ?? (effectWithAttribute ? Number(effectWithAttribute[1]) : undefined),
   };
+}
+
+function getAdditionalCardEffect(item: ShopItem): string | undefined {
+  const attributeBonus = item.atributo && item.bonus !== undefined
+    ? `${item.bonus > 0 ? "+" : ""}${item.bonus} ${item.atributo}`
+        .replace(/\s+/g, "")
+        .toLocaleLowerCase()
+    : undefined;
+
+  return item.efeitos.find(
+    (effect) =>
+      effect.replace(/\s+/g, "").toLocaleLowerCase() !== attributeBonus,
+  );
 }
 
 function fromDatabaseShopItem(item: DatabaseShopItem): ShopItem {
@@ -1752,12 +1764,22 @@ export default function Shop() {
                     </div>
 
                     <p className="shop-card-meta">
-                      {item.categoria}{" "}
-                      •{" "}
-                      {
-                        item.subcategoria
-                      }
+                      {item.subcategoria
+                        ? `${item.categoria} · ${item.subcategoria}`
+                        : item.categoria}
                     </p>
+
+                    {item.descricao && (
+                      <p className="shop-card-description">
+                        {item.descricao}
+                      </p>
+                    )}
+
+                    {getAdditionalCardEffect(item) && (
+                      <p className="shop-card-effect">
+                        {getAdditionalCardEffect(item)}
+                      </p>
+                    )}
 
                     {item.atributo && item.bonus !== undefined && (
                       <div className="shop-card-bonus">

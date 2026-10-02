@@ -5,38 +5,46 @@ import {
   alterarItemEquipado,
   atualizarPersonagem,
   enviarRetrato,
+  getCatalogoGlobalClasses,
+  getCampaignClassBonuses,
   getCharacterAccess,
   getCharacterById,
   getInventory,
+  listarConteudosClasseCampanha,
+  type CampaignClassContent,
 } from "../../services/api";
 import { StatBar } from "../../components/ui/StatBar";
 import { OptionField } from "../../components/ui/OptionField";
 import {
-  ALINHAMENTOS,
-  CLASSES,
   RACAS,
   LIMITE_RECURSO,
   bonusProficiencia,
   formatarModificador,
-  modificador,
 } from "../../data/dnd";
 import "./CharacterSheet.css";
 import "./CharacterSheetExtras.css";
-import { FIXED_SKILLS, calculateTotalPersonaBonuses } from "../../data/personaRules";
-import type { BaseAttributeKey } from "../../data/personaRules";
+import {
+  ATTRIBUTE_CONFIG,
+  DEFAULT_CLASS_CATALOG,
+  FIXED_SKILLS,
+  obterBonusClasse,
+  type ClassDefinition,
+  type ClassSkillDefinition,
+  type CampaignClassBonuses,
+} from "../../data/personaRules";
 
 const ATTRIBUTE_LABELS: Record<keyof Attributes, string> = {
   forca: "Força",
   destreza: "Destreza",
   constituicao: "Constituição",
   inteligencia: "Inteligência",
-  sabedoria: "Sabedoria",
   carisma: "Carisma",
 };
 
 const TABS = [
   "Atributos",
   "Perícias",
+  "Habilidades",
   "Inventário",
   "Magias",
   "História",
@@ -60,8 +68,11 @@ const CARTEIRA_VAZIA: Wallet = {
   pl: 0,
 };
 
-function completarPericias(skills: Character["skills"] = []): Character["skills"] {
-  const periciasFixas = FIXED_SKILLS.map((definition) => {
+function completarPericias(
+  skills: Character["skills"] = [],
+  periciasClasse: ClassSkillDefinition[] = [],
+): Character["skills"] {
+  const periciasFixas = [...FIXED_SKILLS, ...periciasClasse].map((definition) => {
     const existente = skills.find(
       (skill) => skill.id === definition.id || skill.nome.toLowerCase() === definition.nome.toLowerCase(),
     );
@@ -87,6 +98,7 @@ type StoreInventoryEntry = {
   quantidade: number;
   descricao?: string;
   efeito?: string;
+  imagemUrl?: string;
   equipado: boolean;
   bonusAtributos: Partial<Record<keyof Attributes, number>>;
 };
@@ -100,16 +112,18 @@ type StoreInventoryRow = {
     nome: string;
     descricao: string | null;
     efeito: string | null;
+    imagem_url: string | null;
   } | Array<{
     nome: string;
     descricao: string | null;
     efeito: string | null;
+    imagem_url: string | null;
   }> | null;
 };
 
 function bonusAtributosDoEfeito(efeito: string | null | undefined) {
   const bonuses: Partial<Record<keyof Attributes, number>> = {};
-  const pattern = /([+-]?\d+)\s*(?:em\s+)?(Força|Destreza|Constituição|Inteligência|Sabedoria|Carisma)/gi;
+  const pattern = /([+-]?\d+)\s*(?:em\s+)?(Força|Destreza|Constituição|Inteligência|Carisma)/gi;
 
   for (const match of efeito?.matchAll(pattern) ?? []) {
     const atributo = Object.entries(ATTRIBUTE_LABELS).find(
@@ -238,8 +252,6 @@ function ControleCarteira({
   desabilitado: boolean;
   onAlterarMoeda: (chave: keyof Wallet, valor: number) => void;
 }) {
-  const [mostrarOutras, setMostrarOutras] = useState(false);
-
   const poLimpo = sanitizarMoeda(carteira.po);
 
   const ajustarPO = (delta: number) => {
@@ -253,7 +265,7 @@ function ControleCarteira({
         <div className="cs-wallet-gold-head">
           <div className="cs-wallet-gold-title">
             <strong>PO</strong>
-            <span>Peças de Ouro (Moeda Principal)</span>
+            <span>Peças de Ouro</span>
           </div>
 
           <div className="cs-wallet-direct-gold">
@@ -285,48 +297,7 @@ function ControleCarteira({
               {delta > 0 ? `+${delta}` : delta}
             </button>
           ))}
-
-          <button
-            type="button"
-            className="btn-ghost"
-            style={{ fontSize: "0.75rem", padding: "4px 8px", marginLeft: "auto" }}
-            onClick={() => setMostrarOutras((v) => !v)}
-          >
-            {mostrarOutras ? "Ocultar outras moedas ▲" : "Mais moedas (PC, PP, PE, PL) ▼"}
-          </button>
         </div>
-
-        {mostrarOutras && (
-          <div className="cs-wallet-extras">
-            {(
-              [
-                ["pc", "Cobre", "PC"],
-                ["pp", "Prata", "PP"],
-                ["pe", "Electro", "PE"],
-                ["pl", "Platina", "PL"],
-              ] as const
-            ).map(([chave, nome, sigla]) => (
-              <div key={chave} className="cs-coin-sub">
-                <div className="cs-coin-sub-label">
-                  <span>{sigla}</span>
-                  <small>{nome}</small>
-                </div>
-                <input
-                  type="number"
-                  className="cs-coin-sub-input"
-                  min={0}
-                  max={9999999}
-                  value={sanitizarMoeda(carteira[chave])}
-                  disabled={desabilitado}
-                  onChange={(e) => {
-                    const val = parseInt(e.target.value, 10);
-                    onAlterarMoeda(chave, isNaN(val) ? 0 : Math.max(0, Math.min(9999999, val)));
-                  }}
-                />
-              </div>
-            ))}
-          </div>
-        )}
       </div>
     </div>
   );
@@ -377,6 +348,10 @@ export default function CharacterSheet() {
   idRef.current = id;
 
   const [character, setCharacter] = useState<Character | null>(null);
+  const [campaignClassBonuses, setCampaignClassBonuses] =
+    useState<CampaignClassBonuses>();
+  const [classCatalog, setClassCatalog] =
+    useState<ClassDefinition[]>(DEFAULT_CLASS_CATALOG);
   const [storeInventory, setStoreInventory] = useState<StoreInventoryEntry[]>([]);
 
   const [acesso, setAcesso] = useState({
@@ -397,6 +372,7 @@ export default function CharacterSheet() {
   // Estados locais para adição de novos itens/magias
   const [novoItemNome, setNovoItemNome] = useState("");
   const [novoItemQtd, setNovoItemQtd] = useState(1);
+  const [novoItemImagemUrl, setNovoItemImagemUrl] = useState("");
   const [novoItemAtributo, setNovoItemAtributo] = useState<keyof Attributes | "">("");
   const [novoItemBonus, setNovoItemBonus] = useState(0);
   const [mostrarFormItem, setMostrarFormItem] = useState(false);
@@ -421,7 +397,75 @@ export default function CharacterSheet() {
       getCharacterAccess(id),
       getInventory(id).catch(() => []),
     ])
-      .then(([c, a, inventoryRows]) => {
+      .then(async ([c, a, inventoryRows]) => {
+        const [catalogoGlobal, dadosCampanha] = await Promise.all([
+          getCatalogoGlobalClasses(),
+          c?.campanhaId
+            ? Promise.all([
+                getCampaignClassBonuses(c.campanhaId),
+                listarConteudosClasseCampanha(c.campanhaId),
+              ])
+            : Promise.resolve([undefined, []] as const),
+        ]);
+        const classBonuses = dadosCampanha[0];
+        const campaignContents = dadosCampanha[1] as CampaignClassContent[];
+        const classeCampanha = campaignContents
+          .filter((item) => item.tipo === "CLASSE")
+          .map((item): ClassDefinition => ({
+            id: item.classe_id,
+            nome: item.nome,
+            aliases: [],
+            atributoBonus: {
+              forca: item.bonus_atributos.forca ?? 0,
+              destreza: item.bonus_atributos.destreza ?? 0,
+              constituicao: item.bonus_atributos.constituicao ?? 0,
+              inteligencia: item.bonus_atributos.inteligencia ?? 0,
+              carisma: item.bonus_atributos.carisma ?? 0,
+            },
+            hpBonus: item.bonus_hp,
+            mpBonus: item.bonus_mp,
+            pericias: [],
+            habilidades: [],
+          }));
+        const regrasClasses: ClassDefinition[] = [
+          ...catalogoGlobal,
+          ...classeCampanha.filter(
+            (classe) => !catalogoGlobal.some((global) => global.nome === classe.nome),
+          ),
+        ].map((classe) => ({
+          ...classe,
+          pericias: [
+            ...classe.pericias,
+            ...campaignContents
+              .filter(
+                (item) =>
+                  item.tipo === "PERICIA" && item.classe_id === classe.id,
+              )
+              .map((item) => ({
+                id: item.id,
+                nome: item.nome,
+                atributo: item.atributo as keyof Attributes,
+                descricao: item.descricao,
+              })),
+          ],
+          habilidades: [
+            ...classe.habilidades,
+            ...campaignContents
+              .filter(
+                (item) =>
+                  item.tipo === "HABILIDADE" && item.classe_id === classe.id,
+              )
+              .map((item) => ({
+                id: item.id,
+                nome: item.nome,
+                descricao: item.descricao,
+                nivel: item.nivel ?? 1,
+              })),
+          ],
+        }));
+        setClassCatalog(regrasClasses);
+        setCampaignClassBonuses(classBonuses);
+
         if (c) {
           // Auto-sanitiza carteira caso esteja com Number.MAX_SAFE_INTEGER
           const carteiraLimpa: Wallet = {
@@ -443,7 +487,15 @@ export default function CharacterSheet() {
               max: Math.min(LIMITE_RECURSO, Math.max(0, c.mp.max)),
               atual: Math.min(LIMITE_RECURSO, Math.max(0, c.mp.atual)),
             },
-            skills: completarPericias(c.skills ?? []),
+            skills: completarPericias(
+              c.skills ?? [],
+              regrasClasses.find(
+                (classe) =>
+                  (c.classeId && classe.id === c.classeId) ||
+                  classe.nome === c.classe ||
+                  classe.aliases.includes(c.classe),
+              )?.pericias,
+            ),
             inventory: c.inventory ?? [],
             carteira: carteiraLimpa,
           });
@@ -457,6 +509,7 @@ export default function CharacterSheet() {
               quantidade: row.quantidade,
               descricao: item.descricao ?? undefined,
               efeito: item.efeito ?? undefined,
+              imagemUrl: item.imagem_url ?? undefined,
               equipado: Boolean(row.equipado),
               bonusAtributos: bonusAtributosDoEfeito(item.efeito),
             }];
@@ -543,12 +596,25 @@ export default function CharacterSheet() {
   const podeEditar = acesso.canEdit;
 
   const view: Character = editando && rascunho ? rascunho : character;
+  const definicaoClasse = classCatalog.find(
+    (classe) =>
+      (view.classeId && classe.id === view.classeId) ||
+      classe.nome === view.classe ||
+      classe.aliases.includes(view.classe),
+  );
 
-  const bonusesPersona = calculateTotalPersonaBonuses(
-    view.raca,
-    view.classe,
-    view.filiacao,
-  ).attributeBonuses;
+  const bonusesClasse: Partial<Record<keyof Attributes, number>> = {};
+  for (const [atributo, bonus] of Object.entries(
+    obterBonusClasse(
+      view.classe,
+      campaignClassBonuses,
+      definicaoClasse ? [definicaoClasse] : classCatalog,
+    ).atributoBonus,
+  )) {
+    if (typeof bonus === "number" && atributo in ATTRIBUTE_LABELS) {
+      bonusesClasse[atributo as keyof Attributes] = bonus;
+    }
+  }
   const bonusesEquipamento: Partial<Record<keyof Attributes, number>> = {};
   for (const item of view.inventory ?? []) {
     if (!item.equipado) continue;
@@ -565,8 +631,7 @@ export default function CharacterSheet() {
     }
   }
   const valorAtributo = (atributo: keyof Attributes) =>
-    (view.attributes[atributo] ?? 10) +
-    (bonusesPersona[atributo as BaseAttributeKey] ?? 0) +
+    (bonusesClasse[atributo] ?? 0) +
     (bonusesEquipamento[atributo] ?? 0);
 
   const carteira: Wallet = {
@@ -577,7 +642,7 @@ export default function CharacterSheet() {
     pl: sanitizarMoeda(view.carteira?.pl),
   };
 
-  const modDestreza = modificador(valorAtributo("destreza"));
+  const modDestreza = valorAtributo("destreza");
 
   /* ---------- ações de vida, mana e dinheiro ---------- */
 
@@ -756,6 +821,7 @@ export default function CharacterSheet() {
       id: "item-" + Date.now(),
       nome: novoItemNome.trim(),
       quantidade: Math.max(1, novoItemQtd),
+      imagemUrl: novoItemImagemUrl.trim() || undefined,
       equipado: false,
       bonusAtributos: novoItemAtributo && novoItemBonus !== 0
         ? { [novoItemAtributo]: novoItemBonus }
@@ -770,6 +836,7 @@ export default function CharacterSheet() {
 
     setNovoItemNome("");
     setNovoItemQtd(1);
+    setNovoItemImagemUrl("");
     setNovoItemAtributo("");
     setNovoItemBonus(0);
     setMostrarFormItem(false);
@@ -870,10 +937,22 @@ export default function CharacterSheet() {
     });
   };
 
+  const handleAlterarBonusManualPericia = (skillId: string, bonusManual: number) => {
+    const proximasSkills = character.skills.map((skill) =>
+      skill.id === skillId
+        ? { ...skill, bonusManual: Math.max(-99, Math.min(99, bonusManual)) }
+        : skill,
+    );
+
+    agendarSalvamento({
+      ...character,
+      skills: proximasSkills,
+    });
+  };
+
   /* ---------- tela ---------- */
 
   const linhaExtra = [
-    view.alinhamento,
     view.origem,
     view.idade,
   ]
@@ -959,7 +1038,13 @@ export default function CharacterSheet() {
             {view.raca} · {view.classe} · Nível {view.nivel}
           </p>
 
-          {linhaExtra && <p>{linhaExtra}</p>}
+          {linhaExtra && <p className="sheet-meta">{linhaExtra}</p>}
+          {view.qualidades && (
+            <p className="sheet-qualities">
+              <strong>Qualidades</strong>
+              <span>{view.qualidades}</span>
+            </p>
+          )}
         </div>
 
         <div className="sheet-vitals">
@@ -1045,11 +1130,8 @@ export default function CharacterSheet() {
           </div>
 
           <div className="cs-edit-grid">
-            <Campo
-              rotulo="Nome"
-              valor={rascunho.nome}
-              onChange={(v) => atualizarRascunho("nome", v)}
-            />
+            <div className="cs-edit-section-title">Identidade</div>
+            <Campo rotulo="Nome" valor={rascunho.nome} onChange={(v) => atualizarRascunho("nome", v)} />
 
             <OptionField
               label="Raça"
@@ -1061,8 +1143,13 @@ export default function CharacterSheet() {
             <OptionField
               label="Classe"
               value={rascunho.classe}
-              options={CLASSES}
-              onChange={(v) => atualizarRascunho("classe", v)}
+              options={classCatalog.map((classe) => classe.nome)}
+              onChange={(v) => {
+                const classe = classCatalog.find((item) => item.nome === v);
+                setRascunho((atual) =>
+                  atual ? { ...atual, classe: v, classeId: classe?.id } : atual,
+                );
+              }}
             />
 
             <Campo
@@ -1077,11 +1164,12 @@ export default function CharacterSheet() {
               }
             />
 
-            <OptionField
-              label="Alinhamento"
-              value={rascunho.alinhamento ?? ""}
-              options={ALINHAMENTOS}
-              onChange={(v) => atualizarRascunho("alinhamento", v)}
+            <Campo
+              rotulo="Qualidades"
+              largo
+              multilinha
+              valor={rascunho.qualidades ?? ""}
+              onChange={(v) => atualizarRascunho("qualidades", v)}
             />
 
             <Campo
@@ -1096,6 +1184,7 @@ export default function CharacterSheet() {
               onChange={(v) => atualizarRascunho("idade", v)}
             />
 
+            <div className="cs-edit-section-title">Recursos</div>
             <Campo
               rotulo="Vida atual"
               tipo="number"
@@ -1144,6 +1233,7 @@ export default function CharacterSheet() {
               }
             />
 
+            <div className="cs-edit-section-title">Carteira</div>
             <Campo
               rotulo="Ouro (PO)"
               tipo="number"
@@ -1236,42 +1326,19 @@ export default function CharacterSheet() {
       <div className="sheet-content">
         {tab === "Atributos" && (
           <div className="attribute-grid">
-            {(
-              Object.keys(
-                view.attributes,
-              ) as (keyof Attributes)[]
-            ).map((attr) => (
+            {ATTRIBUTE_CONFIG.map(({ key: attr }) => (
               <div key={attr} className="attribute-block">
                 <span className="attribute-label">
                   {ATTRIBUTE_LABELS[attr]}
                 </span>
 
-                {editando && rascunho ? (
-                  <input
-                    className="cs-attr-input"
-                    type="number"
-                    min={1}
-                    max={30}
-                    value={rascunho.attributes[attr]}
-                    onChange={(event) =>
-                      atualizarRascunho("attributes", {
-                        ...rascunho.attributes,
-                        [attr]: Number(event.target.value) || 1,
-                      })
-                    }
-                  />
-                ) : (
-                  <span className="attribute-value">
-                    {valorAtributo(attr)}
-                  </span>
-                )}
-
-                <span className="attribute-mod">
-                  {formatarModificador(modificador(valorAtributo(attr)))}
+                <span className="attribute-value">
+                  {formatarModificador(valorAtributo(attr))}
                 </span>
-                {!editando && (bonusesPersona[attr as BaseAttributeKey] || bonusesEquipamento[attr]) ? (
+
+                {!editando ? (
                   <small className="attribute-bonus-note">
-                    Base {view.attributes[attr]} · Persona {formatarModificador(bonusesPersona[attr as BaseAttributeKey] ?? 0)} · Equipamento {formatarModificador(bonusesEquipamento[attr] ?? 0)}
+                    Classe {formatarModificador(bonusesClasse[attr] ?? 0)} · Equipamento {formatarModificador(bonusesEquipamento[attr] ?? 0)}
                   </small>
                 ) : null}
               </div>
@@ -1284,7 +1351,12 @@ export default function CharacterSheet() {
             <ul className="sheet-list">
               {view.skills.map((skill) => (
                 <li key={skill.id}>
-                  <span>{skill.nome}</span>
+                  <span>
+                    {skill.nome}
+                    {skill.descricao && (
+                      <small className="cs-skill-description">{skill.descricao}</small>
+                    )}
+                  </span>
 
                   <span className="sheet-list-tag">
                     {ATTRIBUTE_LABELS[skill.atributo]} ·{" "}
@@ -1293,20 +1365,39 @@ export default function CharacterSheet() {
 
                   <span className="sheet-list-bonus">
                     {formatarModificador(
-                      modificador(valorAtributo(skill.atributo)) +
-                      (skill.treinada ? skill.bonus : 0),
+                      valorAtributo(skill.atributo) +
+                      (skill.treinada ? skill.bonus : 0) +
+                      (skill.bonusManual ?? 0),
                     )}
                   </span>
 
                   {podeEditar && !editando && (
-                    <button
-                      type="button"
-                      className="cs-btn-icon"
-                      onClick={() => handleTogglePericia(skill.id)}
-                      title={skill.treinada ? "Tirar treino" : "Treinar perícia"}
-                    >
-                      {skill.treinada ? "✓ Treinada" : "+ Treinar"}
-                    </button>
+                    <div className="cs-list-actions">
+                      <label className="cs-skill-manual">
+                        <span>Bônus manual</span>
+                        <input
+                          type="number"
+                          min={-99}
+                          max={99}
+                          aria-label={`Bônus manual de ${skill.nome}`}
+                          value={skill.bonusManual ?? 0}
+                          onChange={(event) =>
+                            handleAlterarBonusManualPericia(
+                              skill.id,
+                              Number(event.target.value) || 0,
+                            )
+                          }
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        className="cs-btn-icon"
+                        onClick={() => handleTogglePericia(skill.id)}
+                        title={skill.treinada ? "Tirar treino" : "Treinar perícia"}
+                      >
+                        {skill.treinada ? "✓ Treinada" : "+ Treinar"}
+                      </button>
+                    </div>
                   )}
                 </li>
               ))}
@@ -1315,6 +1406,30 @@ export default function CharacterSheet() {
                 <p className="sheet-empty">Nenhuma perícia registrada.</p>
               )}
             </ul>
+          </div>
+        )}
+
+        {tab === "Habilidades" && (
+          <div className="cs-class-abilities">
+            {definicaoClasse?.habilidades
+              .filter((habilidade) => habilidade.nivel <= view.nivel)
+              .sort((a, b) => a.nivel - b.nivel)
+              .map((habilidade) => (
+                <article className="cs-class-ability" key={habilidade.id}>
+                  <div className="cs-class-ability-heading">
+                    <h3>{habilidade.nome}</h3>
+                    <span>Nível {habilidade.nivel}</span>
+                  </div>
+                  <p>{habilidade.descricao || "Sem descrição cadastrada."}</p>
+                </article>
+              ))}
+            {!definicaoClasse?.habilidades.some(
+              (habilidade) => habilidade.nivel <= view.nivel,
+            ) && (
+              <p className="sheet-empty">
+                Nenhuma habilidade disponível para esta classe e nível.
+              </p>
+            )}
           </div>
         )}
 
@@ -1346,6 +1461,13 @@ export default function CharacterSheet() {
                       style={{ width: "70px" }}
                       value={novoItemQtd}
                       onChange={(e) => setNovoItemQtd(Number(e.target.value) || 1)}
+                    />
+                    <input
+                      type="url"
+                      aria-label="URL da imagem do item"
+                      placeholder="URL da imagem (opcional)"
+                      value={novoItemImagemUrl}
+                      onChange={(event) => setNovoItemImagemUrl(event.target.value)}
                     />
                     <select
                       aria-label="Atributo do bônus do equipamento"
@@ -1386,6 +1508,14 @@ export default function CharacterSheet() {
             <ul className="sheet-list">
               {view.inventory.map((item) => (
                 <li key={item.id}>
+                  {item.imagemUrl && (
+                    <img
+                      className="cs-item-thumbnail"
+                      src={item.imagemUrl}
+                      alt=""
+                      onError={(event) => { event.currentTarget.hidden = true; }}
+                    />
+                  )}
                   <span>
                     {item.nome}
                     {item.equipado && <small className="equipped-item-tag">Equipado</small>}
@@ -1454,6 +1584,14 @@ export default function CharacterSheet() {
                 <ul className="sheet-list">
                   {storeInventory.map((item) => (
                     <li key={item.itemId}>
+                      {item.imagemUrl && (
+                        <img
+                          className="cs-item-thumbnail"
+                          src={item.imagemUrl}
+                          alt=""
+                          onError={(event) => { event.currentTarget.hidden = true; }}
+                        />
+                      )}
                       <span>
                         {item.nome}
                         {item.equipado && <small className="equipped-item-tag">Equipado</small>}

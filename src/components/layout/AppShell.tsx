@@ -53,6 +53,10 @@ export function AppShell() {
             Campanhas
           </NavLink>
 
+          <NavLink to="/regras/classes">
+            Classes e habilidades
+          </NavLink>
+
           {campanhaId && (
             <>
               <span className="app-sidebar-section">

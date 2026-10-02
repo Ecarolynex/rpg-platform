@@ -9,17 +9,17 @@ export function Crest({ size = 32 }: { size?: number }) {
     >
       <path
         d="M24 2 44 9v14c0 14-8 22-20 27C12 45 4 37 4 23V9z"
-        fill="var(--ink-panel-raised, #2e1f15)"
-        stroke="var(--gold, #c9a227)"
-        strokeWidth="1.6"
+        fill="rgba(11, 19, 18, 0.9)"
+        stroke="rgba(240, 219, 162, 0.9)"
+        strokeWidth="1.8"
       />
       <path
         d="M24 10v32M14 18h20M15 30h18"
-        stroke="var(--gold, #c9a227)"
-        strokeWidth="1.4"
+        stroke="rgba(240, 219, 162, 0.9)"
+        strokeWidth="1.5"
         strokeLinecap="round"
       />
-      <circle cx="24" cy="18" r="2.4" fill="var(--gold-bright, #f0cf6e)" />
+      <circle cx="24" cy="18" r="2.5" fill="rgba(240, 219, 162, 0.95)" />
     </svg>
   );
 }

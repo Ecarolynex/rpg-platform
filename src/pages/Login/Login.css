@@ -8,7 +8,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 32px 16px;
+  padding: 44px 16px;
   position: relative;
   overflow: hidden;
 }
@@ -19,15 +19,15 @@
   top: 20%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 580px;
-  height: 380px;
+  width: 680px;
+  height: 420px;
   background: radial-gradient(
     ellipse,
-    rgba(201, 162, 39, 0.14) 0%,
-    rgba(122, 22, 38, 0.12) 45%,
+    rgba(137, 170, 161, 0.12) 0%,
+    rgba(172, 146, 97, 0.10) 35%,
     transparent 70%
   );
-  filter: blur(50px);
+  filter: blur(60px);
   pointer-events: none;
   z-index: 0;
 }
@@ -35,18 +35,29 @@
 /* Card Principal no estilo do .character-creator do Dashboard */
 .login-card-container {
   width: 100%;
-  max-width: 490px;
+  max-width: 510px;
   position: relative;
   z-index: 1;
-  background: linear-gradient(180deg, rgba(36, 25, 18, 0.96), rgba(23, 17, 11, 0.98));
-  border: 1px solid var(--border-bronze);
-  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(11, 20, 19, 0.97), rgba(20, 42, 39, 0.98));
+  border: 1px solid rgba(232, 214, 183, 0.56);
+  border-radius: 22px;
   box-shadow:
-    0 22px 42px rgba(0, 0, 0, 0.48),
-    0 0 0 1px rgba(201, 162, 39, 0.15) inset;
+    0 22px 42px rgba(0, 0, 0, 0.46),
+    0 0 0 1px rgba(240, 219, 162, 0.14) inset,
+    0 0 26px rgba(109, 157, 145, 0.12);
   overflow: hidden;
   backdrop-filter: blur(10px);
   animation: loginAppear 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.login-card-container::before {
+  position: absolute;
+  inset: 8px;
+  z-index: 2;
+  border: 1px solid rgba(240, 219, 162, 0.16);
+  border-radius: 15px;
+  content: "";
+  pointer-events: none;
 }
 
 @keyframes loginAppear {
@@ -66,9 +77,9 @@
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 20px 24px 18px;
-  border-bottom: 1px solid var(--border-bronze);
-  background: linear-gradient(90deg, rgba(201, 162, 39, 0.18), rgba(122, 22, 38, 0.18));
+  padding: 22px 26px 20px;
+  border-bottom: 1px solid rgba(232, 214, 183, 0.32);
+  background: linear-gradient(90deg, rgba(35, 63, 58, 0.45), rgba(11, 23, 22, 0.54));
 }
 
 .login-banner-content {
@@ -96,17 +107,20 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  background: rgba(0, 0, 0, 0.35);
-  border: 1px solid rgba(240, 207, 110, 0.3);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  width: 54px;
+  height: 54px;
+  border-radius: 14px;
+  background: linear-gradient(145deg, rgba(24, 54, 48, 0.8), rgba(9, 18, 17, 0.8));
+  border: 1px solid rgba(240, 219, 162, 0.48);
+  box-shadow:
+    0 4px 14px rgba(0, 0, 0, 0.28),
+    inset 0 0 0 2px rgba(240, 219, 162, 0.08);
 }
 
 .login-title-row h2 {
-  font-size: 26px;
-  line-height: 1.1;
+  font-size: 28px;
+  line-height: 1.08;
+  letter-spacing: 0.02em;
   color: var(--gold-bright);
 }
 
@@ -114,13 +128,13 @@
   font-size: 13px;
   color: var(--parchment-dim);
   font-style: italic;
-  margin-top: 2px;
+  margin-top: 3px;
 }
 
 .login-badge {
-  border: 1px solid rgba(240, 207, 110, 0.45);
-  background: rgba(0, 0, 0, 0.3);
-  padding: 6px 12px;
+  border: 1px solid rgba(240, 219, 162, 0.44);
+  background: rgba(10, 17, 16, 0.38);
+  padding: 7px 12px;
   border-radius: 999px;
   font-family: var(--font-display);
   color: var(--gold-bright);
@@ -133,17 +147,17 @@
 /* Abas de Navegação (Entrar / Criar Conta) */
 .login-tabs {
   display: flex;
-  border-bottom: 1px solid var(--border-bronze);
-  background: rgba(14, 10, 7, 0.5);
+  border-bottom: 1px solid rgba(234, 215, 168, 0.2);
+  background: rgba(8, 14, 14, 0.36);
 }
 
 .login-tab {
   flex: 1;
-  padding: 13px 16px;
+  padding: 14px 16px 13px;
   font-family: var(--font-display);
   font-size: 14px;
   font-weight: 600;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   background: transparent;
   border: none;
@@ -155,14 +169,14 @@
 
 .login-tab:hover {
   color: var(--parchment);
-  background: rgba(201, 162, 39, 0.06);
+  background: rgba(194, 167, 127, 0.04);
 }
 
 .login-tab.active {
   color: var(--gold-bright);
-  background: rgba(201, 162, 39, 0.12);
+  background: rgba(194, 167, 127, 0.06);
   border-bottom-color: var(--gold-bright);
-  text-shadow: 0 0 10px rgba(240, 207, 110, 0.3);
+  text-shadow: 0 0 10px rgba(234, 215, 168, 0.16);
 }
 
 /* Corpo do Formulário */
@@ -199,31 +213,31 @@
 
 .field input {
   width: 100%;
-  border: 1px solid rgba(201, 162, 39, 0.45);
-  background: rgba(9, 7, 6, 0.55);
+  border: 1px solid rgba(218, 201, 170, 0.42);
+  background: rgba(8, 17, 17, 0.7);
   border-radius: 10px;
-  padding: 11px 14px;
+  padding: 12px 14px;
   color: var(--parchment);
   font-size: 16px;
-  min-height: 44px;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+  min-height: 46px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease, transform 0.15s ease;
 }
 
 .field input::placeholder {
-  color: rgba(236, 223, 192, 0.38);
+  color: rgba(199, 208, 212, 0.57);
   font-style: italic;
   font-size: 14px;
 }
 
 .field input:hover {
-  border-color: rgba(240, 207, 110, 0.65);
+  border-color: rgba(234, 215, 168, 0.62);
 }
 
 .field input:focus {
   outline: none;
-  background: rgba(9, 7, 6, 0.8);
+  background: rgba(8, 17, 17, 0.84);
   border-color: var(--gold-bright);
-  box-shadow: 0 0 0 3px rgba(240, 207, 110, 0.18);
+  box-shadow: 0 0 0 3px rgba(234, 215, 168, 0.12);
 }
 
 /* Alertas de Erro e Sucesso */
@@ -250,15 +264,15 @@
 }
 
 .alert-error {
-  background: rgba(122, 22, 38, 0.3);
-  border: 1px solid rgba(163, 39, 60, 0.7);
-  color: #ffb8c4;
+  background: rgba(61, 43, 32, 0.42);
+  border: 1px solid rgba(126, 97, 64, 0.7);
+  color: #f2d4bf;
 }
 
 .alert-success {
-  background: rgba(60, 90, 69, 0.35);
-  border: 1px solid rgba(120, 180, 140, 0.6);
-  color: #c9eed3;
+  background: rgba(20, 53, 58, 0.4);
+  border: 1px solid rgba(111, 163, 168, 0.7);
+  color: #d9f3f4;
 }
 
 .alert-icon {
@@ -266,22 +280,53 @@
 }
 
 /* Botão de envio primário estilo RPG */
-.auth-submit-btn {
+.login-card-container .auth-submit-btn {
   width: 100%;
   margin-top: 8px;
-  padding: 13px 20px;
+  padding: 15px 20px;
   font-size: 16px;
-  letter-spacing: 0.05em;
-  border-radius: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-family: var(--font-display);
+  font-weight: 700;
+  color: #f0dba2;
+  border: 1px solid rgba(224, 198, 137, 0.78);
+  border-radius: 12px;
+  background: linear-gradient(180deg, #28574d 0%, #1a433b 48%, #12332e 100%);
   box-shadow:
-    0 8px 18px rgba(0, 0, 0, 0.4),
-    0 1px 0 rgba(255, 255, 255, 0.25) inset;
+    0 10px 24px rgba(0, 0, 0, 0.28),
+    0 0 18px rgba(202, 169, 103, 0.08),
+    inset 0 1px 0 rgba(239, 228, 199, 0.18),
+    inset 0 -2px 0 rgba(4, 18, 16, 0.5);
+  transition: transform 0.15s ease, filter 0.15s ease, box-shadow 0.15s ease;
 }
 
-.auth-submit-btn:disabled {
+.login-card-container .auth-submit-btn:hover {
+  filter: brightness(1.12);
+  transform: translateY(-1px);
+  box-shadow:
+    0 12px 28px rgba(0, 0, 0, 0.34),
+    0 0 22px rgba(224, 198, 137, 0.14),
+    inset 0 1px 0 rgba(239, 228, 199, 0.24),
+    inset 0 -2px 0 rgba(4, 18, 16, 0.5);
+}
+
+.login-card-container .auth-submit-btn:active {
+  transform: translateY(1px);
+}
+
+.login-card-container .auth-submit-btn:disabled {
   opacity: 0.65;
   cursor: not-allowed;
-  filter: grayscale(0.4);
+  filter: grayscale(0.35);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-card-container,
+  .login-card-container .auth-submit-btn {
+    animation: none;
+    transition: none;
+  }
 }
 
 /* Link para alternar entre entrar e cadastrar */
@@ -302,6 +347,7 @@
   font-size: 14px;
   cursor: pointer;
   text-decoration: underline;
+  text-decoration-color: rgba(234, 215, 168, 0.6);
   text-underline-offset: 3px;
   transition: color 0.15s ease;
 }
@@ -314,8 +360,8 @@
 .mock-demo-tip {
   margin-top: 14px;
   padding: 10px 14px;
-  background: rgba(236, 223, 192, 0.04);
-  border: 1px dashed rgba(201, 162, 39, 0.3);
+  background: rgba(217, 183, 121, 0.04);
+  border: 1px dashed rgba(217, 183, 121, 0.3);
   border-radius: 8px;
   font-size: 13px;
   color: var(--muted);

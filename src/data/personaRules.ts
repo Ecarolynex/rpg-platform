@@ -31,6 +31,46 @@ export type CharacterAffiliation = (typeof AFFILIATIONS)[number];
 
 export type BaseAttributeKey = "forca" | "destreza" | "constituicao" | "inteligencia" | "carisma";
 
+export interface ClassBonusConfig {
+  atributoBonus: Record<BaseAttributeKey, number>;
+  hpBonus: number;
+  mpBonus: number;
+}
+
+export type CampaignClassBonuses = Record<string, ClassBonusConfig>;
+
+export interface ClassSkillDefinition {
+  id: string;
+  nome: string;
+  atributo: BaseAttributeKey;
+  descricao: string;
+}
+
+export interface ClassAbilityDefinition {
+  id: string;
+  nome: string;
+  descricao: string;
+  nivel: number;
+}
+
+export interface ClassSpellDefinition {
+  id: string;
+  nome: string;
+  descricao: string;
+  custo: number;
+  nivel: number;
+}
+
+export interface ClassDefinition extends ClassBonusConfig {
+  id: string;
+  nome: string;
+  aliases: string[];
+  usaMagia: boolean;
+  pericias: ClassSkillDefinition[];
+  habilidades: ClassAbilityDefinition[];
+  magias: ClassSpellDefinition[];
+}
+
 export const ATTRIBUTE_CONFIG: {
   key: BaseAttributeKey;
   label: string;
@@ -202,6 +242,245 @@ export const CLASS_BONUSES: Record<string, PersonaBonusDefinition> = {
   },
 };
 
+const classeId = (nome: string) =>
+  nome.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+
+export const DEFAULT_CLASS_CATALOG: ClassDefinition[] = Object.entries(
+  CLASS_BONUSES,
+).map(([nome, bonus]) => ({
+  id: classeId(nome),
+  nome,
+  aliases: [],
+  usaMagia: false,
+  atributoBonus: {
+    forca: bonus.atributoBonus?.forca ?? 0,
+    destreza: bonus.atributoBonus?.destreza ?? 0,
+    constituicao: bonus.atributoBonus?.constituicao ?? 0,
+    inteligencia: bonus.atributoBonus?.inteligencia ?? 0,
+    carisma: bonus.atributoBonus?.carisma ?? 0,
+  },
+  hpBonus: bonus.hpBonus ?? 0,
+  mpBonus: bonus.mpBonus ?? 0,
+  pericias: [],
+  habilidades: [],
+  magias: [],
+}));
+
+function textoSeguro(valor: unknown): string {
+  return typeof valor === "string" ? valor.trim().slice(0, 500) : "";
+}
+
+function numeroSeguro(valor: unknown, fallback = 0): number {
+  return typeof valor === "number" && Number.isFinite(valor)
+    ? Math.trunc(valor)
+    : fallback;
+}
+
+const ATRIBUTOS_BASE: BaseAttributeKey[] = [
+  "forca",
+  "destreza",
+  "constituicao",
+  "inteligencia",
+  "carisma",
+];
+
+export function normalizarCatalogoClasses(valor: unknown): ClassDefinition[] {
+  if (!Array.isArray(valor)) return DEFAULT_CLASS_CATALOG;
+
+  return valor.flatMap((item): ClassDefinition[] => {
+    if (typeof item !== "object" || item === null) return [];
+    const entrada = item as Record<string, unknown>;
+    const id = textoSeguro(entrada.id);
+    const nome = textoSeguro(entrada.nome);
+    if (!id || !nome) return [];
+    const bonusEntrada =
+      typeof entrada.atributoBonus === "object" && entrada.atributoBonus !== null
+        ? (entrada.atributoBonus as Record<string, unknown>)
+        : {};
+    const atributoBonus = Object.fromEntries(
+      ATRIBUTOS_BASE.map((atributo) => [
+        atributo,
+        numeroSeguro(bonusEntrada[atributo]),
+      ]),
+    ) as Record<BaseAttributeKey, number>;
+    const pericias: ClassSkillDefinition[] = Array.isArray(entrada.pericias)
+      ? entrada.pericias.flatMap((itemPericia): ClassSkillDefinition[] => {
+          if (typeof itemPericia !== "object" || itemPericia === null) return [];
+          const pericia = itemPericia as Record<string, unknown>;
+          const periciaId = textoSeguro(pericia.id);
+          const nomePericia = textoSeguro(pericia.nome);
+          const atributo = pericia.atributo;
+          if (
+            !periciaId ||
+            !nomePericia ||
+            typeof atributo !== "string" ||
+            !ATRIBUTOS_BASE.includes(atributo as BaseAttributeKey)
+          ) return [];
+          return [{
+            id: periciaId,
+            nome: nomePericia,
+            atributo: atributo as BaseAttributeKey,
+            descricao: textoSeguro(pericia.descricao),
+          }];
+        })
+      : [];
+    const habilidades: ClassAbilityDefinition[] = Array.isArray(entrada.habilidades)
+      ? entrada.habilidades.flatMap((itemHabilidade): ClassAbilityDefinition[] => {
+          if (typeof itemHabilidade !== "object" || itemHabilidade === null) return [];
+          const habilidade = itemHabilidade as Record<string, unknown>;
+          const habilidadeId = textoSeguro(habilidade.id);
+          const nomeHabilidade = textoSeguro(habilidade.nome);
+          if (!habilidadeId || !nomeHabilidade) return [];
+          return [{
+            id: habilidadeId,
+            nome: nomeHabilidade,
+            descricao: textoSeguro(habilidade.descricao),
+            nivel: Math.max(1, Math.min(20, numeroSeguro(habilidade.nivel, 1))),
+          }];
+        })
+      : [];
+    const magias: ClassSpellDefinition[] = Array.isArray(entrada.magias)
+      ? entrada.magias.flatMap((itemMagia): ClassSpellDefinition[] => {
+          if (typeof itemMagia !== "object" || itemMagia === null) return [];
+          const magia = itemMagia as Record<string, unknown>;
+          const magiaId = textoSeguro(magia.id);
+          const nomeMagia = textoSeguro(magia.nome);
+          if (!magiaId || !nomeMagia) return [];
+          return [{
+            id: magiaId,
+            nome: nomeMagia,
+            descricao: textoSeguro(magia.descricao),
+            custo: Math.max(0, numeroSeguro(magia.custo)),
+            nivel: Math.max(1, Math.min(20, numeroSeguro(magia.nivel, 1))),
+          }];
+        })
+      : [];
+
+    return [{
+      id,
+      nome,
+      aliases: Array.isArray(entrada.aliases)
+        ? entrada.aliases.map(textoSeguro).filter(Boolean)
+        : [],
+      usaMagia: entrada.usaMagia === true,
+      atributoBonus,
+      hpBonus: numeroSeguro(entrada.hpBonus),
+      mpBonus: numeroSeguro(entrada.mpBonus),
+      pericias,
+      habilidades,
+      magias,
+    }];
+  });
+}
+
+export function normalizarBonusClassesCampanha(
+  valores?: unknown,
+  incluirPadroes = true,
+): CampaignClassBonuses {
+  const entrada =
+    typeof valores === "object" && valores !== null
+      ? (valores as Record<string, unknown>)
+      : {};
+  const resultado: CampaignClassBonuses = {};
+
+  for (const [classe, definicao] of incluirPadroes
+    ? Object.entries(CLASS_BONUSES)
+    : []) {
+    const personalizado =
+      typeof entrada[classe] === "object" && entrada[classe] !== null
+        ? (entrada[classe] as Record<string, unknown>)
+        : {};
+    const atributosPersonalizados =
+      typeof personalizado.atributoBonus === "object" &&
+      personalizado.atributoBonus !== null
+        ? (personalizado.atributoBonus as Record<string, unknown>)
+        : {};
+    const atributoBonus: Record<BaseAttributeKey, number> = {
+      forca: definicao.atributoBonus?.forca ?? 0,
+      destreza: definicao.atributoBonus?.destreza ?? 0,
+      constituicao: definicao.atributoBonus?.constituicao ?? 0,
+      inteligencia: definicao.atributoBonus?.inteligencia ?? 0,
+      carisma: definicao.atributoBonus?.carisma ?? 0,
+    };
+
+    for (const atributo of Object.keys(atributoBonus) as BaseAttributeKey[]) {
+      const valor = atributosPersonalizados[atributo];
+      if (typeof valor === "number" && Number.isFinite(valor)) {
+        atributoBonus[atributo] = Math.trunc(valor);
+      }
+    }
+
+    resultado[classe] = {
+      atributoBonus,
+      hpBonus:
+        typeof personalizado.hpBonus === "number" &&
+        Number.isFinite(personalizado.hpBonus)
+          ? Math.trunc(personalizado.hpBonus)
+          : definicao.hpBonus ?? 0,
+      mpBonus:
+        typeof personalizado.mpBonus === "number" &&
+        Number.isFinite(personalizado.mpBonus)
+          ? Math.trunc(personalizado.mpBonus)
+          : definicao.mpBonus ?? 0,
+    };
+  }
+
+  for (const [classe, entradaClasse] of Object.entries(entrada)) {
+    if (classe in resultado || typeof entradaClasse !== "object" || entradaClasse === null) {
+      continue;
+    }
+    const personalizado = entradaClasse as Record<string, unknown>;
+    const atributos =
+      typeof personalizado.atributoBonus === "object" && personalizado.atributoBonus !== null
+        ? (personalizado.atributoBonus as Record<string, unknown>)
+        : {};
+    const atributoBonus = Object.fromEntries(
+      ATRIBUTOS_BASE.map((atributo) => [
+        atributo,
+        numeroSeguro(atributos[atributo]),
+      ]),
+    ) as Record<BaseAttributeKey, number>;
+    resultado[classe] = {
+      atributoBonus,
+      hpBonus: numeroSeguro(personalizado.hpBonus),
+      mpBonus: numeroSeguro(personalizado.mpBonus),
+    };
+  }
+
+  return resultado;
+}
+
+export function obterBonusClasse(
+  classe: string,
+  bonusesCampanha?: CampaignClassBonuses,
+  catalogo?: ClassDefinition[],
+): ClassBonusConfig {
+  const campanha = bonusesCampanha?.[classe];
+  const definicaoCatalogo = (catalogo ?? DEFAULT_CLASS_CATALOG).find(
+    (item) => item.nome === classe || item.aliases.includes(classe),
+  );
+  const definicao = definicaoCatalogo
+    ? {
+        atributoBonus: definicaoCatalogo.atributoBonus,
+        hpBonus: definicaoCatalogo.hpBonus,
+        mpBonus: definicaoCatalogo.mpBonus,
+      }
+    : CLASS_BONUSES[classe];
+
+  return campanha ?? {
+    atributoBonus: {
+      forca: definicao?.atributoBonus?.forca ?? 0,
+      destreza: definicao?.atributoBonus?.destreza ?? 0,
+      constituicao: definicao?.atributoBonus?.constituicao ?? 0,
+      inteligencia: definicao?.atributoBonus?.inteligencia ?? 0,
+      carisma: definicao?.atributoBonus?.carisma ?? 0,
+    },
+    hpBonus: definicao?.hpBonus ?? 0,
+    mpBonus: definicao?.mpBonus ?? 0,
+  };
+}
+
 export const AFFILIATION_BONUSES: Record<string, PersonaBonusDefinition> = {
   "Colégio de Magos Arcanum": {
     origem: "Filiação",
@@ -272,13 +551,23 @@ export function getActivePersonaBonuses(
 export function calculateTotalPersonaBonuses(
   raca?: string,
   classe?: string,
-  filiacao?: string
+  filiacao?: string,
+  bonusesCampanha?: CampaignClassBonuses,
+  catalogo?: ClassDefinition[],
 ): {
   attributeBonuses: Record<BaseAttributeKey, number>;
   hpBonus: number;
   mpBonus: number;
 } {
-  const active = getActivePersonaBonuses(raca, classe, filiacao);
+  const active = getActivePersonaBonuses(raca, undefined, filiacao);
+  const bonusCatalogo = classe
+    ? (catalogo ?? DEFAULT_CLASS_CATALOG).find(
+        (item) => item.nome === classe || item.aliases.includes(classe),
+      )
+    : undefined;
+  const bonusClasse = classe
+    ? bonusesCampanha?.[classe] ?? bonusCatalogo ?? CLASS_BONUSES[classe]
+    : undefined;
   const attributeBonuses: Record<BaseAttributeKey, number> = {
     forca: 0,
     destreza: 0,
@@ -297,6 +586,16 @@ export function calculateTotalPersonaBonuses(
         if (attr in attributeBonuses && typeof val === "number") {
           attributeBonuses[attr as BaseAttributeKey] += val;
         }
+      }
+    }
+  }
+
+  if (bonusClasse) {
+    hpBonus += bonusClasse.hpBonus ?? 0;
+    mpBonus += bonusClasse.mpBonus ?? 0;
+    for (const [attr, val] of Object.entries(bonusClasse.atributoBonus ?? {})) {
+      if (attr in attributeBonuses && typeof val === "number") {
+        attributeBonuses[attr as BaseAttributeKey] += val;
       }
     }
   }

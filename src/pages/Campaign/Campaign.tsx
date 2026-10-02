@@ -3,14 +3,27 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   atualizarPersonagem,
   excluirCampanha,
+  getCatalogoGlobalClasses,
   getCampaignAccess,
   getCharacters,
+  listarConteudosClasseCampanha,
   listarMinhasCampanhas,
   listarPersonagensDaCampanha,
+  adicionarConteudoClasseCampanha,
+  removerConteudoClasseCampanha,
+  salvarBonusClassesCampanha,
+  type CampaignClassContent,
   vincularPersonagem,
   type Campaign,
 } from "../../services/api";
 import type { Character } from "../../types/character";
+import {
+  ATTRIBUTE_CONFIG,
+  normalizarBonusClassesCampanha,
+  type ClassDefinition,
+  type BaseAttributeKey,
+  type CampaignClassBonuses,
+} from "../../data/personaRules";
 import { CharacterCard } from "../../components/character/CharacterCard";
 import { StatBar } from "../../components/ui/StatBar";
 import "./Campaign.css";
@@ -20,6 +33,26 @@ export default function Campaign() {
   const navigate = useNavigate();
 
   const [campaign, setCampaign] = useState<Campaign | null>(null);
+  const [bonusClasses, setBonusClasses] = useState<CampaignClassBonuses>(
+    () => normalizarBonusClassesCampanha(),
+  );
+  const [salvandoBonusClasses, setSalvandoBonusClasses] = useState(false);
+  const [bonusClassesMensagem, setBonusClassesMensagem] = useState("");
+  const [catalogoClasses, setCatalogoClasses] = useState<ClassDefinition[]>([]);
+  const [conteudosClasses, setConteudosClasses] = useState<CampaignClassContent[]>([]);
+  const [tipoNovoConteudo, setTipoNovoConteudo] = useState<"CLASSE" | "PERICIA" | "HABILIDADE">("HABILIDADE");
+  const [classeNovoConteudo, setClasseNovoConteudo] = useState("");
+  const [nomeNovoConteudo, setNomeNovoConteudo] = useState("");
+  const [descricaoNovoConteudo, setDescricaoNovoConteudo] = useState("");
+  const [atributoNovaPericia, setAtributoNovaPericia] = useState<BaseAttributeKey>("forca");
+  const [nivelNovaHabilidade, setNivelNovaHabilidade] = useState(1);
+  const [bonusNovaClasse, setBonusNovaClasse] = useState<Record<BaseAttributeKey, number>>({
+    forca: 0, destreza: 0, constituicao: 0, inteligencia: 0, carisma: 0,
+  });
+  const [vidaNovaClasse, setVidaNovaClasse] = useState(0);
+  const [manaNovaClasse, setManaNovaClasse] = useState(0);
+  const [salvandoConteudo, setSalvandoConteudo] = useState(false);
+  const [mensagemConteudo, setMensagemConteudo] = useState("");
   const [loading, setLoading] = useState(true);
   const [isMaster, setIsMaster] = useState(false);
 
@@ -50,17 +83,48 @@ export default function Campaign() {
 
     async function carregar(campanhaId: string) {
       try {
-        const [campanhas, acesso, daCampanha, meus] = await Promise.all([
+        const [campanhas, acesso, daCampanha, meus, catalogo, conteudos] = await Promise.all([
           listarMinhasCampanhas(),
           getCampaignAccess(campanhaId),
           listarPersonagensDaCampanha(campanhaId),
           getCharacters(),
+          getCatalogoGlobalClasses(),
+          listarConteudosClasseCampanha(campanhaId),
         ]);
 
         const meusIds = new Set(meus.map((personagem) => personagem.id));
         const livres = meus.filter((personagem) => personagem.campanhaId === null);
 
-        setCampaign(campanhas.find((item) => item.id === campanhaId) ?? null);
+        const campanhaAtual =
+          campanhas.find((item) => item.id === campanhaId) ?? null;
+        setCampaign(campanhaAtual);
+        setCatalogoClasses(catalogo);
+        setConteudosClasses(conteudos);
+        setBonusClasses({
+          ...Object.fromEntries(catalogo.map((classe) => [classe.nome, classe])),
+          ...Object.fromEntries(
+            conteudos
+              .filter((conteudo) => conteudo.tipo === "CLASSE")
+              .map((conteudo) => [
+                conteudo.nome,
+                {
+                  atributoBonus: {
+                    forca: conteudo.bonus_atributos.forca ?? 0,
+                    destreza: conteudo.bonus_atributos.destreza ?? 0,
+                    constituicao: conteudo.bonus_atributos.constituicao ?? 0,
+                    inteligencia: conteudo.bonus_atributos.inteligencia ?? 0,
+                    carisma: conteudo.bonus_atributos.carisma ?? 0,
+                  },
+                  hpBonus: conteudo.bonus_hp,
+                  mpBonus: conteudo.bonus_mp,
+                },
+              ]),
+          ),
+          ...(campanhaAtual?.bonus_classes &&
+          Object.keys(campanhaAtual.bonus_classes).length > 0
+            ? normalizarBonusClassesCampanha(campanhaAtual.bonus_classes, false)
+            : {}),
+        });
         setIsMaster(acesso.isMaster);
         setTodosDaCampanha(daCampanha);
         setMeusNaCampanha(
@@ -84,6 +148,181 @@ export default function Campaign() {
 
     void carregar(id);
   }, [id, versao]);
+
+  const classesDisponiveis = [
+    ...catalogoClasses,
+    ...conteudosClasses
+      .filter((conteudo) => conteudo.tipo === "CLASSE")
+      .map((conteudo) => ({
+        id: conteudo.classe_id,
+        nome: conteudo.nome,
+        atributoBonus: {
+          forca: conteudo.bonus_atributos.forca ?? 0,
+          destreza: conteudo.bonus_atributos.destreza ?? 0,
+          constituicao: conteudo.bonus_atributos.constituicao ?? 0,
+          inteligencia: conteudo.bonus_atributos.inteligencia ?? 0,
+          carisma: conteudo.bonus_atributos.carisma ?? 0,
+        },
+        hpBonus: conteudo.bonus_hp,
+        mpBonus: conteudo.bonus_mp,
+        pericias: [],
+        habilidades: [],
+      })),
+  ];
+
+  useEffect(() => {
+    if (
+      classesDisponiveis.length > 0 &&
+      !classesDisponiveis.some((classe) => classe.id === classeNovoConteudo)
+    ) {
+      setClasseNovoConteudo(classesDisponiveis[0].id);
+    }
+  }, [catalogoClasses, conteudosClasses, classeNovoConteudo]);
+
+  function atualizarBonusAtributo(
+    classe: string,
+    atributo: BaseAttributeKey,
+    valor: number,
+  ) {
+    setBonusClasses((atuais) => ({
+      ...atuais,
+      [classe]: {
+        ...(atuais[classe] ?? classesDisponiveis.find((item) => item.nome === classe)),
+        atributoBonus: {
+          ...(atuais[classe]?.atributoBonus ??
+            classesDisponiveis.find((item) => item.nome === classe)?.atributoBonus ??
+            {}),
+          [atributo]: valor,
+        },
+      },
+    }));
+  }
+
+  function atualizarBonusRecurso(
+    classe: string,
+    recurso: "hpBonus" | "mpBonus",
+    valor: number,
+  ) {
+    setBonusClasses((atuais) => ({
+      ...atuais,
+      [classe]: {
+        ...(atuais[classe] ?? classesDisponiveis.find((item) => item.nome === classe)),
+        [recurso]: valor,
+      },
+    }));
+  }
+
+  async function handleSalvarBonusClasses(
+    event: React.FormEvent<HTMLFormElement>,
+  ) {
+    event.preventDefault();
+    if (!id || !isMaster || salvandoBonusClasses) return;
+
+    setSalvandoBonusClasses(true);
+    setBonusClassesMensagem("");
+
+    try {
+      const salvo = await salvarBonusClassesCampanha(id, bonusClasses);
+      setBonusClasses(salvo);
+      setCampaign((atual) =>
+        atual ? { ...atual, bonus_classes: salvo } : atual,
+      );
+      setBonusClassesMensagem("Bônus de classe salvos para esta campanha.");
+    } catch (error) {
+      setBonusClassesMensagem(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível salvar os bônus de classe.",
+      );
+    } finally {
+      setSalvandoBonusClasses(false);
+    }
+  }
+
+  async function handleAdicionarConteudoClasse(
+    event: React.FormEvent<HTMLFormElement>,
+  ) {
+    event.preventDefault();
+    if (!id || salvandoConteudo || !nomeNovoConteudo.trim()) return;
+
+    setSalvandoConteudo(true);
+    setMensagemConteudo("");
+    try {
+      if (
+        tipoNovoConteudo === "CLASSE" &&
+        classesDisponiveis.some(
+          (classe) =>
+            classe.nome.toLocaleLowerCase() === nomeNovoConteudo.trim().toLocaleLowerCase(),
+        )
+      ) {
+        throw new Error("Já existe uma classe com esse nome nesta campanha.");
+      }
+      const classeId =
+        tipoNovoConteudo === "CLASSE"
+          ? `camp-${globalThis.crypto?.randomUUID?.() ?? Date.now()}`
+          : classeNovoConteudo;
+      if (tipoNovoConteudo !== "CLASSE" && !classeId) {
+        throw new Error("Selecione a classe relacionada ao novo conteúdo.");
+      }
+
+      const novo = await adicionarConteudoClasseCampanha(id, {
+        classe_id: classeId,
+        tipo: tipoNovoConteudo,
+        nome: nomeNovoConteudo.trim(),
+        descricao: descricaoNovoConteudo.trim(),
+        atributo: tipoNovoConteudo === "PERICIA" ? atributoNovaPericia : null,
+        nivel: tipoNovoConteudo === "HABILIDADE" ? nivelNovaHabilidade : null,
+        bonus_atributos:
+          tipoNovoConteudo === "CLASSE" ? bonusNovaClasse : {},
+        bonus_hp: tipoNovoConteudo === "CLASSE" ? vidaNovaClasse : 0,
+        bonus_mp: tipoNovoConteudo === "CLASSE" ? manaNovaClasse : 0,
+      });
+      setConteudosClasses((atuais) => [...atuais, novo]);
+      if (novo.tipo === "CLASSE") {
+        setBonusClasses((atuais) => ({
+          ...atuais,
+          [novo.nome]: {
+            atributoBonus: {
+              forca: novo.bonus_atributos.forca ?? 0,
+              destreza: novo.bonus_atributos.destreza ?? 0,
+              constituicao: novo.bonus_atributos.constituicao ?? 0,
+              inteligencia: novo.bonus_atributos.inteligencia ?? 0,
+              carisma: novo.bonus_atributos.carisma ?? 0,
+            },
+            hpBonus: novo.bonus_hp,
+            mpBonus: novo.bonus_mp,
+          },
+        }));
+      }
+      setNomeNovoConteudo("");
+      setDescricaoNovoConteudo("");
+      setMensagemConteudo("Conteúdo adicionado a esta campanha.");
+    } catch (error) {
+      setMensagemConteudo(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível adicionar o conteúdo.",
+      );
+    } finally {
+      setSalvandoConteudo(false);
+    }
+  }
+
+  async function handleRemoverConteudoClasse(conteudo: CampaignClassContent) {
+    try {
+      await removerConteudoClasseCampanha(conteudo.id);
+      setConteudosClasses((atuais) =>
+        atuais.filter((item) => item.id !== conteudo.id),
+      );
+      setMensagemConteudo("Conteúdo removido desta campanha.");
+    } catch (error) {
+      setMensagemConteudo(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível remover o conteúdo.",
+      );
+    }
+  }
 
   async function handleVincular(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -283,6 +522,197 @@ export default function Campaign() {
         </div>
       </div>
 
+      <section className="campaign-section campaign-content-section">
+        <div className="campaign-section-header">
+          <div className="campaign-section-title">
+            <h2>Classes e conteúdos desta campanha</h2>
+          </div>
+        </div>
+        <p className="campaign-content-intro">
+          O catálogo global está disponível para todos. Aqui, qualquer participante
+          pode adicionar classes, perícias e habilidades exclusivas desta aventura.
+        </p>
+        <form
+          className="campaign-content-form"
+          onSubmit={handleAdicionarConteudoClasse}
+        >
+          <label>
+            <span>O que deseja adicionar?</span>
+            <select
+              value={tipoNovoConteudo}
+              onChange={(event) => setTipoNovoConteudo(
+                event.target.value as "CLASSE" | "PERICIA" | "HABILIDADE",
+              )}
+              disabled={salvandoConteudo}
+            >
+              <option value="CLASSE">Nova classe</option>
+              <option value="PERICIA">Perícia de classe</option>
+              <option value="HABILIDADE">Habilidade de classe</option>
+            </select>
+          </label>
+          {tipoNovoConteudo !== "CLASSE" && (
+            <label>
+              <span>Classe</span>
+              <select
+                value={classeNovoConteudo || classesDisponiveis[0]?.id || ""}
+                onChange={(event) => setClasseNovoConteudo(event.target.value)}
+                required
+              >
+                {classesDisponiveis.map((classe) => (
+                  <option value={classe.id} key={classe.id}>{classe.nome}</option>
+                ))}
+              </select>
+            </label>
+          )}
+          <label>
+            <span>{tipoNovoConteudo === "CLASSE" ? "Nome da classe" : "Nome"}</span>
+            <input
+              value={nomeNovoConteudo}
+              onChange={(event) => setNomeNovoConteudo(event.target.value)}
+              maxLength={100}
+              required
+            />
+          </label>
+          {tipoNovoConteudo === "PERICIA" && (
+            <label>
+              <span>Atributo relacionado</span>
+              <select
+                value={atributoNovaPericia}
+                onChange={(event) =>
+                  setAtributoNovaPericia(event.target.value as BaseAttributeKey)
+                }
+              >
+                {ATTRIBUTE_CONFIG.map(({ key, label }) => (
+                  <option value={key} key={key}>{label}</option>
+                ))}
+              </select>
+            </label>
+          )}
+          {tipoNovoConteudo === "HABILIDADE" && (
+            <label>
+              <span>Nível de desbloqueio</span>
+              <input
+                type="number"
+                min={1}
+                max={20}
+                value={nivelNovaHabilidade}
+                onChange={(event) =>
+                  setNivelNovaHabilidade(
+                    Math.max(1, Math.min(20, Number(event.target.value) || 1)),
+                  )
+                }
+              />
+            </label>
+          )}
+          {tipoNovoConteudo === "CLASSE" && (
+            <>
+              <div className="campaign-new-class-attributes">
+                {ATTRIBUTE_CONFIG.map(({ key, label }) => (
+                  <label key={key}>
+                    <span>{label}</span>
+                    <input
+                      type="number"
+                      aria-label={`Bônus de ${label}`}
+                      value={bonusNovaClasse[key]}
+                      onChange={(event) =>
+                        setBonusNovaClasse((atual) => ({
+                          ...atual,
+                          [key]: Number(event.target.value) || 0,
+                        }))
+                      }
+                    />
+                  </label>
+                ))}
+                <label>
+                  <span>PV</span>
+                  <input
+                    type="number"
+                    aria-label="Bônus de PV"
+                    value={vidaNovaClasse}
+                    onChange={(event) => setVidaNovaClasse(Number(event.target.value) || 0)}
+                  />
+                </label>
+                <label>
+                  <span>PM</span>
+                  <input
+                    type="number"
+                    aria-label="Bônus de PM"
+                    value={manaNovaClasse}
+                    onChange={(event) => setManaNovaClasse(Number(event.target.value) || 0)}
+                  />
+                </label>
+              </div>
+              <label className="campaign-content-description">
+                <span>Descrição (opcional)</span>
+                <textarea
+                  rows={2}
+                  value={descricaoNovoConteudo}
+                  onChange={(event) => setDescricaoNovoConteudo(event.target.value)}
+                />
+              </label>
+            </>
+          )}
+          {tipoNovoConteudo !== "CLASSE" && (
+            <label className="campaign-content-description">
+              <span>Descrição</span>
+              <textarea
+                rows={2}
+                value={descricaoNovoConteudo}
+                onChange={(event) => setDescricaoNovoConteudo(event.target.value)}
+              />
+            </label>
+          )}
+          <button className="btn-primary" type="submit" disabled={salvandoConteudo}>
+            {salvandoConteudo ? "Adicionando..." : "Adicionar à campanha"}
+          </button>
+        </form>
+        {mensagemConteudo && (
+          <p className="campaign-content-message" role="status">{mensagemConteudo}</p>
+        )}
+        <div className="campaign-content-list">
+          {conteudosClasses.map((conteudo) => (
+            <article className="campaign-content-card" key={conteudo.id}>
+              <div>
+                <span className="campaign-content-kind">
+                  {conteudo.tipo === "CLASSE"
+                    ? "Classe da campanha"
+                    : conteudo.tipo === "PERICIA"
+                      ? "Perícia"
+                      : "Habilidade"}
+                  {conteudo.tipo !== "CLASSE" &&
+                    ` · ${classesDisponiveis.find((classe) => classe.id === conteudo.classe_id)?.nome ?? "Classe"}`}
+                </span>
+                <h3>{conteudo.nome}</h3>
+                {conteudo.tipo === "CLASSE" && (
+                  <p>
+                    Bônus: {ATTRIBUTE_CONFIG.map(({ key, abbr }) =>
+                      `${abbr} ${conteudo.bonus_atributos[key] ?? 0}`,
+                    ).join(" · ")} · PV {conteudo.bonus_hp} · PM {conteudo.bonus_mp}
+                  </p>
+                )}
+                {conteudo.tipo === "PERICIA" && (
+                  <p>Atributo: {ATTRIBUTE_CONFIG.find(({ key }) => key === conteudo.atributo)?.label}</p>
+                )}
+                {conteudo.tipo === "HABILIDADE" && <p>Desbloqueia no nível {conteudo.nivel}</p>}
+                {conteudo.descricao && <p>{conteudo.descricao}</p>}
+              </div>
+              <button
+                type="button"
+                className="campaign-content-remove"
+                onClick={() => void handleRemoverConteudoClasse(conteudo)}
+              >
+                Remover
+              </button>
+            </article>
+          ))}
+          {conteudosClasses.length === 0 && (
+            <p className="campaign-content-empty">
+              Ainda não há conteúdo personalizado nesta campanha.
+            </p>
+          )}
+        </div>
+      </section>
+
       {/* PAINEL DO MESTRE: Visível apenas se o usuário for o Mestre */}
       {isMaster && (
         <section className="campaign-section">
@@ -298,6 +728,100 @@ export default function Campaign() {
           <p style={{ color: "var(--muted)", margin: "0 0 16px" }}>
             Como Mestre, você pode visualizar e alterar livremente a vida, mana, dinheiro e atributos de todos os personagens da aventura.
           </p>
+
+          <form
+            className="campaign-class-bonuses"
+            onSubmit={handleSalvarBonusClasses}
+          >
+            <div className="campaign-class-bonuses-heading">
+              <div>
+                <h3>Bônus de classe desta campanha</h3>
+                <p>
+                  Defina bônus dos atributos disponíveis, vida e mana. Estes
+                  valores substituem os padrões e são usados na criação
+                  de personagens vinculados a esta campanha.
+                </p>
+              </div>
+              <button
+                type="submit"
+                className="btn-primary"
+                disabled={salvandoBonusClasses}
+              >
+                {salvandoBonusClasses ? "Salvando..." : "Salvar bônus"}
+              </button>
+            </div>
+
+            <div className="campaign-class-bonus-grid">
+              {classesDisponiveis.map((classe) => {
+                const bonusAtual = bonusClasses[classe.nome] ?? classe;
+                return (
+                <fieldset className="campaign-class-bonus-card" key={classe.id}>
+                  <legend>{classe.nome}</legend>
+                  <div className="campaign-class-bonus-fields">
+                    {ATTRIBUTE_CONFIG.map((atributo) => (
+                      <label key={atributo.key}>
+                        <span>{atributo.label}</span>
+                        <input
+                          type="number"
+                          step="1"
+                          aria-label={`${classe.nome} - ${atributo.label}`}
+                          value={bonusAtual.atributoBonus[atributo.key]}
+                          disabled={salvandoBonusClasses}
+                          onChange={(event) =>
+                            atualizarBonusAtributo(
+                              classe.nome,
+                              atributo.key,
+                              Number(event.target.value) || 0,
+                            )
+                          }
+                        />
+                      </label>
+                    ))}
+                    <label>
+                      <span>Vida (PV)</span>
+                      <input
+                        type="number"
+                        step="1"
+                        aria-label={`${classe.nome} - Bônus de vida`}
+                        value={bonusAtual.hpBonus}
+                        disabled={salvandoBonusClasses}
+                        onChange={(event) =>
+                          atualizarBonusRecurso(
+                            classe.nome,
+                            "hpBonus",
+                            Number(event.target.value) || 0,
+                          )
+                        }
+                      />
+                    </label>
+                    <label>
+                      <span>Mana (PM)</span>
+                      <input
+                        type="number"
+                        step="1"
+                        aria-label={`${classe.nome} - Bônus de mana`}
+                        value={bonusAtual.mpBonus}
+                        disabled={salvandoBonusClasses}
+                        onChange={(event) =>
+                          atualizarBonusRecurso(
+                            classe.nome,
+                            "mpBonus",
+                            Number(event.target.value) || 0,
+                          )
+                        }
+                      />
+                    </label>
+                  </div>
+                </fieldset>
+                );
+              })}
+            </div>
+            {bonusClassesMensagem && (
+              <p className="campaign-class-bonuses-message" role="status">
+                {bonusClassesMensagem}
+              </p>
+            )}
+          </form>
 
           {todosDaCampanha.length > 0 ? (
             <div className="party-overview-grid">

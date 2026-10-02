@@ -198,11 +198,27 @@ export default function Inventory() {
                 gap: 8,
               }}
             >
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                {item.itens?.imagem_url && (
+                  <img
+                    src={item.itens.imagem_url}
+                    alt=""
+                    aria-hidden="true"
+                    onError={(event) => { event.currentTarget.hidden = true; }}
+                    style={{
+                      width: 52,
+                      height: 52,
+                      flex: "0 0 52px",
+                      objectFit: "cover",
+                      borderRadius: 6,
+                      border: "1px solid rgba(201, 162, 39, 0.3)",
+                    }}
+                  />
+                )}
                 <h2 style={{ fontSize: "1.1rem", margin: 0, color: "var(--parchment)", fontFamily: "var(--font-display)" }}>
                   {item.itens ? item.itens.nome : "Item desconhecido"}
                 </h2>
-                <span style={{ fontSize: "0.8rem", fontWeight: "bold", background: "rgba(201, 162, 39, 0.2)", padding: "2px 8px", borderRadius: 4, color: "var(--gold-bright)" }}>
+                <span style={{ fontSize: "0.8rem", fontWeight: "bold", background: "rgba(201, 162, 39, 0.2)", padding: "2px 8px", borderRadius: 4, color: "var(--gold-bright)", marginLeft: "auto", flexShrink: 0 }}>
                   x{item.quantidade}
                 </span>
               </div>
@@ -225,13 +241,6 @@ export default function Inventory() {
                 </p>
               )}
 
-              {item.itens?.imagem_url && (
-                <img
-                  src={item.itens.imagem_url}
-                  alt={item.itens.nome}
-                  style={{ width: "100%", maxHeight: 120, objectFit: "cover", borderRadius: 4, marginTop: "auto" }}
-                />
-              )}
             </article>
           ))}
         </div>
