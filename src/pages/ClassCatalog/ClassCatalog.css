@@ -130,6 +130,20 @@
   font-size: 1rem;
 }
 
+.class-editor-magic-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  margin-top: 14px;
+  color: var(--gold-bright, #f0cf6e);
+  font-weight: 600;
+}
+
+.class-editor-magic-toggle input {
+  accent-color: var(--gold-bright, #f0cf6e);
+}
+
 .class-editor-entry,
 .class-editor-new-entry,
 .class-editor-new-ability {
@@ -180,6 +194,10 @@
   width: 100%;
   margin-top: 6px;
   resize: vertical;
+}
+
+.class-editor-spell-entry {
+  grid-template-columns: minmax(90px, 1fr) 92px 74px auto;
 }
 
 .class-editor-new-ability {

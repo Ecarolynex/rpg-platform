@@ -186,6 +186,8 @@ export default function Dashboard() {
       mpBonus: item.bonus_mp,
       pericias: [],
       habilidades: [],
+      magias: [],
+      usaMagia: false,
     }));
   const classesParaCriacao = [
     ...classCatalog,

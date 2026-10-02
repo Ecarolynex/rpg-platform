@@ -53,12 +53,22 @@ export interface ClassAbilityDefinition {
   nivel: number;
 }
 
+export interface ClassSpellDefinition {
+  id: string;
+  nome: string;
+  descricao: string;
+  custo: number;
+  nivel: number;
+}
+
 export interface ClassDefinition extends ClassBonusConfig {
   id: string;
   nome: string;
   aliases: string[];
+  usaMagia: boolean;
   pericias: ClassSkillDefinition[];
   habilidades: ClassAbilityDefinition[];
+  magias: ClassSpellDefinition[];
 }
 
 export const ATTRIBUTE_CONFIG: {
@@ -242,6 +252,7 @@ export const DEFAULT_CLASS_CATALOG: ClassDefinition[] = Object.entries(
   id: classeId(nome),
   nome,
   aliases: [],
+  usaMagia: false,
   atributoBonus: {
     forca: bonus.atributoBonus?.forca ?? 0,
     destreza: bonus.atributoBonus?.destreza ?? 0,
@@ -253,6 +264,7 @@ export const DEFAULT_CLASS_CATALOG: ClassDefinition[] = Object.entries(
   mpBonus: bonus.mpBonus ?? 0,
   pericias: [],
   habilidades: [],
+  magias: [],
 }));
 
 function textoSeguro(valor: unknown): string {
@@ -328,6 +340,22 @@ export function normalizarCatalogoClasses(valor: unknown): ClassDefinition[] {
           }];
         })
       : [];
+    const magias: ClassSpellDefinition[] = Array.isArray(entrada.magias)
+      ? entrada.magias.flatMap((itemMagia): ClassSpellDefinition[] => {
+          if (typeof itemMagia !== "object" || itemMagia === null) return [];
+          const magia = itemMagia as Record<string, unknown>;
+          const magiaId = textoSeguro(magia.id);
+          const nomeMagia = textoSeguro(magia.nome);
+          if (!magiaId || !nomeMagia) return [];
+          return [{
+            id: magiaId,
+            nome: nomeMagia,
+            descricao: textoSeguro(magia.descricao),
+            custo: Math.max(0, numeroSeguro(magia.custo)),
+            nivel: Math.max(1, Math.min(20, numeroSeguro(magia.nivel, 1))),
+          }];
+        })
+      : [];
 
     return [{
       id,
@@ -335,11 +363,13 @@ export function normalizarCatalogoClasses(valor: unknown): ClassDefinition[] {
       aliases: Array.isArray(entrada.aliases)
         ? entrada.aliases.map(textoSeguro).filter(Boolean)
         : [],
+      usaMagia: entrada.usaMagia === true,
       atributoBonus,
       hpBonus: numeroSeguro(entrada.hpBonus),
       mpBonus: numeroSeguro(entrada.mpBonus),
       pericias,
       habilidades,
+      magias,
     }];
   });
 }

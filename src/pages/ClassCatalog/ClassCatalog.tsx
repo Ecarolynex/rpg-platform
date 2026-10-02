@@ -9,6 +9,7 @@ import {
   type ClassAbilityDefinition,
   type ClassDefinition,
   type ClassSkillDefinition,
+  type ClassSpellDefinition,
 } from "../../data/personaRules";
 import "./ClassCatalog.css";
 
@@ -74,6 +75,19 @@ export default function ClassCatalog() {
     }));
   }
 
+  function atualizarMagia(
+    classeId: string,
+    magiaId: string,
+    alterar: (magia: ClassSpellDefinition) => ClassSpellDefinition,
+  ) {
+    atualizarClasse(classeId, (classe) => ({
+      ...classe,
+      magias: classe.magias.map((magia) =>
+        magia.id === magiaId ? alterar(magia) : magia,
+      ),
+    }));
+  }
+
   function adicionarClasse(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const nome = nomeNovaClasse.trim();
@@ -93,6 +107,8 @@ export default function ClassCatalog() {
         mpBonus: 0,
         pericias: [],
         habilidades: [],
+        magias: [],
+        usaMagia: false,
       },
     ]);
     setNomeNovaClasse("");
@@ -174,6 +190,7 @@ export default function ClassCatalog() {
               }
               onUpdateSkill={(id, alterar) => atualizarPericia(classe.id, id, alterar)}
               onUpdateAbility={(id, alterar) => atualizarHabilidade(classe.id, id, alterar)}
+              onUpdateSpell={(id, alterar) => atualizarMagia(classe.id, id, alterar)}
             />
           ))}
         </div>
@@ -192,6 +209,7 @@ function ClassEditor({
   onDelete,
   onUpdateSkill,
   onUpdateAbility,
+  onUpdateSpell,
 }: {
   classe: ClassDefinition;
   onChange: (alterar: (classe: ClassDefinition) => ClassDefinition) => void;
@@ -204,6 +222,10 @@ function ClassEditor({
     id: string,
     alterar: (habilidade: ClassAbilityDefinition) => ClassAbilityDefinition,
   ) => void;
+  onUpdateSpell: (
+    id: string,
+    alterar: (magia: ClassSpellDefinition) => ClassSpellDefinition,
+  ) => void;
 }) {
   const [nomeInicial] = useState(classe.nome);
   const [nomePericia, setNomePericia] = useState("");
@@ -212,6 +234,10 @@ function ClassEditor({
   const [nomeHabilidade, setNomeHabilidade] = useState("");
   const [descricaoHabilidade, setDescricaoHabilidade] = useState("");
   const [nivelHabilidade, setNivelHabilidade] = useState(1);
+  const [nomeMagia, setNomeMagia] = useState("");
+  const [descricaoMagia, setDescricaoMagia] = useState("");
+  const [custoMagia, setCustoMagia] = useState(1);
+  const [nivelMagia, setNivelMagia] = useState(1);
 
   function adicionarPericia(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -240,6 +266,23 @@ function ClassEditor({
     setNomeHabilidade("");
     setDescricaoHabilidade("");
     setNivelHabilidade(1);
+  }
+
+  function adicionarMagia(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!nomeMagia.trim()) return;
+    const nova: ClassSpellDefinition = {
+      id: criarId("magia"),
+      nome: nomeMagia.trim(),
+      descricao: descricaoMagia.trim(),
+      custo: Math.max(0, custoMagia),
+      nivel: Math.max(1, Math.min(20, nivelMagia)),
+    };
+    onChange((atual) => ({ ...atual, magias: [...atual.magias, nova] }));
+    setNomeMagia("");
+    setDescricaoMagia("");
+    setCustoMagia(1);
+    setNivelMagia(1);
   }
 
   return (
@@ -309,6 +352,17 @@ function ClassEditor({
           />
         </label>
       </div>
+
+      <label className="class-editor-magic-toggle">
+        <input
+          type="checkbox"
+          checked={classe.usaMagia}
+          onChange={(event) =>
+            onChange((atual) => ({ ...atual, usaMagia: event.target.checked }))
+          }
+        />
+        <span>Esta classe pode usar magias</span>
+      </label>
 
       <section className="class-editor-section">
         <h3>Perícias da classe</h3>
@@ -473,6 +527,119 @@ function ClassEditor({
           <button type="submit">Adicionar habilidade</button>
         </form>
       </section>
+
+      {classe.usaMagia && (
+        <section className="class-editor-section">
+          <h3>Magias da classe</h3>
+          {classe.magias.map((magia) => (
+            <div className="class-editor-ability" key={magia.id}>
+              <div className="class-editor-entry class-editor-spell-entry">
+                <input
+                  aria-label={`${magia.nome} - Nome da magia`}
+                  value={magia.nome}
+                  onChange={(event) =>
+                    onUpdateSpell(magia.id, (atual) => ({
+                      ...atual,
+                      nome: event.target.value,
+                    }))
+                  }
+                />
+                <label>
+                  <span>Custo (PM)</span>
+                  <input
+                    type="number"
+                    min={0}
+                    aria-label={`${magia.nome} - Custo em PM`}
+                    value={magia.custo}
+                    onChange={(event) =>
+                      onUpdateSpell(magia.id, (atual) => ({
+                        ...atual,
+                        custo: Math.max(0, Number(event.target.value) || 0),
+                      }))
+                    }
+                  />
+                </label>
+                <label>
+                  <span>Nível</span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={20}
+                    aria-label={`${magia.nome} - Nível`}
+                    value={magia.nivel}
+                    onChange={(event) =>
+                      onUpdateSpell(magia.id, (atual) => ({
+                        ...atual,
+                        nivel: Math.max(1, Math.min(20, Number(event.target.value) || 1)),
+                      }))
+                    }
+                  />
+                </label>
+                <button
+                  type="button"
+                  aria-label={`Remover magia ${magia.nome}`}
+                  onClick={() =>
+                    onChange((atual) => ({
+                      ...atual,
+                      magias: atual.magias.filter((item) => item.id !== magia.id),
+                    }))
+                  }
+                >
+                  ×
+                </button>
+              </div>
+              <textarea
+                aria-label={`${magia.nome} - Descrição`}
+                value={magia.descricao}
+                placeholder="Descrição da magia"
+                rows={2}
+                onChange={(event) =>
+                  onUpdateSpell(magia.id, (atual) => ({
+                    ...atual,
+                    descricao: event.target.value,
+                  }))
+                }
+              />
+            </div>
+          ))}
+          <form className="class-editor-new-ability" onSubmit={adicionarMagia}>
+            <input
+              aria-label="Nova magia"
+              value={nomeMagia}
+              onChange={(event) => setNomeMagia(event.target.value)}
+              placeholder="Nome da magia"
+              required
+            />
+            <input
+              type="number"
+              min={0}
+              aria-label="Custo da nova magia em PM"
+              value={custoMagia}
+              onChange={(event) =>
+                setCustoMagia(Math.max(0, Number(event.target.value) || 0))
+              }
+            />
+            <input
+              type="number"
+              min={1}
+              max={20}
+              aria-label="Nível de desbloqueio da nova magia"
+              value={nivelMagia}
+              onChange={(event) =>
+                setNivelMagia(Math.max(1, Math.min(20, Number(event.target.value) || 1)))
+              }
+            />
+            <textarea
+              aria-label="Descrição da nova magia"
+              value={descricaoMagia}
+              onChange={(event) => setDescricaoMagia(event.target.value)}
+              placeholder="Descrição"
+              rows={2}
+            />
+            <button type="submit">Adicionar magia</button>
+          </form>
+        </section>
+      )}
     </fieldset>
   );
 }
