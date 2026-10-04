@@ -23,7 +23,6 @@ import {
   CLASSES,
   RACAS,
   formatarModificador,
-  modificador,
 } from "../../data/dnd";
 import "./CharacterSheet.css";
 import "./CharacterSheetExtras.css";
@@ -38,11 +37,11 @@ const ATTRIBUTE_LABELS: Record<keyof Attributes, string> = {
   carisma: "Carisma",
 };
 
-// Vida e Mana totais de todo personagem (valor fixo)
+// Vida e Mana totais de todo personagem
 const VIDA_MANA_TOTAL = 200;
 
-// Se a criação do personagem JÁ soma o bônus da classe nos atributos salvos,
-// troque para false para não contar o bônus duas vezes.
+// Se a criação do personagem já soma o bônus da classe nos atributos salvos,
+// mantenha false para não contar o bônus duas vezes.
 const SOMAR_BONUS_DE_CLASSE = true;
 
 const NIVEL_MAXIMO = 20;
@@ -84,14 +83,12 @@ const CARTEIRA_VAZIA: Wallet = {
   pl: 0,
 };
 
-/** Garante que valores de moedas não fiquem negativos ou estourem em Number.MAX_SAFE_INTEGER */
+/** Garante que valores de moedas não fiquem negativos ou estourem. */
 function sanitizarMoeda(valor?: number | null): number {
   if (valor === undefined || valor === null || isNaN(valor) || valor < 0) {
     return 0;
   }
 
-  // Bugfix: se estiver corrompido com Number.MAX_SAFE_INTEGER,
-  // recupera para valor sensato.
   if (valor >= 9000000000000000) {
     return 1250;
   }
@@ -107,8 +104,7 @@ type ItemComBonus = {
 };
 
 /**
- * Soma os bônus dos itens equipados.
- * Só funciona quando os itens do personagem trazem `equipado` e `bonus`.
+ * Soma os bônus SOMENTE dos itens equipados.
  */
 function calcularBonusItens(c: Character): BonusAtributos {
   const itens = (c.inventory ?? []) as unknown as ItemComBonus[];
@@ -179,6 +175,7 @@ function ControleVital({
               disabled={desabilitado}
               onChange={(e) => {
                 const val = parseInt(e.target.value, 10);
+
                 onAtualizarAtual(
                   isNaN(val) ? 0 : Math.max(0, Math.min(max, val)),
                 );
@@ -210,7 +207,7 @@ function ControleVital({
   );
 }
 
-/** Saquinho de moedas discreto no cabeçalho. O clique abre o painel de receber/gastar. */
+/** Bolsa de moedas. */
 function BolsaMoedas({
   po,
   desabilitado,
@@ -225,6 +222,7 @@ function BolsaMoedas({
 
   const aplicar = (sentido: 1 | -1) => {
     const n = parseInt(valor, 10);
+
     if (isNaN(n) || n <= 0) return;
 
     onAlterarPO(Math.max(0, Math.min(9999999, po + sentido * n)));
@@ -249,18 +247,21 @@ function BolsaMoedas({
             strokeWidth="1.4"
             strokeLinejoin="round"
           />
+
           <path
             d="M10 7 C6 11 3 16 3 22 C3 28 8 31 14 31 C20 31 25 28 25 22 C25 16 22 11 18 7 Z"
             fill="#17382f"
             stroke="currentColor"
             strokeWidth="1.4"
           />
+
           <path
             d="M9.5 8.5 Q14 11 18.5 8.5"
             fill="none"
             stroke="currentColor"
             strokeWidth="1.1"
           />
+
           <circle
             cx="14"
             cy="21"
@@ -269,6 +270,7 @@ function BolsaMoedas({
             stroke="currentColor"
             strokeWidth="1.1"
           />
+
           <path d="M14 19 V23" stroke="currentColor" strokeWidth="1.1" />
         </svg>
       </button>
@@ -284,11 +286,13 @@ function BolsaMoedas({
           aria-label="Peças de ouro"
           onChange={(e) => {
             const val = parseInt(e.target.value, 10);
+
             onAlterarPO(
               isNaN(val) ? 0 : Math.max(0, Math.min(9999999, val)),
             );
           }}
         />
+
         <span>PO</span>
       </div>
 
@@ -328,7 +332,7 @@ function BolsaMoedas({
   );
 }
 
-/** Campo numérico de perícia: o valor digitado é o valor final da perícia. */
+/** Campo numérico de perícia. */
 function CampoPericia({
   valor,
   desabilitado,
@@ -356,6 +360,7 @@ function CampoPericia({
       disabled={desabilitado}
       onChange={(e) => {
         const bruto = e.target.value;
+
         setTexto(bruto);
 
         if (/^-?\d{1,3}$/.test(bruto)) {
@@ -428,7 +433,6 @@ export default function CharacterSheet() {
   const [rascunho, setRascunho] = useState<Character | null>(null);
   const [salvandoEdicao, setSalvandoEdicao] = useState(false);
 
-  // Estados locais para adição de novas magias
   const [novaMagiaNome, setNovaMagiaNome] = useState("");
   const [novaMagiaCusto, setNovaMagiaCusto] = useState(1);
   const [novaMagiaDesc, setNovaMagiaDesc] = useState("");
@@ -480,7 +484,6 @@ export default function CharacterSheet() {
       .finally(() => setLoading(false));
   }, [id]);
 
-  // Descrição, bônus e habilidades da classe
   const classeNome = character?.classe;
   const classeId = character?.classeId;
   const campanhaDoPersonagem = character?.campanhaId;
@@ -617,7 +620,7 @@ export default function CharacterSheet() {
     ]),
   ).filter(Boolean);
 
-  // Bônus que entram na soma dos atributos
+  // Bônus da classe
   const definicaoClasse = catalogoClasses.find(
     (item) =>
       (view.classeId && item.id === view.classeId) ||
@@ -628,9 +631,10 @@ export default function CharacterSheet() {
     ? definicaoClasse?.atributoBonus
     : undefined;
 
+  // Bônus somente dos itens equipados
   const bonusItens = calcularBonusItens(view);
 
-  /* ---------- ações de vida, mana e dinheiro ---------- */
+  /* ---------- ações ---------- */
 
   const alterarHp = (atual: number) => {
     const max = character.hp.max;
@@ -711,7 +715,7 @@ export default function CharacterSheet() {
     });
   };
 
-  /* ---------- modo edição completa ---------- */
+  /* ---------- edição ---------- */
 
   const iniciarEdicao = () => {
     setRascunho(structuredClone(character));
@@ -809,7 +813,7 @@ export default function CharacterSheet() {
     }
   };
 
-  /* ---------- gerenciamento de magias e perícias ---------- */
+  /* ---------- magias ---------- */
 
   const handleAdicionarMagia = (e: React.FormEvent) => {
     e.preventDefault();
@@ -875,7 +879,6 @@ export default function CharacterSheet() {
 
   return (
     <div className="sheet">
-      {/* Banner de permissão do Mestre */}
       {acesso.isMaster && (
         <div className="cs-master-banner">
           <span>
@@ -885,10 +888,7 @@ export default function CharacterSheet() {
         </div>
       )}
 
-      <nav
-        className="cs-nav"
-        aria-label="Navegação do personagem"
-      >
+      <nav className="cs-nav" aria-label="Navegação do personagem">
         {character.campanhaId ? (
           <>
             <Link
@@ -898,15 +898,11 @@ export default function CharacterSheet() {
               ← Voltar para a campanha
             </Link>
 
-            <Link
-              to={"/campanha/" + character.campanhaId + "/mapa"}
-            >
+            <Link to={"/campanha/" + character.campanhaId + "/mapa"}>
               Mapa da campanha
             </Link>
 
-            <Link
-              to={"/campanha/" + character.campanhaId + "/loja"}
-            >
+            <Link to={"/campanha/" + character.campanhaId + "/loja"}>
               Loja da campanha
             </Link>
           </>
@@ -916,10 +912,7 @@ export default function CharacterSheet() {
           </Link>
         )}
 
-        <span
-          className="cs-nav-current"
-          aria-current="page"
-        >
+        <span className="cs-nav-current" aria-current="page">
           Ficha do personagem
         </span>
       </nav>
@@ -950,9 +943,7 @@ export default function CharacterSheet() {
                 onClick={salvarEdicao}
                 disabled={salvandoEdicao}
               >
-                {salvandoEdicao
-                  ? "Salvando..."
-                  : "Salvar ficha"}
+                {salvandoEdicao ? "Salvando..." : "Salvar ficha"}
               </button>
             </>
           ) : (
@@ -967,7 +958,6 @@ export default function CharacterSheet() {
         </div>
       )}
 
-      {/* Formulário de edição completa */}
       {editando && rascunho && (
         <section className="cs-panel">
           <div className="cs-panel-header">
@@ -999,10 +989,7 @@ export default function CharacterSheet() {
                   (item) => item.nome === v,
                 );
 
-                atualizarRascunho(
-                  "classeId",
-                  definicao?.id,
-                );
+                atualizarRascunho("classeId", definicao?.id);
               }}
             />
 
@@ -1079,16 +1066,11 @@ export default function CharacterSheet() {
             <Campo
               rotulo="Ouro (PO)"
               tipo="number"
-              valor={sanitizarMoeda(
-                rascunho.carteira?.po,
-              )}
+              valor={sanitizarMoeda(rascunho.carteira?.po)}
               onChange={(v) =>
                 atualizarRascunho("carteira", {
-                  ...(rascunho.carteira ??
-                    CARTEIRA_VAZIA),
-                  po: sanitizarMoeda(
-                    Number(v) || 0,
-                  ),
+                  ...(rascunho.carteira ?? CARTEIRA_VAZIA),
+                  po: sanitizarMoeda(Number(v) || 0),
                 })
               }
             />
@@ -1252,6 +1234,7 @@ export default function CharacterSheet() {
                 const base = view.attributes[attr];
                 const daClasse = bonusClasse?.[attr] ?? 0;
                 const dosItens = bonusItens[attr] ?? 0;
+
                 const total = base + daClasse + dosItens;
 
                 return (
@@ -1260,11 +1243,9 @@ export default function CharacterSheet() {
                       {ATTRIBUTE_LABELS[attr]}
                     </span>
 
-                    <strong className="ep-attr-total">{total}</strong>
-
-                    <span className="ep-attr-mod">
-                      mod. {formatarModificador(modificador(total))}
-                    </span>
+                    <strong className="ep-attr-total">
+                      {total}
+                    </strong>
 
                     <div className="ep-attr-soma">
                       {editando && rascunho ? (
@@ -1278,7 +1259,8 @@ export default function CharacterSheet() {
                           onChange={(event) =>
                             atualizarRascunho("attributes", {
                               ...rascunho.attributes,
-                              [attr]: Number(event.target.value) || 1,
+                              [attr]:
+                                Number(event.target.value) || 1,
                             })
                           }
                         />
@@ -1298,22 +1280,28 @@ export default function CharacterSheet() {
                           }
                         />
                       ) : (
-                        <span className="ep-attr-base">{base}</span>
+                        <span className="ep-attr-base">
+                          {base}
+                        </span>
                       )}
 
-                      <span
-                        className={daClasse ? "ep-bonus" : "ep-bonus ep-zero"}
-                        title="Bônus de classe"
-                      >
-                        {formatarModificador(daClasse)}
-                      </span>
+                      {daClasse !== 0 && (
+                        <span
+                          className="ep-bonus"
+                          title="Bônus da classe"
+                        >
+                          Classe {formatarModificador(daClasse)}
+                        </span>
+                      )}
 
-                      <span
-                        className={dosItens ? "ep-bonus" : "ep-bonus ep-zero"}
-                        title="Itens equipados"
-                      >
-                        {formatarModificador(dosItens)}
-                      </span>
+                      {dosItens !== 0 && (
+                        <span
+                          className="ep-bonus"
+                          title="Bônus dos itens equipados"
+                        >
+                          Itens {formatarModificador(dosItens)}
+                        </span>
+                      )}
                     </div>
                   </div>
                 );
@@ -1322,7 +1310,7 @@ export default function CharacterSheet() {
           </div>
 
           <p className="ep-legenda">
-            Total · base, classe e itens equipados
+            Total = base + bônus da classe + itens equipados
           </p>
         </section>
 
@@ -1379,7 +1367,9 @@ export default function CharacterSheet() {
                 >
                   <span className="ep-pericia-nome">
                     <strong>{skill.nome}</strong>
-                    <small>{ATTRIBUTE_LABELS[skill.atributo]}</small>
+                    <small>
+                      {ATTRIBUTE_LABELS[skill.atributo]}
+                    </small>
                   </span>
 
                   <CampoPericia
@@ -1387,7 +1377,10 @@ export default function CharacterSheet() {
                     nome={skill.nome}
                     desabilitado={!podeEditar || editando}
                     onChange={(valor) =>
-                      handleDefinirValorPericia(skill.id, valor)
+                      handleDefinirValorPericia(
+                        skill.id,
+                        valor,
+                      )
                     }
                   />
                 </li>
@@ -1421,7 +1414,9 @@ export default function CharacterSheet() {
                 aria-controls="character-sheet-tabpanel"
                 tabIndex={t === tab ? 0 : -1}
                 className={
-                  t === tab ? "sheet-tab sheet-tab--active" : "sheet-tab"
+                  t === tab
+                    ? "sheet-tab sheet-tab--active"
+                    : "sheet-tab"
                 }
                 onClick={() => setTab(t)}
                 onKeyDown={(event) => {
@@ -1430,7 +1425,9 @@ export default function CharacterSheet() {
                   if (event.key === "ArrowRight") {
                     nextIndex = (index + 1) % TABS.length;
                   } else if (event.key === "ArrowLeft") {
-                    nextIndex = (index - 1 + TABS.length) % TABS.length;
+                    nextIndex =
+                      (index - 1 + TABS.length) %
+                      TABS.length;
                   } else if (event.key === "Home") {
                     nextIndex = 0;
                   } else if (event.key === "End") {
@@ -1443,7 +1440,9 @@ export default function CharacterSheet() {
                   setTab(TABS[nextIndex]);
 
                   event.currentTarget.parentElement
-                    ?.querySelectorAll<HTMLButtonElement>("[role='tab']")
+                    ?.querySelectorAll<HTMLButtonElement>(
+                      "[role='tab']",
+                    )
                     [nextIndex]?.focus();
                 }}
               >
@@ -1482,7 +1481,9 @@ export default function CharacterSheet() {
                       <button
                         type="button"
                         className="btn-ghost"
-                        onClick={() => setMostrarFormMagia(true)}
+                        onClick={() =>
+                          setMostrarFormMagia(true)
+                        }
                       >
                         + Conhecer nova magia
                       </button>
@@ -1495,7 +1496,9 @@ export default function CharacterSheet() {
                           placeholder="Nome da magia (ex.: Bola de Fogo)"
                           aria-label="Nome da magia"
                           value={novaMagiaNome}
-                          onChange={(e) => setNovaMagiaNome(e.target.value)}
+                          onChange={(e) =>
+                            setNovaMagiaNome(e.target.value)
+                          }
                           required
                         />
 
@@ -1506,7 +1509,9 @@ export default function CharacterSheet() {
                           min={0}
                           value={novaMagiaCusto}
                           onChange={(e) =>
-                            setNovaMagiaCusto(Number(e.target.value) || 0)
+                            setNovaMagiaCusto(
+                              Number(e.target.value) || 0,
+                            )
                           }
                         />
 
@@ -1514,17 +1519,24 @@ export default function CharacterSheet() {
                           placeholder="Descrição / Efeito"
                           aria-label="Descrição da magia"
                           value={novaMagiaDesc}
-                          onChange={(e) => setNovaMagiaDesc(e.target.value)}
+                          onChange={(e) =>
+                            setNovaMagiaDesc(e.target.value)
+                          }
                         />
 
-                        <button type="submit" className="btn-primary">
+                        <button
+                          type="submit"
+                          className="btn-primary"
+                        >
                           Aprender
                         </button>
 
                         <button
                           type="button"
                           className="btn-ghost"
-                          onClick={() => setMostrarFormMagia(false)}
+                          onClick={() =>
+                            setMostrarFormMagia(false)
+                          }
                         >
                           Cancelar
                         </button>
@@ -1547,16 +1559,22 @@ export default function CharacterSheet() {
                           <button
                             type="button"
                             className="cs-btn-icon cs-btn-icon-del"
-                            onClick={() => handleRemoverMagia(spell.id)}
+                            onClick={() =>
+                              handleRemoverMagia(spell.id)
+                            }
                             title="Esquecer magia"
-                            aria-label={`Esquecer magia ${spell.nome}`}
+                            aria-label={
+                              `Esquecer magia ${spell.nome}`
+                            }
                           >
                             ×
                           </button>
                         )}
                       </div>
 
-                      {spell.descricao && <p>{spell.descricao}</p>}
+                      {spell.descricao && (
+                        <p>{spell.descricao}</p>
+                      )}
                     </li>
                   ))}
 
@@ -1573,29 +1591,41 @@ export default function CharacterSheet() {
               <div className="cs-story">
                 {editando && rascunho ? (
                   <div className="cs-edit-grid">
-                    {HISTORIA_CAMPOS.map(([chave, rotulo]) => (
-                      <Campo
-                        key={chave}
-                        rotulo={rotulo}
-                        largo
-                        multilinha
-                        valor={rascunho[chave] ?? ""}
-                        onChange={(v) => atualizarRascunho(chave, v)}
-                      />
-                    ))}
+                    {HISTORIA_CAMPOS.map(
+                      ([chave, rotulo]) => (
+                        <Campo
+                          key={chave}
+                          rotulo={rotulo}
+                          largo
+                          multilinha
+                          valor={rascunho[chave] ?? ""}
+                          onChange={(v) =>
+                            atualizarRascunho(
+                              chave,
+                              v,
+                            )
+                          }
+                        />
+                      ),
+                    )}
                   </div>
                 ) : (
                   <>
-                    {HISTORIA_CAMPOS.filter(([chave]) => view[chave]).map(
-                      ([chave, rotulo]) => (
-                        <div key={chave}>
-                          <h3>{rotulo}</h3>
-                          <p className="sheet-notes">{view[chave]}</p>
-                        </div>
-                      ),
-                    )}
+                    {HISTORIA_CAMPOS.filter(
+                      ([chave]) => view[chave],
+                    ).map(([chave, rotulo]) => (
+                      <div key={chave}>
+                        <h3>{rotulo}</h3>
 
-                    {HISTORIA_CAMPOS.every(([chave]) => !view[chave]) && (
+                        <p className="sheet-notes">
+                          {view[chave]}
+                        </p>
+                      </div>
+                    ))}
+
+                    {HISTORIA_CAMPOS.every(
+                      ([chave]) => !view[chave],
+                    ) && (
                       <p className="sheet-empty">
                         Nenhuma história registrada.
                       </p>
@@ -1612,7 +1642,9 @@ export default function CharacterSheet() {
                   largo
                   multilinha
                   valor={rascunho.notas}
-                  onChange={(v) => atualizarRascunho("notas", v)}
+                  onChange={(v) =>
+                    atualizarRascunho("notas", v)
+                  }
                 />
               ) : podeEditar ? (
                 <Campo
@@ -1629,7 +1661,8 @@ export default function CharacterSheet() {
                 />
               ) : (
                 <p className="sheet-notes">
-                  {view.notas || "Nenhuma anotação ainda."}
+                  {view.notas ||
+                    "Nenhuma anotação ainda."}
                 </p>
               ))}
           </div>
@@ -1637,6 +1670,7 @@ export default function CharacterSheet() {
 
         <footer className="ep-rodape">
           <span>Ficha de personagem · Elementum</span>
+
           <span>
             {view.classe} · Nível {view.nivel}
           </span>

@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { getInventory } from "../../services/api";
+import {
+  alterarItemEquipado,
+  getInventory,
+} from "../../services/api";
 import "./InventoryItems.css";
 
 type InventoryItemData = {
@@ -14,6 +17,7 @@ type InventoryItemData = {
 };
 
 type InventoryRow = {
+  personagem_id: string;
   item_id: string;
   quantidade: number;
   equipado?: boolean;
@@ -32,30 +36,53 @@ type InventoryItemsProps = {
   campaignId?: string | null;
 };
 
-function normalizeInventoryRows(rows: InventoryRow[]): PersistedInventoryItem[] {
+function normalizeInventoryRows(
+  rows: InventoryRow[],
+): PersistedInventoryItem[] {
   return rows.map((row) => ({
     itemId: row.item_id,
     quantidade: Number(row.quantidade) || 0,
     equipado: row.equipado === true,
-    item: Array.isArray(row.itens) ? row.itens[0] ?? null : row.itens,
+    item: Array.isArray(row.itens)
+      ? row.itens[0] ?? null
+      : row.itens,
   }));
 }
 
-export default function InventoryItems({ characterId, campaignId }: InventoryItemsProps) {
+export default function InventoryItems({
+  characterId,
+  campaignId,
+}: InventoryItemsProps) {
   const [items, setItems] = useState<PersistedInventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [attempt, setAttempt] = useState(0);
+  const [alterandoItem, setAlterandoItem] = useState<string | null>(
+    null,
+  );
 
   useEffect(() => {
     let active = true;
 
+    setLoading(true);
+    setError("");
+
     getInventory(characterId)
       .then((data) => {
-        if (active) setItems(normalizeInventoryRows(data as InventoryRow[]));
+        if (active) {
+          setItems(
+            normalizeInventoryRows(
+              data as InventoryRow[],
+            ),
+          );
+        }
       })
       .catch((err: unknown) => {
-        console.error("Erro ao carregar inventário:", err);
+        console.error(
+          "Erro ao carregar inventário:",
+          err,
+        );
+
         if (active) {
           setError(
             err instanceof Error
@@ -65,7 +92,9 @@ export default function InventoryItems({ characterId, campaignId }: InventoryIte
         }
       })
       .finally(() => {
-        if (active) setLoading(false);
+        if (active) {
+          setLoading(false);
+        }
       });
 
     return () => {
@@ -73,14 +102,70 @@ export default function InventoryItems({ characterId, campaignId }: InventoryIte
     };
   }, [characterId, attempt]);
 
-  if (loading) {
-    return <p className="status-message" role="status">Carregando inventário...</p>;
+  async function alternarEquipamento(
+    item: PersistedInventoryItem,
+  ) {
+    if (!item.itemId) {
+      return;
+    }
+
+    setAlterandoItem(item.itemId);
+    setError("");
+
+    const novoEstado = !item.equipado;
+
+    try {
+      await alterarItemEquipado(
+        characterId,
+        item.itemId,
+        novoEstado,
+      );
+
+      setItems((atual) =>
+        atual.map((itemAtual) =>
+          itemAtual.itemId === item.itemId
+            ? {
+                ...itemAtual,
+                equipado: novoEstado,
+              }
+            : itemAtual,
+        ),
+      );
+    } catch (err: unknown) {
+      console.error(
+        "Erro ao alterar equipamento:",
+        err,
+      );
+
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Não foi possível alterar o equipamento.",
+      );
+    } finally {
+      setAlterandoItem(null);
+    }
   }
 
-  if (error) {
+  if (loading) {
     return (
-      <div className="status-message status-message--error" role="alert">
+      <p
+        className="status-message"
+        role="status"
+      >
+        Carregando inventário...
+      </p>
+    );
+  }
+
+  if (error && items.length === 0) {
+    return (
+      <div
+        className="status-message status-message--error"
+        role="alert"
+      >
         <p>{error}</p>
+
         <button
           type="button"
           className="btn-ghost inventory-retry"
@@ -100,9 +185,16 @@ export default function InventoryItems({ characterId, campaignId }: InventoryIte
     return (
       <div className="inventory-empty">
         <h2>Inventário vazio</h2>
-        <p>O inventário persistido deste personagem está vazio.</p>
+
+        <p>
+          O inventário persistido deste personagem está vazio.
+        </p>
+
         {campaignId && (
-          <Link to={`/campanha/${campaignId}/loja`} className="btn-primary">
+          <Link
+            to={`/campanha/${campaignId}/loja`}
+            className="btn-primary"
+          >
             Adicionar itens pela loja
           </Link>
         )}
@@ -113,7 +205,10 @@ export default function InventoryItems({ characterId, campaignId }: InventoryIte
   return (
     <div className="inventory-content">
       <div className="inventory-actions">
-        <h2 className="inventory-section-title">Itens do personagem</h2>
+        <h2 className="inventory-section-title">
+          Itens do personagem
+        </h2>
+
         {campaignId && (
           <Link
             to={`/campanha/${campaignId}/loja`}
@@ -123,50 +218,122 @@ export default function InventoryItems({ characterId, campaignId }: InventoryIte
           </Link>
         )}
       </div>
+
+      {error && (
+        <div
+          className="status-message status-message--error"
+          role="alert"
+        >
+          {error}
+        </div>
+      )}
+
       <div
         className="inventory-grid"
         role="region"
         aria-label="Inventário persistido do personagem"
       >
-        {items.map((inventoryItem) => (
-          <article key={inventoryItem.itemId} className="inventory-item">
-            <div className="inventory-item-head">
-              {inventoryItem.item?.imagem_url && (
-                <img
-                  className="inventory-item-image"
-                  src={inventoryItem.item.imagem_url}
-                  alt=""
-                  aria-hidden="true"
-                  onError={(event) => { event.currentTarget.hidden = true; }}
-                />
-              )}
-              <h2 className="inventory-item-title">
-                {inventoryItem.item ? inventoryItem.item.nome : "Item desconhecido"}
-              </h2>
-              <span className="inventory-item-quantity">x{inventoryItem.quantidade}</span>
-            </div>
+        {items.map((inventoryItem) => {
+          const estaEquipado =
+            inventoryItem.equipado === true;
 
-            {(inventoryItem.item?.tipo || inventoryItem.item?.raridade || inventoryItem.equipado) && (
-              <div className="inventory-item-meta">
-                {(inventoryItem.item?.tipo || inventoryItem.item?.raridade) && (
-                  <span className="inventory-item-kind">
-                    {[inventoryItem.item?.tipo, inventoryItem.item?.raridade].filter(Boolean).join(" · ")}
-                  </span>
+          const alterando =
+            alterandoItem === inventoryItem.itemId;
+
+          return (
+            <article
+              key={inventoryItem.itemId}
+              className={
+                estaEquipado
+                  ? "inventory-item inventory-item--equipped"
+                  : "inventory-item"
+              }
+            >
+              <div className="inventory-item-head">
+                {inventoryItem.item?.imagem_url && (
+                  <img
+                    className="inventory-item-image"
+                    src={inventoryItem.item.imagem_url}
+                    alt=""
+                    aria-hidden="true"
+                    onError={(event) => {
+                      event.currentTarget.hidden = true;
+                    }}
+                  />
                 )}
-                {inventoryItem.equipado && (
-                  <span className="inventory-item-equipped">Equipado</span>
-                )}
+
+                <h2 className="inventory-item-title">
+                  {inventoryItem.item
+                    ? inventoryItem.item.nome
+                    : "Item desconhecido"}
+                </h2>
+
+                <span className="inventory-item-quantity">
+                  x{inventoryItem.quantidade}
+                </span>
               </div>
-            )}
 
-            {inventoryItem.item?.descricao && (
-              <p className="inventory-item-description">{inventoryItem.item.descricao}</p>
-            )}
-            {inventoryItem.item?.efeito && (
-              <p className="inventory-item-effect">✦ {inventoryItem.item.efeito}</p>
-            )}
-          </article>
-        ))}
+              {(inventoryItem.item?.tipo ||
+                inventoryItem.item?.raridade ||
+                estaEquipado) && (
+                <div className="inventory-item-meta">
+                  {(inventoryItem.item?.tipo ||
+                    inventoryItem.item?.raridade) && (
+                    <span className="inventory-item-kind">
+                      {[
+                        inventoryItem.item?.tipo,
+                        inventoryItem.item?.raridade,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </span>
+                  )}
+
+                  {estaEquipado && (
+                    <span className="inventory-item-equipped">
+                      Equipado
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {inventoryItem.item?.descricao && (
+                <p className="inventory-item-description">
+                  {inventoryItem.item.descricao}
+                </p>
+              )}
+
+              {inventoryItem.item?.efeito && (
+                <p className="inventory-item-effect">
+                  ✦ {inventoryItem.item.efeito}
+                </p>
+              )}
+
+              <div className="inventory-item-actions">
+                <button
+                  type="button"
+                  className={
+                    estaEquipado
+                      ? "btn-ghost inventory-equip-button inventory-equip-button--equipped"
+                      : "btn-primary inventory-equip-button"
+                  }
+                  disabled={alterando}
+                  onClick={() =>
+                    void alternarEquipamento(
+                      inventoryItem,
+                    )
+                  }
+                >
+                  {alterando
+                    ? "Salvando..."
+                    : estaEquipado
+                      ? "Desequipar"
+                      : "Equipar"}
+                </button>
+              </div>
+            </article>
+          );
+        })}
       </div>
     </div>
   );
