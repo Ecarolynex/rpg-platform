@@ -1,61 +1,66 @@
 # Frontend do Elementum — como integrar
 
 ## 1. Instalar dependência nova
-Este frontend usa rotas, então instale o React Router no seu projeto:
+Este frontend usa rotas. Se estiver integrando-o a um projeto que ainda não tem o React Router, instale:
 
-```
+```sh
 npm install react-router-dom
 ```
 
 ## 2. Copiar os arquivos
-Copie o conteúdo desta pasta para dentro do seu projeto `rpg-platform`,
-sobrescrevendo os seguintes arquivos do scaffold padrão:
+Copie o conteúdo desta pasta para dentro do seu projeto `rpg-platform`, sobrescrevendo os seguintes arquivos do scaffold padrão:
 
 - `index.html`
 - `src/index.css`
 - `src/main.tsx`
 - `src/App.tsx`
 
-E adicionando as pastas novas: `src/components/`, `src/pages/`,
-`src/context/`, `src/types/`, `src/data/`, `src/services/`.
+Adicione também as pastas `src/components/`, `src/pages/`, `src/context/`, `src/types/`, `src/data/` e `src/services/`.
 
 ## 3. Arquivos que podem ser apagados
-Não são mais usados: `src/App.css`, `src/assets/react.svg`,
-`src/assets/vite.svg`. Pode manter o `public/favicon.svg` e
-`public/icons.svg` — não têm relação com o que foi criado aqui.
+O scaffold não usa mais `src/App.css`, `src/assets/react.svg` nem `src/assets/vite.svg`. O `public/favicon.svg` e `public/icons.svg` podem ser mantidos.
 
-## 4. O que já funciona
-- **Login** (`/entrar`) — autenticação simulada: qualquer usuário/senha
-  preenchidos funcionam.
-- **Dashboard** (`/`) — lista os personagens vindos de
-  `src/data/mockCharacters.ts`.
-- **Ficha de personagem** (`/personagem/:id`) — abas de Atributos,
-  Perícias, Inventário, Magias e Notas.
+## 4. Telas e recursos disponíveis
+- **Login e cadastro** (`/entrar`, `/entra`) — autenticação pelo Supabase.
+- **Personagens** (`/`) — carrega os personagens da conta, permite criar uma ficha, entrar em campanhas e excluir personagens.
+- **Ficha do personagem** (`/personagem/:id`) — visualiza e edita identidade, atributos, perícias, vida, mana, carteira, classe, inventário, magias, história e notas.
+- **Campanhas** (`/campanhas`) — cria campanhas ou permite entrar com código de convite.
+- **Visão geral da campanha** (`/campanha/:id`) — personagens, regras e conteúdo da campanha, recursos do Mestre e distribuição de ouro.
+- **Mapa da campanha** (`/campanha/:id/mapa`) — envia e visualiza mapas, com marcadores para Mestres e jogadores.
+- **Loja da campanha** (`/campanha/:id/loja`) — loja e inventário da campanha.
+- **Classes e habilidades** (`/regras/classes`) — mantém o catálogo global de classes, perícias, habilidades e magias.
 
-## 5. Conectando ao seu banco de dados real
-Toda a comunicação passa por `src/services/api.ts`. Quando o backend
-estiver no ar, crie um arquivo `.env` na raiz do projeto com:
+### Interface da ficha
 
+A ficha é renderizada dentro do `AppShell` e usa os dados carregados para o personagem da rota; a interface não substitui esses valores por conteúdo de demonstração. Sua organização é:
+
+- Identificação no topo com nome, raça, classe e nível. O retrato é pequeno e secundário; pessoas com permissão podem enviá-lo ou trocá-lo.
+- Perícias em uma lista à esquerda, com valores editáveis conforme as permissões do usuário.
+- Brasão do Elementum no centro e cinco atributos em cartões circulares ao lado.
+- Painéis inferiores para Vida e Mana, carteira/moedas e as seções de conteúdo.
+- Abas **Classe**, **Inventário**, **Magias**, **História** e **Notas**. A navegação por teclado usa as setas, `Home` e `End`.
+
+Vida, Mana e peças de ouro mantêm controles de ajuste rápido e salvamento. **Editar ficha completa** reúne os campos principais, e a foto pode ser trocada sem alterar os demais dados. Em campanhas, a ficha mantém links para a visão geral, o mapa e a loja.
+
+### Identidade visual da ficha
+
+A ficha usa a paleta global verde/teal escura e dourada do site. Fundo, painéis, texto e realces reutilizam os tokens `--ink`, `--ink-panel`, `--ink-panel-raised`, `--parchment`, `--parchment-dim`, `--gold` e `--gold-bright`, definidos em `src/index.css`. O retrato tem presença reduzida; o contorno dourado e a composição em zonas dão destaque à ficha.
+
+## 5. Configurar o Supabase
+A camada de dados está em `src/services/api.ts`, com a conexão criada em `src/services/supabase.ts`. Copie `.env.example` para `.env` e configure as credenciais do seu projeto Supabase:
+
+```dotenv
+VITE_SUPABASE_URL=https://seu-projeto.supabase.co
+VITE_SUPABASE_ANON_KEY=sua-chave-anon
 ```
-VITE_API_URL=https://sua-api.com
-```
 
-Assim que essa variável existir, o app para de usar os dados de
-exemplo e passa a chamar `/auth/login`, `/characters` e
-`/characters/:id` na sua API. Ajuste os endpoints em `api.ts` conforme
-o formato do seu backend.
+A rota do mapa também usa `src/lib/supabase.ts`, que lê `VITE_SUPABASE_PUBLISHABLE_KEY`. Defina essa variável com a chave publicável do projeto para usar o mapa. Reinicie o servidor Vite após alterar o `.env`.
 
-## 6. Identidade visual
-- Fontes: **Cinzel** (títulos) e **EB Garamond** (texto), carregadas
-  via Google Fonts no `index.html`.
-- Paleta e tokens de cor ficam em `src/index.css` (`:root`), então dá
-  para ajustar o tom geral (mais escuro, mais dourado etc.) em um só
-  lugar.
-- "Elementum" é um nome de exemplo — troque pelo nome do seu mundo em
-  `Login.tsx` e `AppShell.tsx`.
+## 6. Identidade visual do site
+- Fontes: **Cinzel** para títulos, **Cormorant Garamond** para destaques e **EB Garamond** para texto. São carregadas em `src/index.css`.
+- A paleta e os tokens globais estão em `src/index.css` (`:root`). Altere-os ali para atualizar o tema compartilhado.
+- O nome **Elementum** aparece, entre outros locais, em `src/pages/Login/Login.tsx` e `src/components/layout/AppShell.tsx`.
 
-## 7. Próximos passos sugeridos
-- Tela de criação/edição de personagem.
-- Página de campanhas e bestiário (já estão no menu, mas sem rota
-  ainda).
-- Rolagem de dados.
+## 7. Possíveis melhorias futuras
+- Implementar um bestiário e recursos de rolagem de dados.
+- Expandir as ferramentas de criação e gestão de campanhas.

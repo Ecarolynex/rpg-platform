@@ -80,10 +80,10 @@ describe("CharacterSheet", () => {
     const { container } = renderSheet();
 
     expect(await screen.findByRole("heading", { name: "Bram Ferroz" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Vida e mana" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Vitalidade" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Atributos" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Perícias" })).toBeInTheDocument();
-    expect(container.querySelectorAll(".cs-attr-card")).toHaveLength(5);
+    expect(container.querySelectorAll(".cs-orbit-stat")).toHaveLength(5);
     expect(screen.getByRole("tab", { name: "Inventário" })).toBeInTheDocument();
   });
 

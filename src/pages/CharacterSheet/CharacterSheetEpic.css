@@ -39,7 +39,7 @@
   align-items: flex-end;
   justify-content: space-between;
   gap: 16px;
-  min-height: 200px;
+  min-height: 210px;
   padding: 20px 18px 16px;
   background: var(--ep-verde-ceu);
 }
@@ -69,8 +69,8 @@
 }
 
 .ep-retrato {
-  width: 84px;
-  height: 84px;
+  width: 88px;
+  height: 88px;
   border-radius: 50%;
   border: 2px solid var(--ep-ouro-forte);
   background: var(--ep-verde-card);
@@ -80,7 +80,7 @@
   justify-content: center;
   overflow: hidden;
   font-family: var(--ep-titulo);
-  font-size: 32px;
+  font-size: 34px;
 }
 
 .ep-retrato-img {
@@ -102,7 +102,7 @@
   margin: 0;
   font-family: var(--ep-titulo);
   font-weight: 500;
-  font-size: clamp(24px, 4vw, 34px);
+  font-size: clamp(26px, 4vw, 38px);
   line-height: 1.15;
   color: var(--ep-marfim);
   overflow-wrap: anywhere;
@@ -112,7 +112,7 @@
 .ep-extra {
   margin: 2px 0 0;
   color: var(--ep-suave);
-  font-size: 14px;
+  font-size: 15px;
 }
 
 .ep-nivel {
@@ -128,19 +128,19 @@
 
 .ep-nivel-texto {
   font-family: var(--ep-titulo);
-  font-size: 14px;
+  font-size: 15px;
   letter-spacing: 0.06em;
   color: var(--ep-ouro);
-  min-width: 64px;
+  min-width: 70px;
   text-align: center;
 }
 
 .ep-mini {
-  width: 26px;
-  height: 26px;
+  width: 28px;
+  height: 28px;
   padding: 0;
   line-height: 1;
-  font-size: 16px;
+  font-size: 17px;
   color: var(--ep-marfim);
   background: var(--ep-verde-fundo);
   border: 1px solid var(--ep-ouro-forte);
@@ -187,15 +187,15 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  font-size: 14px;
+  font-size: 15px;
 }
 
 .ep-bolsa-input {
-  width: 76px;
+  width: 80px;
   padding: 3px 6px;
   text-align: center;
   font: inherit;
-  font-size: 14px;
+  font-size: 15px;
   color: var(--ep-marfim);
   background: rgba(15, 42, 36, 0.85);
   border: 1px dashed var(--ep-ouro-escuro);
@@ -248,7 +248,7 @@
 
 .ep-card {
   margin: 0 18px 14px;
-  padding: 14px;
+  padding: 16px;
   background: var(--ep-verde-card);
   border: 1px solid var(--ep-ouro-escuro);
   border-radius: 8px;
@@ -259,7 +259,7 @@
 }
 
 .ep-card-head {
-  margin-bottom: 12px;
+  margin-bottom: 14px;
   text-align: center;
 }
 
@@ -267,7 +267,7 @@
   margin: 0;
   font-family: var(--ep-titulo);
   font-weight: 500;
-  font-size: 15px;
+  font-size: 16px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--ep-ouro);
@@ -278,7 +278,7 @@
 .ep-attr-grid {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 10px;
+  gap: 12px;
 }
 
 .ep-attr {
@@ -286,27 +286,27 @@
   flex-direction: column;
   align-items: center;
   gap: 2px;
-  padding: 10px 6px;
+  padding: 12px 6px;
   background: var(--ep-verde-fundo);
   border: 1px solid var(--ep-ouro-forte);
   border-radius: 8px;
 }
 
 .ep-attr-nome {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--ep-suave);
 }
 
 .ep-attr-total {
   font-family: var(--ep-titulo);
   font-weight: 500;
-  font-size: 32px;
+  font-size: 36px;
   line-height: 1.1;
   color: var(--ep-ouro);
 }
 
 .ep-attr-mod {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--ep-suave);
 }
 
@@ -314,16 +314,16 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-top: 6px;
-  font-size: 13px;
+  margin-top: 8px;
+  font-size: 14px;
 }
 
 .ep-attr-input {
-  width: 50px;
-  padding: 2px 4px;
+  width: 54px;
+  padding: 3px 4px;
   text-align: center;
   font: inherit;
-  font-size: 13px;
+  font-size: 14px;
   color: var(--ep-marfim);
   background: var(--ep-verde-card);
   border: 1px dashed var(--ep-ouro-escuro);
@@ -356,39 +356,38 @@
 }
 
 .ep-legenda {
-  margin: 10px 0 0;
+  margin: 12px 0 0;
   text-align: center;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--ep-suave);
 }
 
-/* ---------- vitalidade e perícias ---------- */
+/* ---------- vitalidade e perícias (uma embaixo da outra) ---------- */
 
 .ep-blocos {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  align-items: start;
+  grid-template-columns: 1fr;
   gap: 14px;
   padding: 0 18px 14px;
 }
 
 .ep-vitalidade {
-  grid-column: span 2;
+  grid-column: auto;
 }
 
 .ep-vitais {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  gap: 14px;
 }
 
 .ep-pericias-lista {
   margin: 0;
   padding: 0;
   list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 8px 24px;
 }
 
 .ep-pericia {
@@ -409,7 +408,7 @@
 
 .ep-pericia-nome strong {
   font-weight: 500;
-  font-size: 14px;
+  font-size: 15px;
   color: var(--ep-marfim);
 }
 
@@ -419,31 +418,56 @@
 }
 
 .ep-pericias .cs-skill-input {
-  width: 56px;
+  width: 58px;
   flex: none;
   text-align: center;
   color: var(--ep-ouro);
 }
 
-/* ---------- abas ---------- */
+/* ---------- abas (largura total, como antes) ---------- */
 
 .ep-abas {
   padding: 0;
   border-color: var(--ep-ouro-forte);
 }
 
-.ep-abas .sheet-tabs {
-  padding: 6px;
+.sheet .ep-abas .sheet-tabs {
+  display: flex;
+  gap: 6px;
+  padding: 8px;
   border-bottom: 1px solid var(--ep-ouro-escuro);
+  overflow-x: auto;
+  background: transparent;
 }
 
-.ep-abas .sheet-tab--active {
+.sheet .ep-abas button.sheet-tab {
+  flex: 1;
+  min-width: 96px;
+  padding: 10px 8px;
+  text-align: center;
+  font-family: var(--ep-titulo);
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ep-suave);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.sheet .ep-abas button.sheet-tab:hover {
+  color: var(--ep-marfim);
+}
+
+.sheet .ep-abas button.sheet-tab--active {
   color: var(--ep-ouro);
+  background: var(--ep-verde-fundo);
   border-color: var(--ep-ouro);
 }
 
 .ep-abas .sheet-content {
-  padding: 14px;
+  padding: 16px;
 }
 
 /* ---------- rodapé ---------- */
@@ -469,14 +493,6 @@
 @media (max-width: 960px) {
   .ep-attr-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .ep-blocos {
-    grid-template-columns: 1fr;
-  }
-
-  .ep-vitalidade {
-    grid-column: auto;
   }
 }
 
