@@ -38,13 +38,10 @@
   max-width: 510px;
   position: relative;
   z-index: 1;
-  background: linear-gradient(180deg, rgba(11, 20, 19, 0.97), rgba(20, 42, 39, 0.98));
-  border: 1px solid rgba(232, 214, 183, 0.56);
-  border-radius: 22px;
-  box-shadow:
-    0 22px 42px rgba(0, 0, 0, 0.46),
-    0 0 0 1px rgba(240, 219, 162, 0.14) inset,
-    0 0 26px rgba(109, 157, 145, 0.12);
+  background: linear-gradient(180deg, var(--ink-panel-raised), var(--ink-panel));
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow-panel), inset 0 0 0 1px rgba(240, 219, 162, 0.1);
   overflow: hidden;
   backdrop-filter: blur(10px);
   animation: loginAppear 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
@@ -282,33 +279,25 @@
 /* Botão de envio primário estilo RPG */
 .login-card-container .auth-submit-btn {
   width: 100%;
+  min-height: 48px;
   margin-top: 8px;
-  padding: 15px 20px;
-  font-size: 16px;
-  letter-spacing: 0.08em;
+  padding: 13px 18px;
+  font-size: 1rem;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   font-family: var(--font-display);
   font-weight: 700;
-  color: #f0dba2;
-  border: 1px solid rgba(224, 198, 137, 0.78);
-  border-radius: 12px;
-  background: linear-gradient(180deg, #28574d 0%, #1a433b 48%, #12332e 100%);
-  box-shadow:
-    0 10px 24px rgba(0, 0, 0, 0.28),
-    0 0 18px rgba(202, 169, 103, 0.08),
-    inset 0 1px 0 rgba(239, 228, 199, 0.18),
-    inset 0 -2px 0 rgba(4, 18, 16, 0.5);
-  transition: transform 0.15s ease, filter 0.15s ease, box-shadow 0.15s ease;
+  color: var(--ink);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-control);
+  background: linear-gradient(180deg, var(--gold-bright), var(--gold));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  transition: transform 0.15s ease, filter 0.15s ease;
 }
 
 .login-card-container .auth-submit-btn:hover {
-  filter: brightness(1.12);
+  filter: brightness(1.06);
   transform: translateY(-1px);
-  box-shadow:
-    0 12px 28px rgba(0, 0, 0, 0.34),
-    0 0 22px rgba(224, 198, 137, 0.14),
-    inset 0 1px 0 rgba(239, 228, 199, 0.24),
-    inset 0 -2px 0 rgba(4, 18, 16, 0.5);
 }
 
 .login-card-container .auth-submit-btn:active {
@@ -389,7 +378,7 @@
 /* Responsividade Mobile */
 @media (max-width: 520px) {
   .login-card-container {
-    border-radius: 14px;
+    border-radius: var(--radius-panel);
   }
 
   .login-banner {

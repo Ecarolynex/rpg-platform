@@ -1028,18 +1028,23 @@ export default function Shop() {
           </div>
         </header>
 
-        <Link
-          className="shop-return-link"
-          to={`/campanha/${campaignId}/loja`}
-        >
-          Voltar à loja
-        </Link>
-        <Link
-          className="shop-return-link"
-          to={`/campanha/${campaignId}`}
-        >
-          Voltar à campanha
-        </Link>
+        <nav className="shop-breadcrumbs" aria-label="Navegação da campanha">
+          <Link className="shop-return-link" to={`/campanha/${campaignId}`}>
+            ← Campanha
+          </Link>
+          <Link className="shop-return-link" to={`/campanha/${campaignId}/mapa`}>
+            Mapa
+          </Link>
+          {activeCharacter && (
+            <Link className="shop-return-link" to={`/personagem/${activeCharacter.id}`}>
+              Ficha
+            </Link>
+          )}
+          <Link className="shop-return-link" to={`/campanha/${campaignId}/loja`}>
+            Loja da campanha
+          </Link>
+          <span className="shop-breadcrumb-current" aria-current="page">Carrinho</span>
+        </nav>
 
         {checkoutMessage && (
           <p
@@ -1247,12 +1252,20 @@ export default function Shop() {
         </div>
       </header>
 
-      <Link
-        className="shop-return-link"
-        to={`/campanha/${campaignId}`}
-      >
-        Voltar à campanha
-      </Link>
+      <nav className="shop-breadcrumbs" aria-label="Navegação da campanha">
+        <Link className="shop-return-link" to={`/campanha/${campaignId}`}>
+          ← Campanha
+        </Link>
+        <Link className="shop-return-link" to={`/campanha/${campaignId}/mapa`}>
+          Mapa
+        </Link>
+        {activeCharacter && (
+          <Link className="shop-return-link" to={`/personagem/${activeCharacter.id}`}>
+            Ficha
+          </Link>
+        )}
+        <span className="shop-breadcrumb-current" aria-current="page">Loja atual</span>
+      </nav>
 
       <div className="shop-topbar">
         <label className="shop-search">

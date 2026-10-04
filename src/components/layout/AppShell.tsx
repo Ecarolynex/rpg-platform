@@ -9,10 +9,13 @@ import "./AppShellCampaign.css";
 export function AppShell() {
   const { user, logout } = useAuth();
 
-  // Dentro de /campanha/:id (e da loja), o menu mostra a área daquela campanha.
+  // Dentro das rotas de campanha, o menu mostra os destinos daquela campanha.
   const campanhaAtual = useMatch("/campanha/:id/*");
   const campanhaId = campanhaAtual?.params.id;
+  const personagemFichaAtual = useMatch("/personagem/:id");
+  const personagemAtual = Boolean(personagemFichaAtual);
   const [nomeCampanha, setNomeCampanha] = useState("");
+  const [menuAberto, setMenuAberto] = useState(false);
 
   useEffect(() => {
     if (!campanhaId) return;
@@ -38,22 +41,40 @@ export function AppShell() {
 
   return (
     <div className="app-shell">
-      <aside className="app-sidebar">
-        <div className="app-sidebar-brand">
-          <Crest size={30} />
-          <span>Elementum</span>
+      <aside className={menuAberto ? "app-sidebar app-sidebar--open" : "app-sidebar"}>
+        <div className="app-sidebar-header">
+          <div className="app-sidebar-brand">
+            <Crest size={30} />
+            <span>Elementum</span>
+          </div>
+
+          <button
+            type="button"
+            className="btn-ghost app-sidebar-menu-toggle"
+            aria-controls="app-sidebar-navigation"
+            aria-expanded={menuAberto}
+            onClick={() => setMenuAberto((aberto) => !aberto)}
+          >
+            {menuAberto ? "Fechar menu" : "Menu"}
+            <span aria-hidden="true">{menuAberto ? "−" : "+"}</span>
+          </button>
         </div>
 
-        <nav className="app-sidebar-nav">
-          <NavLink to="/" end>
+        <nav id="app-sidebar-navigation" className="app-sidebar-nav" aria-label="Navegação principal">
+          <NavLink
+            to="/"
+            end
+            className={({ isActive }) => isActive || personagemAtual ? "active" : undefined}
+            onClick={() => setMenuAberto(false)}
+          >
             Meus personagens
           </NavLink>
 
-          <NavLink to="/campanhas" end>
+          <NavLink to="/campanhas" end onClick={() => setMenuAberto(false)}>
             Campanhas
           </NavLink>
 
-          <NavLink to="/regras/classes">
+          <NavLink to="/regras/classes" onClick={() => setMenuAberto(false)}>
             Classes e habilidades
           </NavLink>
 
@@ -63,11 +84,13 @@ export function AppShell() {
                 {nomeCampanha || "Campanha atual"}
               </span>
 
-              <NavLink to={"/campanha/" + campanhaId} end>
+              <NavLink to={"/campanha/" + campanhaId} end onClick={() => setMenuAberto(false)}>
                 Visão geral
               </NavLink>
-
-              <NavLink to={"/campanha/" + campanhaId + "/loja"}>
+              <NavLink to={"/campanha/" + campanhaId + "/mapa"} onClick={() => setMenuAberto(false)}>
+                Mapa
+              </NavLink>
+              <NavLink to={"/campanha/" + campanhaId + "/loja"} onClick={() => setMenuAberto(false)}>
                 Loja
               </NavLink>
             </>

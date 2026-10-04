@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, expect, it, vi } from "vitest";
 import {
@@ -147,7 +147,9 @@ describe("exclusão da campanha", () => {
   it("pede confirmação antes de chamar a exclusão", async () => {
     renderCampaign();
 
-    fireEvent.click(await screen.findByRole("button", { name: "Excluir campanha" }));
+    const dangerZone = await screen.findByRole("region", { name: "Zona de perigo" });
+    expect(dangerZone).toHaveTextContent("A exclusão remove a campanha e não pode ser desfeita.");
+    fireEvent.click(within(dangerZone).getByRole("button", { name: "Excluir campanha" }));
 
     expect(screen.getByRole("alertdialog")).toHaveTextContent("Excluir “Aventura de Teste”?");
     expect(screen.getByRole("button", { name: "Confirmar exclusão" })).toBeInTheDocument();
@@ -156,6 +158,18 @@ describe("exclusão da campanha", () => {
     fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
     expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
     expect(excluirCampanha).not.toHaveBeenCalled();
+  });
+
+  it("exclui a campanha e retorna à lista após confirmação", async () => {
+    renderCampaign();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Excluir campanha" }));
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar exclusão" }));
+
+    await waitFor(() => {
+      expect(excluirCampanha).toHaveBeenCalledWith("campaign-1");
+    });
+    expect(await screen.findByText("Lista de campanhas")).toBeInTheDocument();
   });
 
   it("não mostra a opção para jogadores", async () => {

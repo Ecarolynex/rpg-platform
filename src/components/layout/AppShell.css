@@ -13,6 +13,14 @@
   padding: 24px 18px;
 }
 
+.app-sidebar-header {
+  min-width: 0;
+}
+
+.app-sidebar-menu-toggle {
+  display: none;
+}
+
 .app-sidebar-brand {
   display: flex;
   align-items: center;
@@ -134,9 +142,12 @@
 }
 
 .app-content {
-  flex-grow: 1;
-  padding: 40px 48px;
-  max-width: 1200px;
+  flex: 1 1 0%;
+  width: 100%;
+  max-width: 1360px;
+  min-width: 0;
+  margin-inline: auto;
+  padding: 40px clamp(24px, 4vw, 56px);
 }
 
 @media (max-width: 768px) {
@@ -145,12 +156,22 @@
   }
 
   .app-sidebar {
-    width: auto;
+    width: 100%;
     min-width: 0;
     flex-wrap: wrap;
     flex-direction: row;
     align-items: center;
-    padding: 14px 18px;
+    gap: 10px 14px;
+    padding: 12px 16px;
+  }
+
+  .app-sidebar-header {
+    display: flex;
+    flex: 1 1 220px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-width: 0;
   }
 
   .app-sidebar-brand {
@@ -159,26 +180,53 @@
     padding: 0;
   }
 
-  .app-sidebar-nav {
-    order: 3;
-    flex-direction: row;
-    flex: 1 1 100%;
-    min-width: 0;
-    max-width: 100%;
-    overflow-x: auto;
-    padding-bottom: 4px;
-  }
-
-  .app-sidebar-nav a {
-    flex: 0 0 auto;
+  .app-sidebar-menu-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 42px;
+    padding: 8px 12px;
     white-space: nowrap;
   }
 
+  .app-sidebar-nav {
+    display: none;
+    order: 3;
+    flex: 1 0 100%;
+    width: 100%;
+    min-width: 0;
+    padding-top: 10px;
+    border-top: 1px solid var(--border-bronze);
+  }
+
+  .app-sidebar--open .app-sidebar-nav {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .app-sidebar-nav a {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    min-height: 44px;
+    padding: 8px 10px;
+    overflow-wrap: anywhere;
+    white-space: normal;
+  }
+
+  .app-sidebar-section {
+    grid-column: 1 / -1;
+    margin: 8px 0 0;
+    padding: 0 10px;
+  }
+
   .app-sidebar-footer {
+    order: 2;
     border: none;
     flex-direction: row;
     margin-left: auto;
-    flex: 0 0 auto;
+    flex: 0 1 auto;
     align-items: center;
     gap: 8px;
     padding: 0;
@@ -212,6 +260,14 @@
 }
 
 @media (max-width: 480px) {
+  .app-sidebar {
+    padding-inline: 12px;
+  }
+
+  .app-sidebar-header {
+    flex-basis: 100%;
+  }
+
   .app-sidebar-footer {
     flex: 1 0 100%;
     justify-content: space-between;
@@ -220,5 +276,9 @@
 
   .app-sidebar-account {
     flex: 1;
+  }
+
+  .app-content {
+    padding: 20px 14px;
   }
 }

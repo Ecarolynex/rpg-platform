@@ -1,15 +1,14 @@
 .character-card {
   display: flex;
   gap: 16px;
+  min-width: 0;
   padding: 18px;
   background:
-    linear-gradient(145deg, rgba(201, 162, 39, 0.08), transparent 38%),
-    linear-gradient(180deg, #2b1e13 0%, #21160f 100%);
-  border: 1px solid #8b632b;
-  box-shadow:
-    inset 0 0 0 1px rgba(240, 207, 110, 0.45),
-    inset 0 0 0 5px rgba(201, 162, 39, 0.06),
-    0 8px 18px rgba(0, 0, 0, 0.2);
+    linear-gradient(145deg, rgba(199, 166, 108, 0.08), transparent 38%),
+    linear-gradient(180deg, var(--ink-panel-raised), var(--ink-panel));
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-panel);
+  box-shadow: inset 0 0 0 1px rgba(240, 219, 162, 0.2), 0 8px 18px rgba(0, 0, 0, 0.16);
   position: relative;
   transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
 }

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import type { Attributes, Character, InventoryItem, Spell, Wallet } from "../../types/character";
+import type { Attributes, Character, Spell, Wallet } from "../../types/character";
 import {
   atualizarPersonagem,
   enviarRetrato,
@@ -9,6 +9,7 @@ import {
   getCharacterById,
   listarConteudosClasseCampanha,
 } from "../../services/api";
+import InventoryItems from "../../components/inventory/InventoryItems";
 import { StatBar } from "../../components/ui/StatBar";
 import {
   ClassInfoBox,
@@ -17,6 +18,7 @@ import {
 } from "../../components/character/ClassInfoBox";
 import type { ClassDefinition } from "../../data/personaRules";
 import { OptionField } from "../../components/ui/OptionField";
+import { Crest } from "../../components/ui/Crest";
 import {
   ALINHAMENTOS,
   CLASSES,
@@ -327,11 +329,7 @@ export default function CharacterSheet() {
   const [rascunho, setRascunho] = useState<Character | null>(null);
   const [salvandoEdicao, setSalvandoEdicao] = useState(false);
 
-  // Estados locais para adição de novos itens/magias
-  const [novoItemNome, setNovoItemNome] = useState("");
-  const [novoItemQtd, setNovoItemQtd] = useState(1);
-  const [mostrarFormItem, setMostrarFormItem] = useState(false);
-
+  // Estados locais para adição de novas magias
   const [novaMagiaNome, setNovaMagiaNome] = useState("");
   const [novaMagiaCusto, setNovaMagiaCusto] = useState(1);
   const [novaMagiaDesc, setNovaMagiaDesc] = useState("");
@@ -653,53 +651,7 @@ export default function CharacterSheet() {
     }
   };
 
-  /* ---------- gerenciamento de itens, magias e perícias ---------- */
-
-  const handleAdicionarItem = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!novoItemNome.trim()) return;
-
-    const novoItem: InventoryItem = {
-      id: "item-" + Date.now(),
-      nome: novoItemNome.trim(),
-      quantidade: Math.max(1, novoItemQtd),
-    };
-
-    const proximoInventario = [...character.inventory, novoItem];
-    agendarSalvamento({
-      ...character,
-      inventory: proximoInventario,
-    });
-
-    setNovoItemNome("");
-    setNovoItemQtd(1);
-    setMostrarFormItem(false);
-  };
-
-  const handleAlterarQtdItem = (itemId: string, delta: number) => {
-    const proximoInventario = character.inventory
-      .map((item) => {
-        if (item.id === itemId) {
-          const novaQtd = item.quantidade + delta;
-          return novaQtd > 0 ? { ...item, quantidade: novaQtd } : null;
-        }
-        return item;
-      })
-      .filter((item): item is InventoryItem => item !== null);
-
-    agendarSalvamento({
-      ...character,
-      inventory: proximoInventario,
-    });
-  };
-
-  const handleRemoverItem = (itemId: string) => {
-    const proximoInventario = character.inventory.filter((item) => item.id !== itemId);
-    agendarSalvamento({
-      ...character,
-      inventory: proximoInventario,
-    });
-  };
+  /* ---------- gerenciamento de magias e perícias ---------- */
 
   const handleAdicionarMagia = (e: React.FormEvent) => {
     e.preventDefault();
@@ -762,23 +714,23 @@ export default function CharacterSheet() {
         </div>
       )}
 
-      <nav className="cs-nav">
+      <nav className="cs-nav" aria-label="Navegação do personagem">
         {character.campanhaId ? (
-          <Link to={"/campanha/" + character.campanhaId} className="cs-back-link">
-            ← Voltar para a campanha
-          </Link>
-        ) : (
-          <Link to="/">← Meus personagens</Link>
-        )}
-
-        {character.campanhaId && (
           <>
-            <Link to={"/campanha/" + character.campanhaId + "/loja"}>
-              Loja da Campanha
+            <Link to={"/campanha/" + character.campanhaId} className="cs-back-link">
+              ← Voltar para a campanha
             </Link>
-            <Link to="/">Meus personagens</Link>
+            <Link to={"/campanha/" + character.campanhaId + "/mapa"}>
+              Mapa da campanha
+            </Link>
+            <Link to={"/campanha/" + character.campanhaId + "/loja"}>
+              Loja da campanha
+            </Link>
           </>
+        ) : (
+          <Link to="/" className="cs-back-link">← Meus personagens</Link>
         )}
+        <span className="cs-nav-current" aria-current="page">Ficha do personagem</span>
       </nav>
 
       <header className="cs-hero">
@@ -830,6 +782,11 @@ export default function CharacterSheet() {
           </p>
 
           {linhaExtra && <p className="cs-hero-sub">{linhaExtra}</p>}
+        </div>
+
+        <div className="cs-hero-emblem" aria-hidden="true">
+          <Crest size={38} />
+          <span>FICHA</span>
         </div>
       </header>
 
@@ -1104,24 +1061,56 @@ export default function CharacterSheet() {
           </section>
 
           <section className="cs-panel cs-tabs-panel">
-            <nav className="sheet-tabs">
-              {TABS.map((t) => (
+            <div className="sheet-tabs" role="tablist" aria-label="Seções da ficha">
+              {TABS.map((t, index) => (
                 <button
                   key={t}
+                  id={`character-sheet-tab-${index}`}
                   type="button"
+                  role="tab"
+                  aria-selected={t === tab}
+                  aria-controls="character-sheet-tabpanel"
+                  tabIndex={t === tab ? 0 : -1}
                   className={
                     t === tab
                       ? "sheet-tab sheet-tab--active"
                       : "sheet-tab"
                   }
                   onClick={() => setTab(t)}
+                  onKeyDown={(event) => {
+                    let nextIndex = index;
+
+                    if (event.key === "ArrowRight") {
+                      nextIndex = (index + 1) % TABS.length;
+                    } else if (event.key === "ArrowLeft") {
+                      nextIndex = (index - 1 + TABS.length) % TABS.length;
+                    } else if (event.key === "Home") {
+                      nextIndex = 0;
+                    } else if (event.key === "End") {
+                      nextIndex = TABS.length - 1;
+                    } else {
+                      return;
+                    }
+
+                    event.preventDefault();
+                    setTab(TABS[nextIndex]);
+                    event.currentTarget.parentElement
+                      ?.querySelectorAll<HTMLButtonElement>("[role='tab']")
+                      [nextIndex]?.focus();
+                  }}
                 >
                   {t}
                 </button>
               ))}
-            </nav>
+            </div>
 
-            <div className="sheet-content">
+            <div
+              className="sheet-content"
+              id="character-sheet-tabpanel"
+              role="tabpanel"
+              aria-labelledby={`character-sheet-tab-${TABS.indexOf(tab)}`}
+              tabIndex={0}
+            >
             {tab === "Classe" && (
               <ClassInfoBox
                 info={infoClasse}
@@ -1130,95 +1119,11 @@ export default function CharacterSheet() {
             )}
 
             {tab === "Inventário" && (
-              <div>
-                {podeEditar && !editando && (
-                  <div style={{ marginBottom: 12 }}>
-                    {!mostrarFormItem ? (
-                      <button
-                        type="button"
-                        className="btn-ghost"
-                        style={{ fontSize: "0.82rem", padding: "4px 10px" }}
-                        onClick={() => setMostrarFormItem(true)}
-                      >
-                        + Adicionar item ao inventário
-                      </button>
-                    ) : (
-                      <form onSubmit={handleAdicionarItem} className="cs-inline-form">
-                        <input
-                          placeholder="Nome do item (ex: Poção de Cura)"
-                          value={novoItemNome}
-                          onChange={(e) => setNovoItemNome(e.target.value)}
-                          required
-                        />
-                        <input
-                          type="number"
-                          placeholder="Qtd"
-                          min={1}
-                          style={{ width: "70px" }}
-                          value={novoItemQtd}
-                          onChange={(e) => setNovoItemQtd(Number(e.target.value) || 1)}
-                        />
-                        <button type="submit" className="btn-primary" style={{ fontSize: "0.8rem", padding: "4px 10px" }}>
-                          Adicionar
-                        </button>
-                        <button
-                          type="button"
-                          className="btn-ghost"
-                          style={{ fontSize: "0.8rem", padding: "4px 10px" }}
-                          onClick={() => setMostrarFormItem(false)}
-                        >
-                          Cancelar
-                        </button>
-                      </form>
-                    )}
-                  </div>
-                )}
-
-                <ul className="sheet-list">
-                  {view.inventory.map((item) => (
-                    <li key={item.id}>
-                      <span>{item.nome}</span>
-
-                      <span className="sheet-list-tag">
-                        x{item.quantidade}
-                      </span>
-
-                      {podeEditar && !editando && (
-                        <div className="cs-list-actions">
-                          <button
-                            type="button"
-                            className="cs-btn-icon"
-                            onClick={() => handleAlterarQtdItem(item.id, -1)}
-                            title="Reduzir quantidade"
-                          >
-                            -
-                          </button>
-                          <button
-                            type="button"
-                            className="cs-btn-icon"
-                            onClick={() => handleAlterarQtdItem(item.id, 1)}
-                            title="Aumentar quantidade"
-                          >
-                            +
-                          </button>
-                          <button
-                            type="button"
-                            className="cs-btn-icon cs-btn-icon-del"
-                            onClick={() => handleRemoverItem(item.id)}
-                            title="Remover do inventário"
-                          >
-                            ×
-                          </button>
-                        </div>
-                      )}
-                    </li>
-                  ))}
-
-                  {view.inventory.length === 0 && (
-                    <p className="sheet-empty">Inventário vazio.</p>
-                  )}
-                </ul>
-              </div>
+              <InventoryItems
+                key={character.id}
+                characterId={character.id}
+                campaignId={character.campanhaId}
+              />
             )}
 
             {tab === "Magias" && (
@@ -1345,6 +1250,16 @@ export default function CharacterSheet() {
                   multilinha
                   valor={rascunho.notas}
                   onChange={(v) => atualizarRascunho("notas", v)}
+                />
+              ) : podeEditar ? (
+                <Campo
+                  rotulo="Notas"
+                  largo
+                  multilinha
+                  valor={character.notas}
+                  onChange={(notas) =>
+                    agendarSalvamento({ ...character, notas })
+                  }
                 />
               ) : (
                 <p className="sheet-notes">

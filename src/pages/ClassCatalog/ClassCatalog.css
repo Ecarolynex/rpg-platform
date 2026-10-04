@@ -22,7 +22,7 @@
 .class-catalog-header h1 {
   margin: 8px 0;
   color: var(--gold-bright, #f0cf6e);
-  font-family: var(--font-display, serif);
+  font-family: var(--font-title, serif);
 }
 
 .class-catalog-header p,
@@ -81,9 +81,9 @@
   min-width: 0;
   margin: 0;
   padding: 18px;
-  border: 1px solid rgba(201, 162, 39, 0.34);
-  border-radius: 7px;
-  background: linear-gradient(180deg, rgba(29, 24, 16, 0.92), rgba(13, 17, 14, 0.96));
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-panel);
+  background: linear-gradient(180deg, var(--ink-panel-raised), var(--ink-panel));
 }
 
 .class-editor-card legend {
@@ -126,7 +126,7 @@
 .class-editor-section h3 {
   margin: 0 0 10px;
   color: var(--gold-bright, #f0cf6e);
-  font-family: var(--font-display, serif);
+  font-family: var(--font-title, serif);
   font-size: 1rem;
 }
 
@@ -248,10 +248,38 @@
   }
 
   .class-editor-entry {
-    grid-template-columns: 1fr 1fr auto;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
   }
 
-  .class-editor-entry input[placeholder="Descrição"] {
+  .class-editor-entry > input[aria-label*="Descrição"] {
     grid-column: 1 / -2;
+  }
+
+  .class-editor-new-entry,
+  .class-editor-new-ability {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .class-editor-new-entry > *,
+  .class-editor-new-ability > *,
+  .class-editor-new-ability textarea {
+    width: 100%;
+    min-width: 0;
+    grid-column: 1 / -1;
+  }
+
+  .class-editor-new-entry button,
+  .class-editor-new-ability button {
+    justify-self: stretch;
+    min-height: 42px;
+  }
+
+  .class-editor-delete {
+    max-width: 42%;
+    overflow-wrap: anywhere;
+  }
+
+  .class-editor-card {
+    padding: 14px;
   }
 }

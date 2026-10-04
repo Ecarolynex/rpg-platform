@@ -1,0 +1,939 @@
+/* Ficha em formato de folha de personagem:
+   cabeçalho, coluna da esquerda (atributos + perícias) e coluna principal
+   (resumo, vida/mana, carteira e abas). Mantém as cores e fontes do tema. */
+
+.sheet {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.sheet > * {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+.sheet .cs-editbar {
+  margin: 0;
+}
+
+.sheet .cs-panel {
+  margin-bottom: 0;
+}
+
+.cs-panel-header small {
+  color: var(--muted, rgba(236, 223, 192, 0.7));
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.cs-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.cs-nav a,
+.cs-nav-current {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 7px 10px;
+  border: 1px solid var(--border-bronze);
+  color: var(--parchment-dim);
+  font-size: 0.84rem;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.cs-nav a:hover {
+  border-color: var(--gold-bright);
+  color: var(--gold-bright);
+}
+
+.cs-nav .cs-back-link {
+  color: var(--gold-bright);
+}
+
+.cs-nav-current {
+  border-color: rgba(199, 166, 108, 0.42);
+  background: rgba(199, 166, 108, 0.08);
+  color: var(--gold-bright);
+}
+
+/* ---------- cabeçalho ---------- */
+
+.cs-hero {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 18px 20px;
+  border: 1px solid var(--border-bronze, rgba(201, 162, 39, 0.35));
+  border-radius: 10px;
+  background:
+    linear-gradient(120deg, rgba(201, 162, 39, 0.12), rgba(122, 22, 38, 0.12)),
+    rgba(23, 16, 10, 0.72);
+  box-shadow: inset 0 0 0 1px rgba(240, 207, 110, 0.08);
+}
+
+.cs-hero .sheet-portrait {
+  width: 92px;
+  height: 92px;
+  border-radius: 10px;
+  border: 1px solid rgba(240, 207, 110, 0.5);
+}
+
+.cs-hero-main {
+  min-width: 0;
+}
+
+.cs-hero-main h1 {
+  margin: 0 0 4px;
+  font-size: clamp(24px, 3vw, 34px);
+  overflow-wrap: anywhere;
+}
+
+.cs-hero-line {
+  margin: 0;
+  color: var(--gold-bright, #f0cf6e);
+  font-family: var(--font-display, inherit);
+  font-size: 0.86rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.cs-hero-sub {
+  margin: 4px 0 0;
+  color: var(--muted, rgba(236, 223, 192, 0.7));
+  font-size: 0.88rem;
+}
+
+/* ---------- tabuleiro: esquerda + principal ---------- */
+
+.cs-board {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.cs-side,
+.cs-main {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+/* ---------- atributos ---------- */
+
+.cs-attr-list {
+  display: grid;
+  gap: 8px;
+}
+
+.cs-attr-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border: 1px solid rgba(201, 162, 39, 0.3);
+  border-radius: 10px;
+  background: var(--ink-panel, rgba(14, 10, 7, 0.55));
+}
+
+.cs-attr-name {
+  color: var(--muted, rgba(236, 223, 192, 0.75));
+  font-size: 0.74rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.cs-attr-mod {
+  min-width: 46px;
+  color: var(--gold-bright, #f0cf6e);
+  font-family: var(--font-display, inherit);
+  font-size: 1.5rem;
+  text-align: center;
+}
+
+.cs-attr-value {
+  min-width: 40px;
+  padding: 3px 8px;
+  border: 1px solid rgba(201, 162, 39, 0.45);
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.3);
+  color: var(--parchment, #fff0cc);
+  font-weight: 700;
+  text-align: center;
+}
+
+.cs-attr-card .cs-attr-input {
+  width: 62px;
+  padding: 4px 6px;
+  border: 1px solid rgba(201, 162, 39, 0.5);
+  border-radius: 8px;
+  background: rgba(9, 7, 6, 0.6);
+  color: var(--parchment, #fff0cc);
+  font-weight: 700;
+  text-align: center;
+}
+
+/* ---------- perícias ---------- */
+
+.cs-skill-table {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cs-skill-line {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 72px;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 4px;
+  border-bottom: 1px solid rgba(201, 162, 39, 0.14);
+}
+
+.cs-skill-line:last-child {
+  border-bottom: none;
+}
+
+.cs-skill-label {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.cs-skill-label strong {
+  overflow: hidden;
+  color: var(--parchment, #fff0cc);
+  font-size: 1rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cs-skill-label small {
+  color: rgba(240, 228, 198, 0.78);
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+}
+
+.cs-skill-input {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid rgba(201, 162, 39, 0.5);
+  border-radius: 8px;
+  background: rgba(9, 7, 6, 0.6);
+  color: var(--gold-bright, #f0cf6e);
+  font-size: 1.05rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.cs-skill-input:focus {
+  outline: 2px solid rgba(240, 207, 110, 0.55);
+  outline-offset: 1px;
+}
+
+.cs-skill-input:disabled {
+  opacity: 0.75;
+}
+
+/* ---------- vida e mana ---------- */
+
+.cs-vitals-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr));
+}
+
+.cs-vital-card {
+  border-left-width: 3px;
+}
+
+.cs-vital-card--wine {
+  border-left-color: #a8324a;
+}
+
+.cs-vital-card--forest {
+  border-left-color: #3f8f6b;
+}
+
+.cs-vital-direct {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+}
+
+.cs-vital-fields {
+  align-items: flex-end;
+  justify-content: center;
+  gap: 12px;
+}
+
+.cs-vital-total {
+  padding-bottom: 8px;
+  color: rgba(240, 228, 198, 0.9);
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.cs-vital-quick-btns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(44px, 1fr));
+  gap: 6px;
+}
+
+.cs-vital-quick-btns .cs-btn-stepper {
+  min-width: 0;
+  padding: 7px 4px;
+}
+
+/* ---------- carteira ---------- */
+
+.cs-wallet-steppers {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.cs-wallet-steppers .cs-btn-stepper {
+  min-width: 0;
+  padding: 7px 2px;
+}
+
+.cs-wallet-steppers .btn-ghost {
+  grid-column: 1 / -1;
+  margin-left: 0 !important;
+}
+
+.cs-wallet-input {
+  max-width: 100%;
+}
+
+/* ---------- abas ---------- */
+
+.cs-tabs-panel {
+  padding: 0;
+  overflow: hidden;
+}
+
+.cs-tabs-panel .sheet-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.22);
+}
+
+.cs-tabs-panel .sheet-tab {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 42px;
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--parchment-dim);
+  overflow-wrap: anywhere;
+}
+
+.cs-tabs-panel .sheet-tab--active {
+  border-color: var(--border-strong);
+  background: rgba(199, 166, 108, 0.12);
+  color: var(--gold-bright);
+}
+
+.cs-tabs-panel .sheet-content {
+  padding: 16px;
+}
+
+/* ---------- telas menores ---------- */
+
+@media (max-width: 980px) {
+  .cs-board {
+    grid-template-columns: 1fr;
+  }
+
+  .cs-attr-list {
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  }
+
+  .cs-skill-table {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+    column-gap: 16px;
+  }
+}
+
+@media (max-width: 560px) {
+  .cs-hero {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .cs-wallet-steppers {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+/* ---------- escrita mais clara ---------- */
+
+.sheet {
+  font-size: 16px;
+}
+
+.sheet .cs-panel-header h3 {
+  font-size: 1.25rem;
+  letter-spacing: 0.04em;
+}
+
+.sheet .cs-panel-header small {
+  color: rgba(240, 228, 198, 0.82);
+  font-size: 0.9rem;
+}
+
+.sheet .cs-vital-title {
+  font-size: 1.2rem;
+  letter-spacing: 0.06em;
+}
+
+.sheet .cs-vital-field label {
+  color: rgba(240, 228, 198, 0.85);
+  font-size: 0.85rem;
+  letter-spacing: 0.04em;
+  text-transform: none;
+}
+
+.sheet .cs-vital-input,
+.sheet .cs-wallet-input {
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
+.sheet .cs-btn-stepper {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.sheet .cs-btn-action {
+  font-size: 0.85rem;
+}
+
+.sheet .cs-wallet-gold-title strong {
+  font-size: 1.2rem;
+}
+
+.sheet .cs-wallet-gold-title span,
+.sheet .cs-wallet-unit {
+  color: rgba(240, 228, 198, 0.85);
+  font-size: 0.9rem;
+}
+
+.sheet .sheet-tab {
+  font-size: 1rem;
+}
+
+.sheet .cs-attr-name {
+  color: rgba(240, 228, 198, 0.9);
+  font-size: 0.9rem;
+  letter-spacing: 0.04em;
+  text-transform: none;
+}
+
+.sheet .cs-attr-value {
+  font-size: 1.05rem;
+}
+
+.sheet .cs-status,
+.sheet .cs-hero-sub {
+  font-size: 0.95rem;
+}
+
+/* Paleta de papel e tinta para o interior da ficha, preservando o fundo do app. */
+.sheet .cs-nav a,
+.sheet .cs-nav-current {
+  border-color: rgba(89, 69, 46, 0.48);
+  color: var(--sheet-ink-soft);
+}
+
+.sheet .cs-nav a:hover {
+  border-color: var(--sheet-wine);
+  color: var(--sheet-wine-deep);
+}
+
+.sheet .cs-nav .cs-back-link,
+.sheet .cs-nav-current {
+  color: var(--sheet-wine-deep);
+}
+
+.sheet .cs-nav-current {
+  border-color: rgba(130, 59, 58, 0.42);
+  background: rgba(130, 59, 58, 0.08);
+}
+
+.sheet .cs-hero {
+  position: relative;
+  min-width: 0;
+  border: 1px solid var(--sheet-bronze);
+  border-radius: 4px;
+  background:
+    linear-gradient(90deg, transparent, rgba(130, 59, 58, 0.07), transparent),
+    rgba(255, 250, 232, 0.58);
+  box-shadow: inset 0 0 0 3px rgba(138, 112, 73, 0.1);
+}
+
+.sheet .cs-hero .sheet-portrait {
+  flex: 0 0 auto;
+  border-color: var(--sheet-bronze);
+  border-radius: 3px;
+  box-shadow: 0 2px 8px rgba(51, 41, 31, 0.2);
+}
+
+.sheet .cs-hero-main h1 {
+  color: var(--sheet-wine-deep);
+  font-size: clamp(25px, 3.4vw, 38px);
+}
+
+.sheet .cs-hero-line {
+  color: var(--sheet-bronze-dark);
+  font-weight: 700;
+}
+
+.sheet .cs-hero-sub,
+.sheet .cs-status {
+  color: var(--sheet-ink-soft);
+}
+
+.cs-hero-emblem {
+  display: grid;
+  flex: 0 0 auto;
+  justify-items: center;
+  gap: 2px;
+  min-width: 74px;
+  padding: 7px;
+  border: 1px solid rgba(138, 112, 73, 0.58);
+  border-radius: 50%;
+  background: rgba(255, 250, 232, 0.55);
+  color: var(--sheet-wine-deep);
+  font-family: var(--font-title, serif);
+  font-size: 0.55rem;
+  letter-spacing: 0.12em;
+}
+
+.sheet .cs-master-banner,
+.sheet .cs-editbar {
+  border-color: rgba(130, 59, 58, 0.42);
+  background: rgba(130, 59, 58, 0.08);
+  color: var(--sheet-wine-deep);
+}
+
+.sheet .cs-editbar {
+  padding: 8px 10px;
+  border: 1px solid var(--sheet-rule);
+  border-radius: 3px;
+}
+
+.sheet .cs-panel {
+  border-color: rgba(138, 112, 73, 0.66);
+  border-radius: 4px;
+  background: rgba(255, 250, 232, 0.62);
+  box-shadow: inset 0 0 0 2px rgba(138, 112, 73, 0.08);
+  color: var(--sheet-ink);
+}
+
+.sheet .cs-panel-header {
+  padding-bottom: 9px;
+  border-bottom: 1px solid var(--sheet-rule);
+}
+
+.sheet .cs-panel-header h3 {
+  color: var(--sheet-wine-deep);
+  font-family: var(--font-title, serif);
+  font-size: 1.05rem;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.sheet .cs-panel-header small {
+  color: var(--sheet-ink-soft);
+}
+
+.sheet .cs-attr-list {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.sheet .cs-attr-card {
+  grid-template-columns: minmax(0, 1fr) 42px;
+  grid-template-areas: "name value" "modifier value";
+  gap: 0 8px;
+  min-height: 66px;
+  padding: 8px 9px;
+  border-color: rgba(138, 112, 73, 0.62);
+  border-radius: 3px;
+  background: linear-gradient(145deg, rgba(255, 252, 239, 0.82), rgba(226, 211, 177, 0.58));
+  box-shadow: inset 0 0 0 2px rgba(138, 112, 73, 0.08);
+}
+
+.sheet .cs-attr-name {
+  grid-area: name;
+  color: var(--sheet-ink-soft);
+  font-size: 0.73rem;
+  letter-spacing: 0.04em;
+}
+
+.sheet .cs-attr-mod {
+  grid-area: modifier;
+  min-width: 0;
+  color: var(--sheet-wine);
+  font-family: var(--font-display, serif);
+  font-size: 1.12rem;
+  line-height: 1;
+  text-align: left;
+}
+
+.sheet .cs-attr-value {
+  grid-area: value;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  min-width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 1px solid var(--sheet-bronze);
+  border-radius: 50%;
+  background: var(--sheet-paper-light);
+  color: var(--sheet-ink);
+  font-size: 1rem;
+  box-shadow: inset 0 0 0 2px rgba(138, 112, 73, 0.12);
+}
+
+.sheet .cs-skill-table {
+  color: var(--sheet-ink);
+}
+
+.sheet .cs-skill-line {
+  border-color: var(--sheet-rule);
+}
+
+.sheet .cs-skill-label strong {
+  color: var(--sheet-ink);
+}
+
+.sheet .cs-skill-label small,
+.sheet .cs-skill-description {
+  color: var(--sheet-ink-soft);
+}
+
+.sheet .cs-skill-input,
+.sheet .cs-vital-input,
+.sheet .cs-wallet-input,
+.sheet .cs-attr-input,
+.sheet .field input,
+.sheet .field select,
+.sheet .field textarea,
+.sheet .cs-inline-form input,
+.sheet .cs-inline-form select {
+  border-color: rgba(138, 112, 73, 0.72);
+  border-radius: 3px;
+  background: rgba(255, 252, 240, 0.9);
+  color: var(--sheet-ink);
+}
+
+.sheet .cs-skill-input:focus,
+.sheet .cs-vital-input:focus,
+.sheet .cs-wallet-input:focus,
+.sheet .field input:focus,
+.sheet .field select:focus,
+.sheet .field textarea:focus,
+.sheet .cs-inline-form input:focus {
+  border-color: var(--sheet-wine);
+  outline-color: var(--sheet-wine);
+  box-shadow: 0 0 0 2px rgba(130, 59, 58, 0.14);
+}
+
+.sheet .cs-vital-card,
+.sheet .cs-vital-direct {
+  border-color: rgba(138, 112, 73, 0.52);
+  border-radius: 3px;
+  background: rgba(239, 228, 201, 0.62);
+}
+
+.sheet .cs-vital-card--wine {
+  border-left-color: var(--sheet-wine);
+}
+
+.sheet .cs-vital-card--forest {
+  border-left-color: var(--sheet-bronze);
+}
+
+.sheet .cs-vital-title,
+.sheet .cs-vital-field label,
+.sheet .cs-vital-total {
+  color: var(--sheet-ink-soft);
+}
+
+.sheet .stat-bar-head {
+  color: var(--sheet-ink-soft);
+}
+
+.sheet .stat-bar-track {
+  border-color: rgba(89, 69, 46, 0.55);
+  border-radius: 2px;
+  background: rgba(89, 69, 46, 0.16);
+}
+
+.sheet .stat-bar-fill--wine {
+  background: linear-gradient(180deg, #a4524a, var(--sheet-wine-deep));
+}
+
+.sheet .stat-bar-fill--forest {
+  background: linear-gradient(180deg, #b18a4f, var(--sheet-bronze-dark));
+}
+
+.sheet .cs-btn-stepper,
+.sheet .cs-btn-action {
+  min-height: 38px;
+  border-color: rgba(138, 112, 73, 0.72);
+  border-radius: 3px;
+  background: linear-gradient(180deg, #fbf2da, #e5d4ad);
+  color: var(--sheet-ink);
+}
+
+.sheet .cs-btn-stepper:hover:not(:disabled),
+.sheet .cs-btn-action:hover:not(:disabled) {
+  border-color: var(--sheet-wine);
+  background: #f4e4c4;
+  color: var(--sheet-wine-deep);
+  box-shadow: none;
+}
+
+.sheet .cs-wallet-main {
+  border-color: var(--sheet-bronze);
+  border-radius: 3px;
+  background: linear-gradient(145deg, rgba(255, 250, 232, 0.75), rgba(226, 211, 177, 0.6));
+  box-shadow: inset 0 0 0 2px rgba(138, 112, 73, 0.09);
+}
+
+.sheet .cs-wallet-gold-title strong,
+.sheet .cs-wallet-unit,
+.sheet .cs-wallet-gold-title span {
+  color: var(--sheet-ink);
+}
+
+.sheet .cs-wallet-gold-title strong {
+  font-family: var(--font-title, serif);
+}
+
+.sheet .cs-tabs-panel .sheet-tabs {
+  gap: 5px;
+  border-bottom: 1px solid var(--sheet-bronze);
+  background: rgba(138, 112, 73, 0.1);
+}
+
+.sheet .cs-tabs-panel .sheet-tab {
+  min-height: 44px;
+  border: 1px solid transparent;
+  border-bottom-color: rgba(138, 112, 73, 0.4);
+  border-radius: 3px 3px 0 0;
+  color: var(--sheet-ink-soft);
+  font-family: var(--font-title, serif);
+  font-size: 0.82rem;
+}
+
+.sheet .cs-tabs-panel .sheet-tab:hover {
+  border-color: rgba(130, 59, 58, 0.4);
+  color: var(--sheet-wine-deep);
+}
+
+.sheet .cs-tabs-panel .sheet-tab--active {
+  border-color: var(--sheet-wine);
+  border-bottom-color: var(--sheet-paper-light);
+  background: var(--sheet-paper-light);
+  color: var(--sheet-wine-deep);
+}
+
+.sheet .cs-tabs-panel .sheet-content {
+  color: var(--sheet-ink);
+}
+
+.sheet .class-info,
+.sheet .cs-class-ability,
+.sheet .class-info-abilities li,
+.sheet .inventory-item {
+  border-color: rgba(138, 112, 73, 0.52);
+  border-radius: 3px;
+  background: rgba(255, 252, 239, 0.62);
+  box-shadow: inset 0 0 0 1px rgba(138, 112, 73, 0.08);
+}
+
+.sheet .class-info-name,
+.sheet .class-info-abilities h5,
+.sheet .class-info-abilities li strong,
+.sheet .class-info-abilities li p,
+.sheet .class-info-text,
+.sheet .cs-class-ability h3,
+.sheet .cs-class-ability p,
+.sheet .inventory-item-title,
+.sheet .inventory-item-description {
+  color: var(--sheet-ink);
+}
+
+.sheet .class-info-empty,
+.sheet .class-info-abilities li small,
+.sheet .class-info-abilities li p,
+.sheet .inventory-item-kind,
+.sheet .inventory-empty p {
+  color: var(--sheet-ink-soft);
+}
+
+.sheet .class-info-chip,
+.sheet .inventory-item-quantity {
+  border-color: rgba(130, 59, 58, 0.45);
+  background: rgba(130, 59, 58, 0.08);
+  color: var(--sheet-wine-deep);
+}
+
+.sheet .inventory-item-equipped {
+  border-color: rgba(89, 69, 46, 0.52);
+  background: rgba(138, 112, 73, 0.12);
+  color: var(--sheet-ink);
+}
+
+.sheet .inventory-item-effect {
+  color: var(--sheet-wine-deep);
+}
+
+.sheet .inventory-empty,
+.sheet .status-message {
+  border-color: rgba(138, 112, 73, 0.62);
+  border-radius: 3px;
+  background: rgba(255, 252, 239, 0.62);
+  color: var(--sheet-ink);
+}
+
+.sheet .inventory-empty h2 {
+  color: var(--sheet-wine-deep);
+}
+
+.sheet .cs-story h4,
+.sheet .sheet-notes,
+.sheet .sheet-empty {
+  color: var(--sheet-ink);
+}
+
+.sheet .btn-primary,
+.sheet .btn-ghost {
+  min-height: 44px;
+  border-radius: 3px;
+}
+
+.sheet .btn-primary {
+  border-color: var(--sheet-wine-deep);
+  background: linear-gradient(180deg, #99504a, var(--sheet-wine-deep));
+  color: #fff8e8;
+}
+
+.sheet .btn-primary:hover {
+  filter: brightness(1.08);
+}
+
+.sheet .btn-ghost {
+  border-color: var(--sheet-bronze);
+  background: rgba(255, 252, 239, 0.5);
+  color: var(--sheet-wine-deep);
+}
+
+.sheet .btn-ghost:hover {
+  border-color: var(--sheet-wine);
+  background: rgba(130, 59, 58, 0.07);
+  color: var(--sheet-wine-deep);
+}
+
+.sheet .cs-attr-card .cs-attr-input,
+.sheet .cs-skill-manual input,
+.sheet .cs-btn-icon {
+  border-color: rgba(138, 112, 73, 0.72);
+  background: rgba(255, 252, 240, 0.9);
+  color: var(--sheet-ink);
+}
+
+.sheet .field > span,
+.sheet .field label,
+.sheet .cs-skill-manual,
+.sheet .cs-class-ability-heading span {
+  color: var(--sheet-ink-soft);
+}
+
+.sheet .sheet-notes {
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.sheet .cs-story {
+  display: grid;
+  gap: 16px;
+}
+
+@media (max-width: 560px) {
+  .sheet .cs-hero {
+    align-items: center;
+    gap: 12px;
+    padding: 14px;
+  }
+
+  .sheet .cs-hero .sheet-portrait {
+    width: 72px;
+    height: 72px;
+  }
+
+  .cs-hero-emblem {
+    display: none;
+  }
+
+  .sheet .cs-tabs-panel .sheet-tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scrollbar-width: thin;
+  }
+
+  .sheet .cs-tabs-panel .sheet-tab {
+    flex: 0 0 auto;
+    min-width: 100px;
+  }
+
+  .sheet .cs-tabs-panel .sheet-content {
+    padding: 12px;
+  }
+
+  .sheet .cs-attr-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 360px) {
+  .sheet .cs-attr-list {
+    grid-template-columns: 1fr;
+  }
+
+  .sheet .cs-editbar {
+    justify-content: stretch;
+  }
+
+  .sheet .cs-editbar > * {
+    width: 100%;
+    margin: 0;
+  }
+}

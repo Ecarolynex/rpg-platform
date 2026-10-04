@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=EB+Garamond:wght@400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700;800&family=Cormorant+Garamond:wght@400;500;600;700&family=EB+Garamond:wght@400;500;600;700&display=swap");
 
 :root {
   /* fantasia luxuosa: verde de palácio, cinza mineral e dourado real */
@@ -15,8 +15,25 @@
   --muted: #a8b3ae;
   --border-bronze: #3c625d;
 
+  --font-title: "Cinzel", "Cormorant Garamond", Georgia, serif;
   --font-display: "Cormorant Garamond", "Times New Roman", serif;
   --font-body: "EB Garamond", "Iowan Old Style", serif;
+
+  --surface-page: #091713;
+  --surface-panel: #102b28;
+  --surface-panel-raised: #1a3d39;
+  --surface-inset: rgba(7, 20, 18, 0.72);
+  --border-subtle: rgba(60, 98, 93, 0.72);
+  --border-strong: rgba(199, 166, 108, 0.56);
+  --status-error-bg: rgba(92, 39, 38, 0.32);
+  --status-error-border: rgba(195, 106, 99, 0.62);
+  --status-error-text: #f3c6bd;
+  --status-success-bg: rgba(27, 75, 58, 0.36);
+  --status-success-border: rgba(93, 157, 121, 0.62);
+  --status-success-text: #d0ebd2;
+  --shadow-panel: 0 14px 30px rgba(0, 0, 0, 0.28);
+  --radius-control: 4px;
+  --radius-panel: 8px;
 
   color-scheme: dark;
   color: var(--parchment);
@@ -24,6 +41,7 @@
   font-family: var(--font-body);
   font-size: 18px;
   line-height: 1.5;
+  overflow-wrap: anywhere;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -88,7 +106,7 @@ h1,
 h2,
 h3,
 h4 {
-  font-family: var(--font-display);
+  font-family: var(--font-title);
   font-weight: 600;
   color: var(--gold-bright);
   letter-spacing: 0.01em;
@@ -111,12 +129,18 @@ button,
 input,
 select,
 textarea {
+  max-width: 100%;
   font-family: inherit;
   color: inherit;
 }
 
 button {
   cursor: pointer;
+}
+
+img,
+svg {
+  max-width: 100%;
 }
 
 :focus-visible {
@@ -132,10 +156,39 @@ button {
 /* --- utilitários de superfície, reaproveitados nas páginas --- */
 
 .panel {
-  background: linear-gradient(180deg, var(--ink-panel) 0%, var(--ink) 100%);
-  border: 1px solid var(--border-bronze);
-  border-radius: 3px;
+  background: linear-gradient(180deg, var(--surface-panel-raised) 0%, var(--surface-panel) 100%);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-panel);
   color: var(--parchment);
+}
+
+.surface-card {
+  min-width: 0;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-panel);
+  background: linear-gradient(180deg, var(--surface-panel) 0%, var(--surface-page) 100%);
+  color: var(--parchment);
+}
+
+.status-message {
+  padding: 12px 14px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-control);
+  background: var(--surface-inset);
+  color: var(--parchment-dim);
+  overflow-wrap: anywhere;
+}
+
+.status-message--error {
+  border-color: var(--status-error-border);
+  background: var(--status-error-bg);
+  color: var(--status-error-text);
+}
+
+.status-message--success {
+  border-color: var(--status-success-border);
+  background: var(--status-success-bg);
+  color: var(--status-success-text);
 }
 
 .parchment-surface {
@@ -143,6 +196,19 @@ button {
   color: var(--ink);
   border: 1px solid var(--border-bronze);
   border-radius: 2px;
+}
+
+.btn-primary,
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  max-width: 100%;
+  line-height: 1.25;
+  text-align: center;
+  text-decoration: none;
+  overflow-wrap: anywhere;
 }
 
 .btn-primary {
@@ -182,22 +248,34 @@ button {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  min-width: 0;
   text-align: left;
 }
+.field > span,
 .field label {
-  font-size: 13px;
+  font-size: 0.78rem;
   color: var(--muted);
   letter-spacing: 0.03em;
 }
-.field input {
-  background: rgba(7, 20, 24, 0.78);
-  border: 1px solid var(--border-bronze);
-  border-radius: 2px;
+.field input,
+.field select,
+.field textarea {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-control);
   padding: 10px 12px;
-  font-size: 16px;
+  background: var(--surface-inset);
+  font-size: 1rem;
   color: var(--parchment);
 }
-.field input:focus {
+.field textarea {
+  resize: vertical;
+}
+.field input:focus,
+.field select:focus,
+.field textarea:focus {
   border-color: var(--gold-bright);
 }
 

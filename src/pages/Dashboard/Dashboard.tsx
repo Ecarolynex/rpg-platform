@@ -18,18 +18,20 @@ import {
 import { CharacterCard } from "../../components/character/CharacterCard";
 import { OptionField } from "../../components/ui/OptionField";
 import {
+  ClassInfoBox,
+  montarInfoClasse,
+} from "../../components/character/ClassInfoBox";
+import {
   RACAS,
-  LIMITE_RECURSO,
   bonusProficiencia,
-  calcularManaMaxima,
-  calcularVidaMaxima,
   carteiraInicial,
+  formatarModificador,
+  modificador,
 } from "../../data/dnd";
 import {
   ATTRIBUTE_CONFIG,
   DEFAULT_CLASS_CATALOG,
   FIXED_SKILLS,
-  calculateTotalPersonaBonuses,
   type ClassDefinition,
 } from "../../data/personaRules";
 import "./Dashboard.css";
@@ -45,7 +47,6 @@ const initialDraft = {
   nivel: 1,
   historia: "",
   aparencia: "",
-  objetivo: "",
   defeito: "",
   forca: 10,
   destreza: 10,
@@ -61,8 +62,15 @@ type TextField =
   | "idade"
   | "historia"
   | "aparencia"
-  | "objetivo"
   | "defeito";
+
+// Vida e Mana totais de todo personagem
+const VIDA_MANA_TOTAL = 200;
+
+function rotuloAtributo(valor: string): string {
+  const porChave = ATTRIBUTE_CONFIG.find((item) => String(item.key) === valor);
+  return porChave ? porChave.label : valor;
+}
 
 function createUntrainedSkills(
   classe: ClassDefinition | undefined,
@@ -196,6 +204,13 @@ export default function Dashboard() {
     ),
   ];
 
+  const infoClasse = montarInfoClasse(
+    draft.classe,
+    undefined,
+    classesParaCriacao,
+    campaignClassContents,
+  );
+
   function selecionarClasse(nome: string) {
     updateDraft("classe", nome);
     const classe = classesParaCriacao.find((item) => item.nome === nome);
@@ -256,44 +271,6 @@ export default function Dashboard() {
       const definicaoClasse = classesParaCriacao.find(
         (item) => item.nome === classe,
       );
-      const campanhaSelecionada = campaigns.find(
-        (campaign) => campaign.id === selectedCampaignId,
-      );
-      const regrasClasses = classesParaCriacao.map((classDefinition) => ({
-        ...classDefinition,
-        pericias: [
-          ...classDefinition.pericias,
-          ...campaignClassContents
-            .filter(
-              (content) =>
-                content.tipo === "PERICIA" &&
-                content.classe_id === classDefinition.id,
-            )
-            .map((content) => ({
-              id: content.id,
-              nome: content.nome,
-              atributo: content.atributo as NonNullable<Skill["atributo"]>,
-              descricao: content.descricao,
-            })),
-        ],
-      }));
-      const bonuses = calculateTotalPersonaBonuses(
-        draft.raca || "Humano",
-        classe,
-        undefined,
-        campanhaSelecionada?.bonus_classes ?? undefined,
-        regrasClasses,
-      );
-      const vidaMaxima = Math.min(LIMITE_RECURSO, bonuses.hpBonus + calcularVidaMaxima(
-        classe,
-        nivel,
-        Number(draft.constituicao),
-      ));
-      const manaMaxima = Math.min(
-        LIMITE_RECURSO,
-        bonuses.mpBonus + calcularManaMaxima(Number(draft.inteligencia)),
-      );
-
       const createdCharacter: Character = {
         id: "",
         nome: draft.nome || "Novo personagem",
@@ -307,10 +284,9 @@ export default function Dashboard() {
         idade: draft.idade,
         historia: draft.historia,
         aparencia: draft.aparencia,
-        objetivo: draft.objetivo,
         defeito: draft.defeito,
-        hp: { atual: vidaMaxima, max: vidaMaxima },
-        mp: { atual: manaMaxima, max: manaMaxima },
+        hp: { atual: VIDA_MANA_TOTAL, max: VIDA_MANA_TOTAL },
+        mp: { atual: VIDA_MANA_TOTAL, max: VIDA_MANA_TOTAL },
         attributes: {
           forca: Number(draft.forca),
           destreza: Number(draft.destreza),
@@ -478,169 +454,191 @@ export default function Dashboard() {
             <span className="creator-badge">Elementum</span>
           </div>
 
-          <section className="creator-panel">
-            <h3>Campanha</h3>
-
-            <label className="field">
-              <span>Vincular a uma campanha (opcional)</span>
-
-              <select
-                value={selectedCampaignId}
-                onChange={(event) => {
-                  setSelectedCampaignId(event.target.value);
-                  updateDraft("classe", "");
-                  setSkillsDraft(createUntrainedSkills(undefined, []));
-                }}
-              >
-                <option value="">
-                  Vincular depois, com o código da campanha
-                </option>
-
-                {campaigns.map((campaign) => (
-                  <option key={campaign.id} value={campaign.id}>
-                    {campaign.nome}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </section>
-
-          <div className="creator-layout">
+          <div className="creator-body">
             <section className="creator-panel">
-              <h3>Identidade</h3>
+              <h3>Campanha</h3>
 
-              <div className="field-grid">
-                <label className="field">
-                  <span>Nome do personagem</span>
+              <label className="field">
+                <span>Vincular a uma campanha (opcional)</span>
 
-                  <input
-                    id="nome-personagem"
-                    placeholder="Ex.: Elira Fenra"
-                    {...textProps("nome")}
-                  />
-                </label>
+                <select
+                  value={selectedCampaignId}
+                  onChange={(event) => {
+                    setSelectedCampaignId(event.target.value);
+                    updateDraft("classe", "");
+                    setSkillsDraft(createUntrainedSkills(undefined, []));
+                  }}
+                >
+                  <option value="">
+                    Vincular depois, com o código da campanha
+                  </option>
 
-                <OptionField
-                  label="Raça"
-                  value={draft.raca}
-                  options={RACAS}
-                  onChange={(value) => updateDraft("raca", value)}
-                />
-
-                <OptionField
-                  label="Classe"
-                  value={draft.classe}
-                  options={classesParaCriacao.map((classe) => classe.nome)}
-                  onChange={selecionarClasse}
-                />
-
-                <label className="field">
-                  <span>Nível</span>
-
-                  <input
-                    id="nivel-personagem"
-                    type="number"
-                    min={1}
-                    max={20}
-                    value={draft.nivel}
-                    onChange={(event) =>
-                      updateDraft("nivel", Number(event.target.value) || 1)
-                    }
-                  />
-                </label>
-
-                <label className="field">
-                  <span>Origem</span>
-
-                  <input
-                    placeholder="Peste, guilda, reino..."
-                    {...textProps("origem")}
-                  />
-                </label>
-
-                <label className="field">
-                  <span>Idade</span>
-
-                  <input placeholder="24 anos" {...textProps("idade")} />
-                </label>
-
-                <label className="field field-wide">
-                  <span>Qualidades</span>
-                  <textarea
-                    rows={3}
-                    placeholder="Corajoso, leal, curioso..."
-                    {...textProps("qualidades")}
-                  />
-                </label>
-
-                <label className="field field-wide">
-                  <span>Foto do personagem (opcional)</span>
-
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handlePortrait}
-                  />
-
-                  {portraitPreview && (
-                    <img
-                      src={portraitPreview}
-                      alt="Prévia da foto"
-                      style={{
-                        width: 96,
-                        height: 96,
-                        objectFit: "cover",
-                        borderRadius: 8,
-                        marginTop: 8,
-                      }}
-                    />
-                  )}
-                </label>
-              </div>
+                  {campaigns.map((campaign) => (
+                    <option key={campaign.id} value={campaign.id}>
+                      {campaign.nome}
+                    </option>
+                  ))}
+                </select>
+              </label>
             </section>
 
-            <aside className="creator-panel creator-panel-side">
-              <h3>Atributos</h3>
+            <div className="creator-layout">
+              <section className="creator-panel">
+                <h3>Identidade</h3>
 
-              <div className="attribute-grid">
-                {ATTRIBUTE_CONFIG.map(({ key, label }) => (
-                  <label key={key} className="attribute-field">
-                    <span>{label}</span>
+                <div className="field-grid">
+                  <label className="field field-wide">
+                    <span>Nome do personagem</span>
 
                     <input
+                      id="nome-personagem"
+                      placeholder="Ex.: Elira Fenra"
+                      {...textProps("nome")}
+                    />
+                  </label>
+
+                  <OptionField
+                    label="Raça"
+                    value={draft.raca}
+                    options={RACAS}
+                    onChange={(value) => updateDraft("raca", value)}
+                  />
+
+                  <OptionField
+                    label="Classe"
+                    value={draft.classe}
+                    options={classesParaCriacao.map((classe) => classe.nome)}
+                    onChange={selecionarClasse}
+                  />
+
+                  <div className="field field-wide">
+                    <span>Sobre a classe</span>
+
+                    <ClassInfoBox
+                      info={infoClasse}
+                      mensagemVazia="Escolha uma classe para ver a descrição e os bônus."
+                    />
+                  </div>
+
+                  <label className="field">
+                    <span>Nível</span>
+
+                    <input
+                      id="nivel-personagem"
                       type="number"
                       min={1}
                       max={20}
-                      value={draft[key]}
+                      value={draft.nivel}
                       onChange={(event) =>
-                        updateAttribute(
-                          key,
-                          Number(event.target.value) || 1,
-                        )
+                        updateDraft("nivel", Number(event.target.value) || 1)
                       }
                     />
                   </label>
-                ))}
-              </div>
-            </aside>
-          </div>
 
-          <div className="creator-layout creator-layout-bottom">
+                  <label className="field">
+                    <span>Idade</span>
+
+                    <input placeholder="24 anos" {...textProps("idade")} />
+                  </label>
+
+                  <label className="field field-wide">
+                    <span>Origem</span>
+
+                    <input
+                      placeholder="Peste, guilda, reino..."
+                      {...textProps("origem")}
+                    />
+                  </label>
+
+                  <label className="field field-wide">
+                    <span>Qualidades</span>
+                    <textarea
+                      rows={3}
+                      placeholder="Corajoso, leal, curioso..."
+                      {...textProps("qualidades")}
+                    />
+                  </label>
+
+                  <div className="field field-wide">
+                    <span>Foto do personagem (opcional)</span>
+
+                    <div className="creator-photo">
+                      {portraitPreview && (
+                        <img
+                          className="creator-photo-preview"
+                          src={portraitPreview}
+                          alt="Prévia da foto"
+                        />
+                      )}
+
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handlePortrait}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <aside className="creator-panel creator-panel-side">
+                <h3>Atributos</h3>
+
+                <div className="creator-attr-grid">
+                  {ATTRIBUTE_CONFIG.map(({ key, label }) => (
+                    <label key={key} className="creator-attr-field">
+                      <span>{label}</span>
+
+                      <input
+                        type="number"
+                        min={1}
+                        max={20}
+                        value={draft[key]}
+                        onChange={(event) =>
+                          updateAttribute(
+                            key,
+                            Number(event.target.value) || 1,
+                          )
+                        }
+                      />
+
+                      <small>
+                        Mod. {formatarModificador(modificador(Number(draft[key]) || 10))}
+                      </small>
+                    </label>
+                  ))}
+                </div>
+              </aside>
+            </div>
+
             <section className="creator-panel">
               <h3>Perícias</h3>
+
               <p className="creator-skill-hint">
                 Selecione as perícias treinadas. Você poderá alterá-las na ficha depois.
               </p>
+
               <div className="creator-skill-grid">
                 {skillsDraft.map((skill) => (
-                  <label className="creator-skill-option" key={skill.id}>
+                  <label
+                    className={
+                      skill.treinada
+                        ? "creator-skill-option creator-skill-option--on"
+                        : "creator-skill-option"
+                    }
+                    key={skill.id}
+                    title={skill.descricao || undefined}
+                  >
                     <input
                       type="checkbox"
                       checked={skill.treinada}
                       onChange={() => toggleSkillDraft(skill.id)}
                     />
-                    <span>{skill.nome}</span>
-                    <small>{skill.atributo}</small>
+
+                    <span className="creator-skill-text">
+                      <span className="creator-skill-name">{skill.nome}</span>
+                      <small>{rotuloAtributo(String(skill.atributo))}</small>
+                    </span>
                   </label>
                 ))}
               </div>
@@ -650,37 +648,28 @@ export default function Dashboard() {
               <h3>História e personalidade</h3>
 
               <div className="field-grid story-grid">
-                <label className="field field-wide">
+                <label className="field">
                   <span>História do personagem</span>
 
                   <textarea
                     id="historia-personagem"
-                    rows={4}
+                    rows={5}
                     placeholder="Descreva como ele chegou ao mundo de Elementum..."
                     {...textProps("historia")}
                   />
                 </label>
 
-                <label className="field field-wide">
+                <label className="field">
                   <span>Aparência</span>
 
                   <textarea
-                    rows={3}
+                    rows={5}
                     placeholder="Olhos, cabelo, marcas, roupas, presença..."
                     {...textProps("aparencia")}
                   />
                 </label>
 
-                <label className="field field-half">
-                  <span>Objetivo</span>
-
-                  <input
-                    placeholder="O que move o personagem?"
-                    {...textProps("objetivo")}
-                  />
-                </label>
-
-                <label className="field field-half">
+                <label className="field field-wide">
                   <span>Defeito</span>
 
                   <input

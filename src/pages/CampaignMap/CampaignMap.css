@@ -1,0 +1,391 @@
+.campaign-map-page {
+  width: 100%;
+  min-width: 0;
+  padding: 8px 0 32px;
+  color: var(--parchment);
+}
+
+.campaign-map-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 24px;
+}
+
+.map-breadcrumbs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.map-current-page {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 7px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-control);
+  background: rgba(199, 166, 108, 0.1);
+  color: var(--gold-bright);
+}
+
+.campaign-map-header h1 {
+  margin: 12px 0 4px;
+}
+
+.campaign-map-header p {
+  margin: 0;
+  color: var(--muted, #9ca3af);
+}
+
+.map-back-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 7px 10px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-control);
+  color: var(--gold-bright);
+  text-decoration: none;
+}
+
+.map-card {
+  min-width: 0;
+  background: rgba(16, 43, 40, 0.82);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-panel);
+  padding: clamp(14px, 3vw, 24px);
+}
+
+.map-create-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.map-create-card h2 {
+  margin-top: 0;
+}
+
+.map-create-card p {
+  color: var(--muted, #9ca3af);
+}
+
+.map-upload-button,
+.map-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 42px;
+  max-width: 100%;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-control);
+  padding: 10px 16px;
+  background: var(--surface-panel);
+  color: var(--parchment);
+  cursor: pointer;
+  text-decoration: none;
+  font-family: var(--font-display);
+  font-weight: 600;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.map-button:hover,
+.map-upload-button:hover {
+  border-color: var(--gold-bright);
+}
+
+.map-button.active {
+  background: linear-gradient(180deg, var(--gold-bright), var(--gold));
+  color: var(--ink);
+}
+
+.map-button.secondary {
+  background: transparent;
+}
+
+.map-message {
+  margin-bottom: 16px;
+  padding: 12px 16px;
+  border-radius: 10px;
+}
+
+.map-error {
+  background: rgba(180, 40, 40, 0.18);
+  border: 1px solid rgba(255, 80, 80, 0.35);
+}
+
+.map-success {
+  background: rgba(80, 150, 80, 0.15);
+  border: 1px solid rgba(120, 220, 120, 0.25);
+}
+
+.map-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  margin-bottom: 16px;
+}
+
+.map-toolbar > div:first-child {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.map-toolbar span {
+  color: var(--muted, #9ca3af);
+  font-size: 0.85rem;
+}
+
+.map-toolbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.map-marker-form {
+  margin-bottom: 16px;
+  padding: clamp(14px, 3vw, 20px);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-panel);
+  background: rgba(16, 43, 40, 0.72);
+}
+
+.map-marker-form > div {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.map-marker-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  font-weight: 700;
+}
+
+.map-marker-form input,
+.map-marker-form select,
+.map-marker-form textarea {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-control);
+  background: var(--surface-inset);
+  color: var(--parchment);
+}
+
+.map-marker-form textarea {
+  resize: vertical;
+}
+
+.map-marker-form label:nth-child(3),
+.map-marker-form p {
+  grid-column: 1 / -1;
+}
+
+.map-checkbox {
+  flex-direction: row !important;
+  align-items: center;
+}
+
+.map-checkbox input {
+  width: auto;
+}
+
+.map-marker-form p {
+  margin: 0;
+  color: var(--muted, #9ca3af);
+}
+
+.map-viewer-card {
+  padding: 10px;
+  overflow: hidden;
+}
+
+.campaign-map {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  line-height: 0;
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-control);
+  background: var(--surface-page);
+}
+
+.campaign-map.active-placement {
+  cursor: crosshair;
+}
+
+.campaign-map img {
+  display: block;
+  width: 100%;
+  height: auto;
+  user-select: none;
+}
+
+.map-marker {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  z-index: 5;
+  line-height: normal;
+  max-width: min(140px, 32vw);
+  padding: 4px;
+  touch-action: manipulation;
+}
+
+.map-marker-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: #111;
+  border: 2px solid var(--gold-bright, #d4ff00);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.6);
+  font-size: 22px;
+}
+
+.marker-personagem .map-marker-icon {
+  border-color: #5eead4;
+}
+
+.marker-boss .map-marker-icon {
+  border-color: #ef4444;
+}
+
+.marker-inimigo .map-marker-icon {
+  border-color: #f97316;
+}
+
+.marker-tesouro .map-marker-icon {
+  border-color: #facc15;
+}
+
+.marker-portal .map-marker-icon {
+  border-color: #a78bfa;
+}
+
+.marker-secreto .map-marker-icon {
+  border-color: #94a3b8;
+}
+
+.map-marker-name {
+  max-width: 100%;
+  margin-top: 4px;
+  padding: 3px 6px;
+  border: 1px solid rgba(199, 166, 108, 0.42);
+  border-radius: var(--radius-control);
+  background: rgba(9, 23, 19, 0.94);
+  color: var(--parchment);
+  font-size: 12px;
+  line-height: 1.15;
+  text-align: center;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.map-legend {
+  margin-top: 20px;
+}
+
+.map-legend h2 {
+  margin-bottom: 12px;
+}
+
+.map-legend-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.map-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 10px;
+  background: rgba(20, 20, 20, 0.8);
+}
+
+.map-legend-item > span {
+  font-size: 24px;
+}
+
+.map-legend-item div {
+  display: flex;
+  flex-direction: column;
+}
+
+.map-legend-item small {
+  color: var(--muted, #9ca3af);
+}
+
+@media (max-width: 700px) {
+  .campaign-map-page {
+    padding: 8px 0 24px;
+  }
+
+  .map-create-card,
+  .map-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .map-marker-form > div {
+    grid-template-columns: 1fr;
+  }
+
+  .map-marker-form label:nth-child(3),
+  .map-marker-form p {
+    grid-column: auto;
+  }
+
+  .map-toolbar-actions {
+    flex-direction: column;
+  }
+
+  .map-button,
+  .map-upload-button {
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .map-marker-icon {
+    width: 34px;
+    height: 34px;
+    font-size: 18px;
+  }
+
+  .map-marker-name {
+    font-size: 10px;
+  }
+
+  .map-marker-icon {
+    width: 40px;
+    height: 40px;
+    font-size: 19px;
+  }
+
+  .map-breadcrumbs .map-back-link,
+  .map-current-page {
+    flex: 1 1 calc(50% - 8px);
+    min-width: 0;
+    justify-content: center;
+    text-align: center;
+  }
+}

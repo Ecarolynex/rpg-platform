@@ -28,6 +28,7 @@ import { CharacterCard } from "../../components/character/CharacterCard";
 import { StatBar } from "../../components/ui/StatBar";
 import "./Campaign.css";
 
+
 export default function Campaign() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -474,20 +475,15 @@ export default function Campaign() {
           {campaign.descricao || "Nenhuma descrição cadastrada para esta aventura."}
         </p>
 
-        <div className="campaign-actions-bar">
-          <Link className="btn-primary" to={"/campanha/" + campaign.id + "/loja"}>
-            Mercado & Loja da Campanha
+        <nav className="campaign-context-nav" aria-label="Áreas da campanha">
+          <span className="campaign-context-current" aria-current="page">Visão geral</span>
+          <Link className="btn-ghost" to={"/campanha/" + campaign.id + "/mapa"}>
+            Mapa
           </Link>
-
-          <button
-            type="button"
-            className="btn-ghost campaign-copy-btn"
-            onClick={handleCopiarCodigo}
-            title="Copiar código de convite da campanha"
-          >
-            {copiado ? "✓ Código Copiado!" : `Código: ${campaign.codigo_convite} 📋`}
-          </button>
-        </div>
+          <Link className="btn-ghost" to={"/campanha/" + campaign.id + "/loja"}>
+            Loja
+          </Link>
+        </nav>
       </header>
 
       {/* Grid de Metadados da Campanha */}
@@ -1071,12 +1067,6 @@ export default function Campaign() {
           </div>
         </section>
       )}
-      <nav className="campaign-overview-actions" aria-label="Ações da campanha">
-        <Link className="btn-primary" to={"/campanha/" + campaign.id + "/loja"}>
-          Ir para a loja
-        </Link>
-      </nav>
-
       {isMaster && (
         <section className="campaign-danger-zone" aria-labelledby="campaign-danger-title">
           <div>
