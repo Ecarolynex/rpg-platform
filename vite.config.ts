@@ -3,9 +3,9 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
-  base: '/rpg-platform/',
+  base: '/rpg-platform/', // 
   build: {
-    rolldownOptions: {
+    rollupOptions: { // 
       output: {
         codeSplitting: {
           groups: [
@@ -25,3 +25,4 @@ export default defineConfig({
     },
   },
 })
+Use o código com cuidado.
