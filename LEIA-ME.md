@@ -47,14 +47,15 @@ Vida, Mana e peças de ouro mantêm controles de ajuste rápido e salvamento. **
 A ficha usa a paleta global verde/teal escura e dourada do site. Fundo, painéis, texto e realces reutilizam os tokens `--ink`, `--ink-panel`, `--ink-panel-raised`, `--parchment`, `--parchment-dim`, `--gold` e `--gold-bright`, definidos em `src/index.css`. O retrato tem presença reduzida; o contorno dourado e a composição em zonas dão destaque à ficha.
 
 ## 5. Configurar o Supabase
-A camada de dados está em `src/services/api.ts`, com a conexão criada em `src/services/supabase.ts`. Copie `.env.example` para `.env` e configure as credenciais do seu projeto Supabase:
+A camada de dados em `src/services/api.ts` usa `src/services/supabase.ts`, que lê `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY`. O mapa usa `src/lib/supabase.ts`, que lê `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY`. Copie `.env.example` para `.env` e configure essas três variáveis com os dados do seu projeto Supabase:
 
 ```dotenv
 VITE_SUPABASE_URL=https://seu-projeto.supabase.co
-VITE_SUPABASE_ANON_KEY=sua-chave-anon
+VITE_SUPABASE_ANON_KEY=sua-chave-publicavel
+VITE_SUPABASE_PUBLISHABLE_KEY=sua-chave-publicavel
 ```
 
-A rota do mapa também usa `src/lib/supabase.ts`, que lê `VITE_SUPABASE_PUBLISHABLE_KEY`. Defina essa variável com a chave publicável do projeto para usar o mapa. Reinicie o servidor Vite após alterar o `.env`.
+Os dois clientes do frontend usam a mesma chave pública; mantenha `VITE_SUPABASE_ANON_KEY` e `VITE_SUPABASE_PUBLISHABLE_KEY` com o mesmo valor. Use uma chave publicável/anon, nunca uma `service_role` ou outra chave secreta no frontend. Após criar ou alterar `.env`, reinicie o servidor Vite para carregar as variáveis.
 
 ## 6. Identidade visual do site
 - Fontes: **Cinzel** para títulos, **Cormorant Garamond** para destaques e **EB Garamond** para texto. São carregadas em `src/index.css`.

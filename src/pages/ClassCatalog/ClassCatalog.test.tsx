@@ -30,30 +30,30 @@ const warrior = {
   magias: [],
 };
 
-describe("catÃ¡logo global de classes", () => {
+describe("catálogo global de classes", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(getCatalogoGlobalClasses).mockResolvedValue([warrior]);
     vi.mocked(salvarCatalogoGlobalClasses).mockImplementation(async (catalogo) => catalogo);
   });
 
-  it("edita bÃ´nus e adiciona habilidades com nÃ­vel de desbloqueio", async () => {
+  it("edita bônus e adiciona habilidades com nível de desbloqueio", async () => {
     render(<ClassCatalog />);
 
-    fireEvent.change(await screen.findByRole("spinbutton", { name: "Guerreiro - ForÃ§a" }), {
+    fireEvent.change(await screen.findByRole("spinbutton", { name: "Guerreiro - Força" }), {
       target: { value: "4" },
     });
     fireEvent.change(screen.getByRole("textbox", { name: "Nova habilidade" }), {
       target: { value: "Golpe preciso" },
     });
-    fireEvent.change(screen.getByRole("spinbutton", { name: "NÃ­vel de desbloqueio" }), {
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Nível de desbloqueio" }), {
       target: { value: "3" },
     });
-    fireEvent.change(screen.getByRole("textbox", { name: "DescriÃ§Ã£o da nova habilidade" }), {
-      target: { value: "Atinge um ponto vulnerÃ¡vel." },
+    fireEvent.change(screen.getByRole("textbox", { name: "Descrição da nova habilidade" }), {
+      target: { value: "Atinge um ponto vulnerável." },
     });
     fireEvent.click(screen.getByRole("button", { name: "Adicionar habilidade" }));
-    fireEvent.click(screen.getByRole("button", { name: "Salvar catÃ¡logo" }));
+    fireEvent.click(screen.getByRole("button", { name: "Salvar catálogo" }));
 
     await waitFor(() => {
       expect(salvarCatalogoGlobalClasses).toHaveBeenCalledWith(
@@ -65,7 +65,7 @@ describe("catÃ¡logo global de classes", () => {
               expect.objectContaining({
                 nome: "Golpe preciso",
                 nivel: 3,
-                descricao: "Atinge um ponto vulnerÃ¡vel.",
+                descricao: "Atinge um ponto vulnerável.",
               }),
             ],
           }),
@@ -73,7 +73,7 @@ describe("catÃ¡logo global de classes", () => {
       );
     });
     expect(await screen.findByRole("status")).toHaveTextContent(
-      "CatÃ¡logo compartilhado atualizado.",
+      "Catálogo compartilhado atualizado.",
     );
   });
 });

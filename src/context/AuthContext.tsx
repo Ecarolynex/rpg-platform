@@ -1,26 +1,6 @@
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useState,
-  type ReactNode,
-} from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import type { User } from "../types/character";
-import {
-  login as loginRequest,
-  registerUser as registerRequest,
-} from "../services/api";
-import { supabase } from "../services/supabase";
-
-interface AuthContextValue {
-  user: User | null;
-  loading: boolean;
-  login: (usuario: string, senha: string) => Promise<void>;
-  register: (usuario: string, email: string, senha: string) => Promise<void>;
-  logout: () => Promise<void>;
-}
-
-const AuthContext = createContext<AuthContextValue | undefined>(undefined);
+import { AuthContext } from "./auth-context";
 
 function mapSupabaseUser(
   supabaseUser: {
@@ -55,59 +35,63 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let mounted = true;
+    let unsubscribe: (() => void) | undefined;
 
     async function loadSession() {
-      const { data, error } = await supabase.auth.getSession();
+      try {
+        const { supabase } = await import("../services/supabase");
+        if (!mounted) return;
 
-      if (error) {
+        const {
+          data: { subscription },
+        } = supabase.auth.onAuthStateChange((_event, session) => {
+          if (mounted) {
+            setUser(mapSupabaseUser(session?.user ?? null));
+            setLoading(false);
+          }
+        });
+        unsubscribe = () => subscription.unsubscribe();
+
+        const { data, error } = await supabase.auth.getSession();
+
+        if (error) {
+          console.error("Erro ao recuperar sessão:", error);
+        }
+
+        if (mounted) {
+          setUser(mapSupabaseUser(data.session?.user ?? null));
+          setLoading(false);
+        }
+      } catch (error) {
         console.error("Erro ao recuperar sessão:", error);
-      }
-
-      if (mounted) {
-        setUser(mapSupabaseUser(data.session?.user ?? null));
-        setLoading(false);
+        if (mounted) setLoading(false);
       }
     }
 
-    loadSession();
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (mounted) {
-        setUser(mapSupabaseUser(session?.user ?? null));
-        setLoading(false);
-      }
-    });
+    void loadSession();
 
     return () => {
       mounted = false;
-      subscription.unsubscribe();
+      unsubscribe?.();
     };
   }, []);
 
   async function login(usuario: string, senha: string) {
-    const loggedUser = await loginRequest(usuario, senha);
-    setUser(loggedUser);
+    const { login: loginRequest } = await import("../services/api");
+    setUser(await loginRequest(usuario, senha));
   }
 
-  async function register(
-    usuario: string,
-    email: string,
-    senha: string,
-  ) {
+  async function register(usuario: string, email: string, senha: string) {
+    const { registerUser: registerRequest } = await import("../services/api");
     const newUser = await registerRequest(usuario, email, senha);
-
+    const { supabase } = await import("../services/supabase");
     const { data } = await supabase.auth.getSession();
 
-    if (data.session) {
-      setUser(newUser);
-    } else {
-      setUser(null);
-    }
+    setUser(data.session ? newUser : null);
   }
 
   async function logout() {
+    const { supabase } = await import("../services/supabase");
     const { error } = await supabase.auth.signOut();
 
     if (error) {
@@ -118,26 +102,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        loading,
-        login,
-        register,
-        logout,
-      }}
-    >
+    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
       {children}
     </AuthContext.Provider>
   );
-}
-
-export function useAuth() {
-  const ctx = useContext(AuthContext);
-
-  if (!ctx) {
-    throw new Error("useAuth deve ser usado dentro de <AuthProvider>");
-  }
-
-  return ctx;
 }

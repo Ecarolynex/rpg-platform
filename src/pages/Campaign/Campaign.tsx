@@ -29,6 +29,10 @@ import { StatBar } from "../../components/ui/StatBar";
 import "./Campaign.css";
 
 
+function criarIdClasseCampanha() {
+  return `camp-${globalThis.crypto?.randomUUID?.() ?? Date.now()}`;
+}
+
 export default function Campaign() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -171,14 +175,11 @@ export default function Campaign() {
       })),
   ];
 
-  useEffect(() => {
-    if (
-      classesDisponiveis.length > 0 &&
-      !classesDisponiveis.some((classe) => classe.id === classeNovoConteudo)
-    ) {
-      setClasseNovoConteudo(classesDisponiveis[0].id);
-    }
-  }, [catalogoClasses, conteudosClasses, classeNovoConteudo]);
+  const classeNovoConteudoSelecionada = classesDisponiveis.some(
+    (classe) => classe.id === classeNovoConteudo,
+  )
+    ? classeNovoConteudo
+    : (classesDisponiveis[0]?.id ?? "");
 
   function atualizarBonusAtributo(
     classe: string,
@@ -260,8 +261,8 @@ export default function Campaign() {
       }
       const classeId =
         tipoNovoConteudo === "CLASSE"
-          ? `camp-${globalThis.crypto?.randomUUID?.() ?? Date.now()}`
-          : classeNovoConteudo;
+          ? criarIdClasseCampanha()
+          : classeNovoConteudoSelecionada;
       if (tipoNovoConteudo !== "CLASSE" && !classeId) {
         throw new Error("Selecione a classe relacionada ao novo conteúdo.");
       }
@@ -550,7 +551,7 @@ export default function Campaign() {
             <label>
               <span>Classe</span>
               <select
-                value={classeNovoConteudo || classesDisponiveis[0]?.id || ""}
+                value={classeNovoConteudoSelecionada}
                 onChange={(event) => setClasseNovoConteudo(event.target.value)}
                 required
               >

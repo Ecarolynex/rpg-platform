@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import Dashboard from './Dashboard';
 
@@ -11,7 +11,7 @@ describe('Dashboard', () => {
     );
 
     const trigger = screen.getByRole('button', { name: /\+ novo personagem/i });
-    trigger.click();
+    fireEvent.click(trigger);
 
     expect(screen.getByText(/escolha uma ficha para continuar sua jornada/i)).toBeInTheDocument();
 

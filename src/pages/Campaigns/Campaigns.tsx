@@ -33,8 +33,6 @@ export default function Campaigns() {
 
   async function carregarCampanhas() {
     try {
-      setLoadingCampaigns(true);
-
       const resultado = await listarMinhasCampanhas();
 
       setCampanhas(resultado);
@@ -46,7 +44,23 @@ export default function Campaigns() {
   }
 
   useEffect(() => {
-    carregarCampanhas();
+    let active = true;
+
+    async function loadInitialCampaigns() {
+      try {
+        const resultado = await listarMinhasCampanhas();
+        if (active) setCampanhas(resultado);
+      } catch (error) {
+        console.error("Erro ao carregar campanhas:", error);
+      } finally {
+        if (active) setLoadingCampaigns(false);
+      }
+    }
+
+    void loadInitialCampaigns();
+    return () => {
+      active = false;
+    };
   }, []);
 
   async function handleCreate(
@@ -78,6 +92,7 @@ export default function Campaigns() {
       setMoeda("");
       setOuroInicial("1250");
 
+      setLoadingCampaigns(true);
       await carregarCampanhas();
     } catch (error) {
       console.error("Erro ao criar campanha:", error);
@@ -103,6 +118,7 @@ export default function Campaigns() {
     try {
       const campanha = await entrarNaCampanha(codigo);
 
+      setLoadingCampaigns(true);
       await carregarCampanhas();
 
       setCodigo("");

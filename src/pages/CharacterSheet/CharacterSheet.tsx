@@ -11,11 +11,11 @@ import {
 } from "../../services/api";
 import InventoryItems from "../../components/inventory/InventoryItems";
 import { StatBar } from "../../components/ui/StatBar";
+import { ClassInfoBox } from "../../components/character/ClassInfoBox";
 import {
-  ClassInfoBox,
   montarInfoClasse,
   type ClassInfo,
-} from "../../components/character/ClassInfoBox";
+} from "../../components/character/classInfoUtils";
 import type { ClassDefinition } from "../../data/personaRules";
 import { OptionField } from "../../components/ui/OptionField";
 import {
@@ -344,11 +344,11 @@ function CampoPericia({
   nome: string;
   onChange: (valor: number) => void;
 }) {
-  const [texto, setTexto] = useState(String(valor));
-
-  useEffect(() => {
-    setTexto(String(valor));
-  }, [valor]);
+  const [rascunho, setRascunho] = useState({
+    valorDeOrigem: valor,
+    texto: String(valor),
+  });
+  const texto = rascunho.valorDeOrigem === valor ? rascunho.texto : String(valor);
 
   return (
     <input
@@ -361,13 +361,13 @@ function CampoPericia({
       onChange={(e) => {
         const bruto = e.target.value;
 
-        setTexto(bruto);
+        setRascunho({ valorDeOrigem: valor, texto: bruto });
 
         if (/^-?\d{1,3}$/.test(bruto)) {
           onChange(parseInt(bruto, 10));
         }
       }}
-      onBlur={() => setTexto(String(valor))}
+      onBlur={() => setRascunho({ valorDeOrigem: valor, texto: String(valor) })}
     />
   );
 }

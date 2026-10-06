@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { NavLink, Outlet, useMatch } from "react-router-dom";
 import { Crest } from "../ui/Crest";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../context/useAuth";
 import { listarMinhasCampanhas } from "../../services/api";
 import "./AppShell.css";
 import "./AppShellCampaign.css";
