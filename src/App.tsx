@@ -2,6 +2,15 @@ import { lazy, Suspense } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { ProtectedRoute } from "./components/layout/ProtectedRoute";
 
+import Login from "./pages/Login/Login";
+import Dashboard from "./pages/Dashboard/Dashboard";
+import CharacterSheet from "./pages/CharacterSheet/CharacterSheet";
+import Campaigns from "./pages/Campaigns/Campaigns";
+import Campaign from "./pages/Campaign/Campaign";
+import CampaignMap from "./pages/CampaignMap/CampaignMap";
+import Shop from "./pages/Shop/Shop";
+import ClassCatalog from "./pages/ClassCatalog/ClassCatalog";
+const DiceRollerPage = lazy(() => import("./pages/DiceRoller/DiceRollerPage"));
 const AppShell = lazy(() => import("./components/layout/AppShell").then((module) => ({
   default: module.AppShell,
 })));
@@ -28,6 +37,27 @@ function App() {
         <Route path="/entrar" element={<Login />} />
 
         <Route
+          path="/loja"
+          element={<Navigate to="/campanhas" replace />}
+        />
+
+        <Route path="/campanha/:id" element={<Campaign />} />
+        <Route path="/campanha/:id/mapa" element={<CampaignMap />} />
+        <Route
+          path="/campanha/:id/dados"
+          element={(
+            <Suspense fallback={<p role="status">Carregando rolador de dados...</p>}>
+              <DiceRollerPage />
+            </Suspense>
+          )}
+        />
+
+        <Route path="/campanha/:id/loja/carrinho" element={<Shop />} />
+        <Route path="/campanha/:id/loja" element={<Shop />} />
+
+        <Route path="/personagem/:id" element={<CharacterSheet />} />
+      </Route>
+    </Routes>
           element={
             <ProtectedRoute>
               <AppShell />

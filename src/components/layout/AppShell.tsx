@@ -93,6 +93,9 @@ export function AppShell() {
               <NavLink to={"/campanha/" + campanhaId + "/loja"} onClick={() => setMenuAberto(false)}>
                 Loja
               </NavLink>
+              <NavLink to={"/campanha/" + campanhaId + "/dados"} onClick={() => setMenuAberto(false)}>
+                Dados
+              </NavLink>
             </>
           )}
         </nav>

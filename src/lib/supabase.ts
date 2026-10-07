@@ -1,13 +1,10 @@
 import { createClient } from '@supabase/supabase-js'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-const supabasePublishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
-if (!supabaseUrl || !supabasePublishableKey) {
-  throw new Error('As variáveis do Supabase não foram configuradas no arquivo .env')
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error('Configure VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY no arquivo .env')
 }
 
-export const supabase = createClient(
-  supabaseUrl,
-  supabasePublishableKey
-)
+export const supabase = createClient(supabaseUrl, supabaseAnonKey)
