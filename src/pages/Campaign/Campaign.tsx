@@ -483,6 +483,9 @@ export default function Campaign() {
           <Link className="btn-ghost" to={"/campanha/" + campaign.id + "/loja"}>
             Loja
           </Link>
+          <Link className="btn-ghost" to={"/campanha/" + campaign.id + "/dados"}>
+            Dados
+          </Link>
         </nav>
       </header>
 

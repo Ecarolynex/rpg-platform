@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { AppShell } from "./components/layout/AppShell";
 import { ProtectedRoute } from "./components/layout/ProtectedRoute";
@@ -10,6 +11,7 @@ import Campaign from "./pages/Campaign/Campaign";
 import CampaignMap from "./pages/CampaignMap/CampaignMap";
 import Shop from "./pages/Shop/Shop";
 import ClassCatalog from "./pages/ClassCatalog/ClassCatalog";
+const DiceRollerPage = lazy(() => import("./pages/DiceRoller/DiceRollerPage"));
 
 function App() {
   return (
@@ -35,6 +37,14 @@ function App() {
 
         <Route path="/campanha/:id" element={<Campaign />} />
         <Route path="/campanha/:id/mapa" element={<CampaignMap />} />
+        <Route
+          path="/campanha/:id/dados"
+          element={(
+            <Suspense fallback={<p role="status">Carregando rolador de dados...</p>}>
+              <DiceRollerPage />
+            </Suspense>
+          )}
+        />
 
         <Route path="/campanha/:id/loja/carrinho" element={<Shop />} />
         <Route path="/campanha/:id/loja" element={<Shop />} />
