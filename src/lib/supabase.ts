@@ -1,10 +1,8 @@
-import { createClient } from '@supabase/supabase-js'
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Configure VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY no arquivo .env')
-}
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+// https://vitejs.dev
+export default defineConfig({
+  plugins: [react()],
+  base: '/rpg-platform/',
+})
