@@ -17,10 +17,8 @@ import {
 } from "../../services/api";
 import { CharacterCard } from "../../components/character/CharacterCard";
 import { OptionField } from "../../components/ui/OptionField";
-import {
-  ClassInfoBox,
-  montarInfoClasse,
-} from "../../components/character/ClassInfoBox";
+import { ClassInfoBox } from "../../components/character/ClassInfoBox";
+import { montarInfoClasse } from "../../components/character/classInfoUtils";
 import {
   RACAS,
   bonusProficiencia,
@@ -160,10 +158,7 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
-    if (!selectedCampaignId) {
-      setCampaignClassContents([]);
-      return;
-    }
+    if (!selectedCampaignId) return;
 
     listarConteudosClasseCampanha(selectedCampaignId)
       .then(setCampaignClassContents)
@@ -465,6 +460,7 @@ export default function Dashboard() {
                   value={selectedCampaignId}
                   onChange={(event) => {
                     setSelectedCampaignId(event.target.value);
+                    if (!event.target.value) setCampaignClassContents([]);
                     updateDraft("classe", "");
                     setSkillsDraft(createUntrainedSkills(undefined, []));
                   }}

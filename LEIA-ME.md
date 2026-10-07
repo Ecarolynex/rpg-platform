@@ -55,6 +55,15 @@ VITE_SUPABASE_ANON_KEY=sua-chave-publica-anon
 ```
 
 Reinicie o servidor Vite após alterar o `.env` para carregar as variáveis.
+A camada de dados em `src/services/api.ts` usa `src/services/supabase.ts`, que lê `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY`. O mapa usa `src/lib/supabase.ts`, que lê `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY`. Copie `.env.example` para `.env` e configure essas três variáveis com os dados do seu projeto Supabase:
+
+```dotenv
+VITE_SUPABASE_URL=https://seu-projeto.supabase.co
+VITE_SUPABASE_ANON_KEY=sua-chave-publicavel
+VITE_SUPABASE_PUBLISHABLE_KEY=sua-chave-publicavel
+```
+
+Os dois clientes do frontend usam a mesma chave pública; mantenha `VITE_SUPABASE_ANON_KEY` e `VITE_SUPABASE_PUBLISHABLE_KEY` com o mesmo valor. Use uma chave publicável/anon, nunca uma `service_role` ou outra chave secreta no frontend. Após criar ou alterar `.env`, reinicie o servidor Vite para carregar as variáveis.
 
 ## 6. Identidade visual do site
 - Fontes: **Cinzel** para títulos, **Cormorant Garamond** para destaques e **EB Garamond** para texto. São carregadas em `src/index.css`.

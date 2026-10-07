@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, vi } from 'vitest';
 import Shop from './Shop';
@@ -236,11 +236,18 @@ describe('Shop', () => {
       </MemoryRouter>,
     );
 
+    await screen.findByRole('heading', { name: 'Aventureiro Teste' });
     fireEvent.click(await screen.findByRole('button', { name: 'Reutilizar carta' }));
     expect(await screen.findByRole('option', { name: 'Capa Arcana' })).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Preço em PO'), { target: { value: '400' } });
     fireEvent.change(screen.getByLabelText('Estoque'), { target: { value: '3' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Adicionar à campanha' }));
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Adicionar à campanha' }));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(await screen.findByRole('button', { name: 'Reutilizar carta' })).toBeInTheDocument();
 
     const { adicionarItemExistenteNaLoja } = await import('../../services/api');
     expect(vi.mocked(adicionarItemExistenteNaLoja)).toHaveBeenCalledWith(
@@ -260,12 +267,17 @@ describe('Shop', () => {
       </MemoryRouter>,
     );
 
+    await screen.findByRole('heading', { name: 'Aventureiro Teste' });
     const itemCard = await screen.findByRole('article', { name: 'Amuleto do Pescador' });
-    fireEvent.click(within(itemCard).getByRole('button', { name: 'Remover da loja' }));
+
+    await act(async () => {
+      fireEvent.click(within(itemCard).getByRole('button', { name: 'Remover da loja' }));
+      await Promise.resolve();
+    });
+    expect(await screen.findByRole('status')).toHaveTextContent(/continua no catálogo/i);
 
     const { removerItemDaLoja } = await import('../../services/api');
     expect(vi.mocked(removerItemDaLoja)).toHaveBeenCalledWith('teste', 'item-3');
-    expect(await screen.findByRole('status')).toHaveTextContent(/continua no catálogo/i);
     expect(screen.queryByRole('article', { name: 'Amuleto do Pescador' })).not.toBeInTheDocument();
   });
 

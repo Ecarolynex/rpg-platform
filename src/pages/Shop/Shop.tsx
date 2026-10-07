@@ -49,6 +49,8 @@ interface CartEntry {
   quantity: number;
 }
 
+const EMPTY_SHOP_ITEMS: ShopItem[] = [];
+
 const CATEGORIAS = [
   "Todas",
   "Armas",
@@ -262,11 +264,16 @@ export default function Shop() {
 
   const campaignId = id ?? "campanha-demo";
 
-  const [items, setItems] = useState<ShopItem[]>(
+  const [storedItems, setItems] = useState<ShopItem[]>(
     () => (id ? [] : readStoredItems(campaignId)),
   );
-  const [itemsLoading, setItemsLoading] = useState(Boolean(id));
-  const [itemsError, setItemsError] = useState("");
+  const [itemsLoadedFor, setItemsLoadedFor] = useState<string | null>(
+    id ? null : campaignId,
+  );
+  const [itemsErrorState, setItemsErrorState] = useState("");
+  const items = itemsLoadedFor === campaignId ? storedItems : EMPTY_SHOP_ITEMS;
+  const itemsLoading = Boolean(id && itemsLoadedFor !== campaignId);
+  const itemsError = itemsLoadedFor === campaignId ? itemsErrorState : "";
 
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] =
@@ -356,18 +363,18 @@ export default function Shop() {
     if (!id) return;
 
     let active = true;
-    setItemsLoading(true);
-    setItemsError("");
-    setItems([]);
 
     listarItensDaLoja(campaignId)
       .then((data) => {
-        if (active) setItems(data.map(fromDatabaseShopItem));
+        if (active) {
+          setItems(data.map(fromDatabaseShopItem));
+          setItemsErrorState("");
+        }
       })
       .catch((error) => {
         if (active) {
           setItems([]);
-          setItemsError(
+          setItemsErrorState(
             error instanceof Error
               ? error.message
               : "Não foi possível carregar o catálogo da campanha.",
@@ -375,7 +382,7 @@ export default function Shop() {
         }
       })
       .finally(() => {
-        if (active) setItemsLoading(false);
+        if (active) setItemsLoadedFor(campaignId);
       });
 
     return () => {
@@ -721,7 +728,7 @@ export default function Shop() {
         const refreshedItems = await listarItensDaLoja(campaignId);
         setItems(refreshedItems.map(fromDatabaseShopItem));
       } catch {
-        setItemsError("Compra concluída. Não foi possível atualizar o estoque agora.");
+        setItemsErrorState("Compra concluída. Não foi possível atualizar o estoque agora.");
       }
     } catch (error) {
       setCheckoutError(

@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import InventoryItems from "./InventoryItems";
 
 const api = vi.hoisted(() => ({
@@ -51,6 +51,10 @@ function renderInventory(campaignId?: string) {
 }
 
 describe("InventoryItems", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     api.getInventory.mockResolvedValue([]);
@@ -118,6 +122,7 @@ describe("InventoryItems", () => {
   });
 
   it("permite repetir a busca após erro", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
     api.getInventory
       .mockRejectedValueOnce(new Error("Falha de rede"))
       .mockResolvedValueOnce([inventoryRow()]);
@@ -129,5 +134,6 @@ describe("InventoryItems", () => {
 
     expect(await screen.findByRole("heading", { name: "Poção de cura" })).toBeInTheDocument();
     expect(api.getInventory).toHaveBeenCalledTimes(2);
+    expect(consoleError).toHaveBeenCalledWith("Erro ao carregar inventário:", expect.any(Error));
   });
 });

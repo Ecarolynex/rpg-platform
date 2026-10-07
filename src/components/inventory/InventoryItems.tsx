@@ -54,9 +54,16 @@ export default function InventoryItems({
   campaignId,
 }: InventoryItemsProps) {
   const [items, setItems] = useState<PersistedInventoryItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [loadResult, setLoadResult] = useState<{
+    requestKey: string;
+    error: string;
+  } | null>(null);
   const [attempt, setAttempt] = useState(0);
+  const [actionError, setActionError] = useState("");
+  const requestKey = `${characterId}:${attempt}`;
+  const loading = loadResult?.requestKey !== requestKey;
+  const loadError = loadResult?.requestKey === requestKey ? loadResult.error : "";
+  const error = actionError || loadError;
   const [alterandoItem, setAlterandoItem] = useState<string | null>(
     null,
   );
@@ -64,43 +71,32 @@ export default function InventoryItems({
   useEffect(() => {
     let active = true;
 
-    setLoading(true);
-    setError("");
-
     getInventory(characterId)
       .then((data) => {
         if (active) {
-          setItems(
-            normalizeInventoryRows(
-              data as InventoryRow[],
-            ),
-          );
+          setItems(normalizeInventoryRows(data as InventoryRow[]));
+          setLoadResult({ requestKey, error: "" });
         }
       })
       .catch((err: unknown) => {
-        console.error(
-          "Erro ao carregar inventário:",
-          err,
-        );
+        console.error("Erro ao carregar inventário:", err);
 
         if (active) {
-          setError(
-            err instanceof Error
-              ? err.message
-              : "Não foi possível carregar o inventário.",
-          );
-        }
-      })
-      .finally(() => {
-        if (active) {
-          setLoading(false);
+          setItems([]);
+          setLoadResult({
+            requestKey,
+            error:
+              err instanceof Error
+                ? err.message
+                : "Não foi possível carregar o inventário.",
+          });
         }
       });
 
     return () => {
       active = false;
     };
-  }, [characterId, attempt]);
+  }, [characterId, requestKey]);
 
   async function alternarEquipamento(
     item: PersistedInventoryItem,
@@ -110,7 +106,7 @@ export default function InventoryItems({
     }
 
     setAlterandoItem(item.itemId);
-    setError("");
+    setActionError("");
 
     const novoEstado = !item.equipado;
 
@@ -137,7 +133,7 @@ export default function InventoryItems({
         err,
       );
 
-      setError(
+      setActionError(
         err instanceof Error
           ? err.message
           : "Não foi possível alterar o equipamento.",
@@ -170,8 +166,7 @@ export default function InventoryItems({
           type="button"
           className="btn-ghost inventory-retry"
           onClick={() => {
-            setLoading(true);
-            setError("");
+            setActionError("");
             setAttempt((current) => current + 1);
           }}
         >

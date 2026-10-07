@@ -72,6 +72,15 @@ body {
   min-height: 100%;
 }
 
+.route-loading {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: 24px;
+  color: var(--parchment-dim);
+  font-family: var(--font-display);
+}
+
 #root::before,
 #root::after {
   position: fixed;

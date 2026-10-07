@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Character } from "../../types/character";
@@ -83,7 +83,7 @@ describe("CharacterSheet", () => {
     expect(screen.getByRole("heading", { name: "Vitalidade" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Atributos" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Perícias" })).toBeInTheDocument();
-    expect(container.querySelectorAll(".cs-orbit-stat")).toHaveLength(5);
+    expect(container.querySelectorAll(".ep-attr")).toHaveLength(5);
     expect(screen.getByRole("tab", { name: "Inventário" })).toBeInTheDocument();
   });
 
@@ -100,12 +100,21 @@ describe("CharacterSheet", () => {
   it("limita o valor atual de vida ao máximo configurado", async () => {
     const { container } = renderSheet();
     await screen.findByRole("heading", { name: "Bram Ferroz" });
+    await screen.findByText("Não encontramos os detalhes desta classe no catálogo.");
 
     const vitalInputs = container.querySelectorAll<HTMLInputElement>(".cs-vital-input");
     expect(vitalInputs).toHaveLength(2);
-    fireEvent.change(vitalInputs[0], { target: { value: "250" } });
 
-    expect(vitalInputs[0]).toHaveValue(200);
+    vi.useFakeTimers();
+    try {
+      fireEvent.change(vitalInputs[0], { target: { value: "250" } });
+      expect(vitalInputs[0]).toHaveValue(200);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(600);
+      });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("permite alterar o valor de uma perícia", async () => {
@@ -113,9 +122,16 @@ describe("CharacterSheet", () => {
     await screen.findByRole("heading", { name: "Bram Ferroz" });
 
     const skillInput = screen.getByRole("textbox", { name: "Valor de Acrobacia" });
-    fireEvent.change(skillInput, { target: { value: "2" } });
-
-    expect(skillInput).toHaveValue("2");
+    vi.useFakeTimers();
+    try {
+      fireEvent.change(skillInput, { target: { value: "2" } });
+      expect(skillInput).toHaveValue("2");
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(600);
+      });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("apresenta os bônus da classe na aba Classe", async () => {
