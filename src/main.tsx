@@ -7,7 +7,7 @@ import { AuthProvider } from "./context/AuthContext";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <BrowserRouter basename="/rpg-platform">
+    <BrowserRouter>
       <AuthProvider>
         <App />
       </AuthProvider>
