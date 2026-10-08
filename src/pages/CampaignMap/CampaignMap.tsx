@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
 import { Link, useParams } from "react-router-dom";
-import { supabase } from "../../lib/supabase";
+import { supabase } from "../../services/supabase";
 import "./CampaignMap.css";
 
 type Campaign = {
