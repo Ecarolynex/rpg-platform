@@ -1,26 +1,23 @@
-﻿<!doctype html>
+
+<!doctype html>
 <html lang="pt-BR">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Elementum</title>
-  <script>
-    (function () {
-      var l = window.location;
-      var base = "/rpg-platform/";
-      var path = l.pathname.startsWith(base)
-        ? l.pathname.slice(base.length)
-        : l.pathname.replace(/^\/+/, "");
-
-      var query = l.search || "";
-      var hash = l.hash || "";
-
-      var target = base + "?p=/" + path + query + hash;
-      window.location.replace(target);
-    })();
-  </script>
-</head>
-<body>
-  Carregando...
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/rpg-platform/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&display=swap"
+      rel="stylesheet"
+    />
+    <title>Elementum</title>
+    <script type="module" crossorigin src="/rpg-platform/assets/index-QLnBpsRp.js"></script>
+    <link rel="modulepreload" crossorigin href="/rpg-platform/assets/rolldown-runtime-hePW80VL.js">
+    <link rel="stylesheet" crossorigin href="/rpg-platform/assets/index-CE2Mxf0t.css">
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
 </html>
+
