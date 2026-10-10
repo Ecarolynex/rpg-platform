@@ -1,7 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { Link } from "react-router-dom";
-import { DICE_MODELS, DICE_SIDES, type DiceRoll, type DieSides, type DiceRollerProps } from "./diceRoller.types";
+import {
+  DICE_MODELS,
+  DICE_SIDES,
+  type DiceRoll,
+  type DieSides,
+  type DiceRollerProps,
+  type RollHistoryStore,
+} from "./diceRoller.types";
 import {
   createDiceRoll,
   formatDetailedRoll,
@@ -17,47 +24,42 @@ import { DICE_COLOR_THEMES, type DiceColorTheme } from "./diceMaterials";
 import "./DiceRoller.css";
 
 const DEFAULT_ANIMATION_DURATION_MS = 1150;
+const historyStoreKeys = new WeakMap<RollHistoryStore, number>();
+let nextHistoryStoreKey = 0;
 
-export function DiceRoller({
-  campaignId,
-  modifierValue,
-  onModifierChange,
-  historyStore = sessionRollHistoryStore,
-  randomSource = Math.random,
-  animationDurationMs = DEFAULT_ANIMATION_DURATION_MS,
-}: DiceRollerProps) {
-  const [selectedDie, setSelectedDie] = useState<DieSides>(20);
-  const [diceColor, setDiceColor] = useState<DiceColorTheme>(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const saved = localStorage.getItem("rpg_dice_color") as DiceColorTheme | null;
-        if (saved && DICE_COLOR_THEMES[saved]) return saved;
-      } catch {
-        // Ignore storage errors
-      }
+type DiceRollerSessionProps = Omit<DiceRollerProps, "historyStore"> & {
+  historyStore: RollHistoryStore;
+  selectedDie: DieSides;
+  onSelectedDieChange: (die: DieSides) => void;
+  diceColor: DiceColorTheme;
+  onDiceColorChange: (color: DiceColorTheme) => void;
+};
+
+function getHistoryStoreKey(historyStore: RollHistoryStore): number {
+  const existingKey = historyStoreKeys.get(historyStore);
+  if (existingKey !== undefined) return existingKey;
+
+  const nextKey = nextHistoryStoreKey++;
+  historyStoreKeys.set(historyStore, nextKey);
+  return nextKey;
+}
+
+function getInitialDiceColor(): DiceColorTheme {
+  if (typeof window !== "undefined") {
+    try {
+      const saved = localStorage.getItem("rpg_dice_color") as DiceColorTheme | null;
+      if (saved && DICE_COLOR_THEMES[saved]) return saved;
+    } catch {
+      // Ignore storage errors
     }
-    return "emerald";
-  });
-  const [history, setHistory] = useState<DiceRoll[]>(() => historyStore.load(campaignId));
-  const [latestRoll, setLatestRoll] = useState<DiceRoll | null>(() => history[0] ?? null);
-  const [isRolling, setIsRolling] = useState(false);
-  const [rollError, setRollError] = useState("");
-  const animationTimer = useRef<number | null>(null);
+  }
+  return "emerald";
+}
 
-  useEffect(() => {
-    const savedRolls = historyStore.load(campaignId);
-    setHistory(savedRolls);
-    setLatestRoll(savedRolls[0] ?? null);
-    setIsRolling(false);
-    setRollError("");
-
-    return () => {
-      if (animationTimer.current !== null) {
-        window.clearTimeout(animationTimer.current);
-        animationTimer.current = null;
-      }
-    };
-  }, [campaignId, historyStore]);
+export function DiceRoller(props: DiceRollerProps) {
+  const historyStore = props.historyStore ?? sessionRollHistoryStore;
+  const [selectedDie, setSelectedDie] = useState<DieSides>(20);
+  const [diceColor, setDiceColor] = useState<DiceColorTheme>(getInitialDiceColor);
 
   function handleColorChange(newColor: DiceColorTheme) {
     setDiceColor(newColor);
@@ -70,6 +72,44 @@ export function DiceRoller({
     }
   }
 
+  return (
+    <DiceRollerSession
+      key={JSON.stringify([props.campaignId, getHistoryStoreKey(historyStore)])}
+      {...props}
+      historyStore={historyStore}
+      selectedDie={selectedDie}
+      onSelectedDieChange={setSelectedDie}
+      diceColor={diceColor}
+      onDiceColorChange={handleColorChange}
+    />
+  );
+}
+
+function DiceRollerSession({
+  campaignId,
+  modifierValue,
+  onModifierChange,
+  historyStore,
+  randomSource = Math.random,
+  animationDurationMs = DEFAULT_ANIMATION_DURATION_MS,
+  selectedDie,
+  onSelectedDieChange,
+  diceColor,
+  onDiceColorChange,
+}: DiceRollerSessionProps) {
+  const [history, setHistory] = useState<DiceRoll[]>(() => historyStore.load(campaignId));
+  const latestRoll = history[0] ?? null;
+  const [isRolling, setIsRolling] = useState(false);
+  const [rollError, setRollError] = useState("");
+  const animationTimer = useRef<number | null>(null);
+
+  useEffect(() => () => {
+    if (animationTimer.current !== null) {
+      window.clearTimeout(animationTimer.current);
+      animationTimer.current = null;
+    }
+  }, []);
+
   function executeRoll() {
     if (isRolling) return;
 
@@ -80,7 +120,6 @@ export function DiceRoller({
       const nextRoll = createDiceRoll(selectedDie, parseModifier(modifierValue), randomSource);
       const nextHistory = [nextRoll, ...history].slice(0, MAX_ROLL_HISTORY);
 
-      setLatestRoll(nextRoll);
       setHistory(nextHistory);
       historyStore.save(campaignId, nextHistory);
       animationTimer.current = window.setTimeout(() => {
@@ -103,7 +142,6 @@ export function DiceRoller({
   function handleClearHistory() {
     historyStore.save(campaignId, []);
     setHistory([]);
-    setLatestRoll(null);
   }
 
   const latestResultClass = latestRoll?.critical
@@ -157,7 +195,7 @@ export function DiceRoller({
                     key={themeKey}
                     type="button"
                     className={`dice-theme-chip ${isSelected ? "is-selected" : ""}`}
-                    onClick={() => handleColorChange(themeKey)}
+                    onClick={() => onDiceColorChange(themeKey)}
                     role="radio"
                     aria-checked={isSelected}
                     title={theme.name}
@@ -180,7 +218,7 @@ export function DiceRoller({
                   type="button"
                   className={selectedDie === sides ? "dice-choice is-selected" : "dice-choice"}
                   aria-pressed={selectedDie === sides}
-                  onClick={() => setSelectedDie(sides)}
+                  onClick={() => onSelectedDieChange(sides)}
                   disabled={isRolling}
                   aria-label={`d${sides}, ${DICE_MODELS[sides].model}, resultados ${DICE_MODELS[sides].results}`}
                   title={`${DICE_MODELS[sides].model} · ${DICE_MODELS[sides].results}`}

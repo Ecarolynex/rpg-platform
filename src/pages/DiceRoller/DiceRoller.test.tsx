@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 import { DiceRoller } from "./DiceRoller";
-import type { RollHistoryStore } from "./diceRoller.types";
+import type { DiceRoll, RollHistoryStore } from "./diceRoller.types";
 
 function createHistoryStore(): RollHistoryStore {
   const history = new Map<string, ReturnType<RollHistoryStore["load"]>>();
@@ -56,6 +56,47 @@ describe("DiceRoller", () => {
         ]),
       );
     });
+  });
+
+  it("recarrega o histórico ao mudar de campanha sem perder o dado selecionado", () => {
+    const historyStore = createHistoryStore();
+    const campaignTwoRoll: DiceRoll = {
+      id: "roll-campaign-2",
+      die: 6,
+      natural: 4,
+      modifier: 1,
+      total: 5,
+      critical: null,
+      rolledAt: "2026-10-10T00:00:00.000Z",
+    };
+    historyStore.save("campaign-2", [campaignTwoRoll]);
+    const props = {
+      campaignId: "campaign-1",
+      modifierValue: "0",
+      onModifierChange: vi.fn(),
+      historyStore,
+      animationDurationMs: 0,
+    };
+
+    const view = render(
+      <MemoryRouter>
+        <DiceRoller {...props} />
+      </MemoryRouter>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "d6, Dado de 6 lados, resultados 1 a 6" }));
+
+    view.rerender(
+      <MemoryRouter>
+        <DiceRoller {...props} campaignId="campaign-2" />
+      </MemoryRouter>,
+    );
+
+    expect(historyStore.load).toHaveBeenCalledWith("campaign-2");
+    expect(screen.getAllByText("d6 (4) + 1 = 5")).toHaveLength(2);
+    expect(screen.getByRole("button", { name: "d6, Dado de 6 lados, resultados 1 a 6" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
   });
 
   it("oferece os sete dados padrão", () => {

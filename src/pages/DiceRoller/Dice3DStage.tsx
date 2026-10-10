@@ -90,7 +90,10 @@ export function Dice3DStage({
 }: Dice3DStageProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [hasWebGL, setHasWebGL] = useState(() => isWebGLSupported());
-  const [impactEffect, setImpactEffect] = useState<"none" | "normal" | "success" | "failure">("none");
+  const [impactEffect, setImpactEffect] = useState<{
+    rollId: string | undefined;
+    effect: "none" | "normal" | "success" | "failure";
+  }>({ rollId: undefined, effect: "none" });
 
   // Keep refs for 3D state
   const sceneRef = useRef<THREE.Scene | null>(null);
@@ -152,14 +155,6 @@ export function Dice3DStage({
     const width = container.clientWidth || 320;
     const height = container.clientHeight || 240;
 
-    const scene = new THREE.Scene();
-    sceneRef.current = scene;
-
-    const camera = new THREE.PerspectiveCamera(38, width / height, 0.1, 50);
-    camera.position.set(0, 3.4, 5.6);
-    camera.lookAt(0, 0.18, 0);
-    cameraRef.current = camera;
-
     let renderer: THREE.WebGLRenderer;
     try {
       renderer = new THREE.WebGLRenderer({
@@ -168,9 +163,17 @@ export function Dice3DStage({
         powerPreference: "high-performance",
       });
     } catch {
-      setHasWebGL(false);
-      return;
+      const fallbackTimer = window.setTimeout(() => setHasWebGL(false), 0);
+      return () => window.clearTimeout(fallbackTimer);
     }
+
+    const scene = new THREE.Scene();
+    sceneRef.current = scene;
+
+    const camera = new THREE.PerspectiveCamera(38, width / height, 0.1, 50);
+    camera.position.set(0, 3.4, 5.6);
+    camera.lookAt(0, 0.18, 0);
+    cameraRef.current = camera;
 
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
@@ -406,7 +409,6 @@ export function Dice3DStage({
   useEffect(() => {
     if (isRolling) {
       rollStartTimeRef.current = performance.now();
-      setImpactEffect("none");
 
       if (dieMeshRef.current) {
         rollFromQuatRef.current.copy(dieMeshRef.current.quaternion);
@@ -423,19 +425,20 @@ export function Dice3DStage({
       const def = dieDefRef.current ?? getDie3DDefinition(die);
       rollTargetQuatRef.current = computeTargetQuaternion(targetVal, def);
 
+      const rollId = latestRoll?.id;
       const timer = window.setTimeout(() => {
-        if (latestRoll?.critical === "success") {
-          setImpactEffect("success");
-        } else if (latestRoll?.critical === "failure") {
-          setImpactEffect("failure");
-        } else {
-          setImpactEffect("normal");
-        }
+        const effect = latestRoll?.critical === "success"
+          ? "success"
+          : latestRoll?.critical === "failure"
+            ? "failure"
+            : "normal";
+        setImpactEffect({ rollId, effect });
 
-        const clearTimer = window.setTimeout(() => {
-          setImpactEffect("none");
+        window.setTimeout(() => {
+          setImpactEffect((current) =>
+            current.rollId === rollId ? { rollId, effect: "none" } : current,
+          );
         }, 800);
-        return () => window.clearTimeout(clearTimer);
       }, Math.max(0, animationDurationMs - 120));
 
       return () => window.clearTimeout(timer);
@@ -467,12 +470,15 @@ export function Dice3DStage({
   };
 
   const currentThemeConfig = DICE_COLOR_THEMES[colorTheme] ?? DICE_COLOR_THEMES.emerald;
+  const visibleImpactEffect = impactEffect.rollId === latestRoll?.id
+    ? impactEffect.effect
+    : "none";
 
   // Fallback 2.5D SVG Polyhedral View if WebGL is unavailable
   if (!hasWebGL) {
     return (
       <div
-        className={`dice-3d-stage is-fallback ${isRolling ? "is-rolling" : ""} impact-${impactEffect}`}
+        className={`dice-3d-stage is-fallback ${isRolling ? "is-rolling" : ""} impact-${visibleImpactEffect}`}
         onClick={onTriggerRoll}
         title="Clique para rolar o dado"
         role="button"
@@ -493,7 +499,7 @@ export function Dice3DStage({
 
   return (
     <div
-      className={`dice-3d-stage ${isRolling ? "is-rolling" : ""} impact-${impactEffect}`}
+      className={`dice-3d-stage ${isRolling ? "is-rolling" : ""} impact-${visibleImpactEffect}`}
       onClick={onTriggerRoll}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
@@ -520,8 +526,8 @@ export function Dice3DStage({
       </div>
 
       {/* Impact Flash Rings */}
-      {impactEffect !== "none" && (
-        <div className={`dice-impact-ring dice-impact-${impactEffect}`} aria-hidden="true" />
+      {visibleImpactEffect !== "none" && (
+        <div className={`dice-impact-ring dice-impact-${visibleImpactEffect}`} aria-hidden="true" />
       )}
     </div>
   );
