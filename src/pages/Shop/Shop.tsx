@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useParams, useSearchParams } from "react-router-dom";
 import {
   adicionarItemExistenteNaLoja,
@@ -11,6 +11,7 @@ import {
   listarCatalogoItens,
   removerItemDaLoja,
   salvarItemDaLoja,
+  enviarRetrato,
 } from "../../services/api";
 import type {
   Campaign,
@@ -76,6 +77,8 @@ const ATRIBUTOS = [
   "Inteligência",
   "Carisma",
 ];
+
+const MAX_SHOP_IMAGE_SIZE_BYTES = 3 * 1024 * 1024;
 
 const initialItemDraft = {
   nome: "",
@@ -149,6 +152,37 @@ function getShopStorageKey(campaignId: string) {
 
 function getCartStorageKey(campaignId: string) {
   return `rpg-platform-cart-${campaignId}`;
+}
+
+function persistLocalStorageValue(key: string, value: unknown) {
+  try {
+    window.localStorage.setItem(key, JSON.stringify(value));
+  } catch (error) {
+    const errorName =
+      typeof error === "object" && error !== null && "name" in error
+        ? String(error.name)
+        : "";
+    const errorCode =
+      typeof error === "object" && error !== null && "code" in error
+        ? Number(error.code)
+        : undefined;
+    const quotaExceeded =
+      /quota/i.test(errorName) || errorCode === 22 || errorCode === 1014;
+
+    console.warn(
+      quotaExceeded
+        ? "A quota do armazenamento local foi atingida; a loja continuará funcionando sem atualizar este cache."
+        : "Não foi possível atualizar o armazenamento local da loja.",
+      error,
+    );
+  }
+}
+
+function shopItemsForLocalStorage(items: ShopItem[]): ShopItem[] {
+  return items.map((item) => ({
+    ...item,
+    imagem: item.imagem?.startsWith("data:image/") ? undefined : item.imagem,
+  }));
 }
 
 function getDefaultItems(campaignId: string): ShopItem[] {
@@ -300,11 +334,24 @@ export default function Shop() {
   const [showItemForm, setShowItemForm] = useState(false);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [itemDraft, setItemDraft] = useState(initialItemDraft);
+  const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
+  const [selectedImagePreview, setSelectedImagePreview] = useState<string | null>(null);
+  const imageReaderRef = useRef<FileReader | null>(null);
   const [itemSaving, setItemSaving] = useState(false);
   const [itemSaveError, setItemSaveError] = useState("");
   const [catalogItems, setCatalogItems] = useState<CatalogItem[]>([]);
+
+  const clearSelectedImage = () => {
+    const reader = imageReaderRef.current;
+    if (reader?.readyState === FileReader.LOADING) {
+      reader.abort();
+    }
+    imageReaderRef.current = null;
+    setSelectedImageFile(null);
+    setSelectedImagePreview(null);
+  };
   const [showReuseForm, setShowReuseForm] = useState(false);
-  const [reuseItemId, setReuseItemId] = useState("");
+  const [selectedReuseItemIds, setSelectedReuseItemIds] = useState<string[]>([]);
   const [reusePrice, setReusePrice] = useState("100");
   const [reuseStock, setReuseStock] = useState("1");
 
@@ -398,13 +445,13 @@ export default function Shop() {
       .then((data) => {
         if (!active) return;
         setCatalogItems(data);
-        const available = data.filter(
-          (catalogItem) => !items.some((item) => item.itemId === catalogItem.itemId),
+        const availableIds = new Set(
+          data
+            .filter((catalogItem) => !items.some((item) => item.itemId === catalogItem.itemId))
+            .map((catalogItem) => catalogItem.itemId),
         );
-        setReuseItemId((current) =>
-          available.some((item) => item.itemId === current)
-            ? current
-            : available[0]?.itemId ?? "",
+        setSelectedReuseItemIds((current) =>
+          current.filter((itemId) => availableIds.has(itemId)),
         );
       })
       .catch((error) => {
@@ -457,9 +504,9 @@ export default function Shop() {
 
   useEffect(() => {
     if (id && typeof window !== "undefined") {
-      window.localStorage.setItem(
+      persistLocalStorageValue(
         getShopStorageKey(campaignId),
-        JSON.stringify(items),
+        shopItemsForLocalStorage(items),
       );
     }
   }, [campaignId, id, items]);
@@ -469,9 +516,9 @@ export default function Shop() {
       id &&
       typeof window !== "undefined"
     ) {
-      window.localStorage.setItem(
+      persistLocalStorageValue(
         getCartStorageKey(campaignId),
-        JSON.stringify(cart),
+        cart,
       );
     }
   }, [campaignId, cart, id]);
@@ -488,6 +535,13 @@ export default function Shop() {
   const reusableCatalogItems = catalogItems.filter(
     (catalogItem) => !items.some((item) => item.itemId === catalogItem.itemId),
   );
+  const selectedReuseItemIdSet = new Set(selectedReuseItemIds);
+  const selectedReusableItemCount = reusableCatalogItems.filter((catalogItem) =>
+    selectedReuseItemIdSet.has(catalogItem.itemId),
+  ).length;
+  const allReusableItemsSelected =
+    reusableCatalogItems.length > 0 &&
+    selectedReusableItemCount === reusableCatalogItems.length;
 
   const cartRows = useMemo(
     () =>
@@ -740,24 +794,56 @@ export default function Shop() {
   };
 
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
+    const input = event.currentTarget;
+    const file = input.files?.[0];
 
     if (!file) return;
 
     if (file.type !== "image/png") {
-      window.alert("A imagem da carta deve ser um arquivo PNG.");
-      event.target.value = "";
+      clearSelectedImage();
+      setItemSaveError("A imagem da carta deve ser um arquivo PNG.");
+      input.value = "";
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      setItemDraft((current) => ({
-        ...current,
-        imagem: typeof reader.result === "string" ? reader.result : "",
-      }));
-    };
-    reader.readAsDataURL(file);
+    if (file.size === 0) {
+      clearSelectedImage();
+      setItemSaveError("A imagem da carta não pode estar vazia.");
+      input.value = "";
+      return;
+    }
+
+    if (file.size > MAX_SHOP_IMAGE_SIZE_BYTES) {
+      clearSelectedImage();
+      setItemSaveError("A imagem da carta deve ter no máximo 3 MB.");
+      input.value = "";
+      return;
+    }
+
+    clearSelectedImage();
+    setItemSaveError("");
+    setSelectedImageFile(file);
+
+    try {
+      const reader = new FileReader();
+      imageReaderRef.current = reader;
+      reader.onload = () => {
+        if (imageReaderRef.current !== reader) return;
+        imageReaderRef.current = null;
+        setSelectedImagePreview(typeof reader.result === "string" ? reader.result : null);
+      };
+      reader.onerror = () => {
+        if (imageReaderRef.current !== reader) return;
+        clearSelectedImage();
+        input.value = "";
+        setItemSaveError("Não foi possível ler a imagem selecionada. Tente novamente.");
+      };
+      reader.readAsDataURL(file);
+    } catch {
+      clearSelectedImage();
+      input.value = "";
+      setItemSaveError("Não foi possível ler a imagem selecionada. Tente novamente.");
+    }
   };
 
   const handleItemSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -798,7 +884,22 @@ export default function Shop() {
       effects.push(`+${nextItem.bonus} ${nextItem.atributo}`);
     }
 
+    let uploadedImageUrl: string | null = null;
+
     try {
+      let imagemUrl = itemDraft.imagem || null;
+
+      if (selectedImageFile) {
+        uploadedImageUrl = await enviarRetrato(selectedImageFile);
+        imagemUrl = uploadedImageUrl;
+        clearSelectedImage();
+        setItemDraft((current) => ({ ...current, imagem: imagemUrl ?? "" }));
+      } else if (imagemUrl?.startsWith("data:image/")) {
+        throw new Error(
+          "Selecione novamente a imagem desta carta para enviá-la ao armazenamento da loja.",
+        );
+      }
+
       const saved = await salvarItemDaLoja({
         campanhaId: campaignId,
         lojaItemId: editingItemId ?? undefined,
@@ -807,7 +908,7 @@ export default function Shop() {
         tipo: typeByCategory[nextItem.categoria],
         raridade: nextItem.raridade.toUpperCase(),
         efeito: effects.join("\n"),
-        imagemUrl: nextItem.imagem ?? null,
+        imagemUrl,
         precoCompra: nextItem.preco,
         estoque: nextItem.estoque,
         ativo: nextItem.disponivel,
@@ -818,11 +919,17 @@ export default function Shop() {
         ? current.map((item) => item.id === editingItemId ? savedItem : item)
         : [savedItem, ...current]);
       setItemDraft(initialItemDraft);
+      clearSelectedImage();
       setEditingItemId(null);
       setShowItemForm(false);
     } catch (error) {
+      const message = error instanceof Error
+        ? error.message
+        : "Não foi possível salvar a carta.";
       setItemSaveError(
-        error instanceof Error ? error.message : "Não foi possível salvar a carta.",
+        uploadedImageUrl
+          ? `Imagem enviada, mas a carta não foi salva. ${message}`
+          : message,
       );
     } finally {
       setItemSaving(false);
@@ -843,6 +950,7 @@ export default function Shop() {
       estoque: String(item.estoque),
       imagem: item.imagem ?? "",
     });
+    clearSelectedImage();
     setEditingItemId(item.id);
     setShowItemForm(true);
   };
@@ -850,6 +958,7 @@ export default function Shop() {
   const closeItemForm = () => {
     setShowItemForm(false);
     setEditingItemId(null);
+    clearSelectedImage();
     setItemDraft(initialItemDraft);
   };
 
@@ -889,25 +998,61 @@ export default function Shop() {
 
   const handleReuseSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!reuseItemId) return;
+
+    const selectedItems = reusableCatalogItems.filter((catalogItem) =>
+      selectedReuseItemIdSet.has(catalogItem.itemId),
+    );
+    if (itemSaving || selectedItems.length === 0) return;
 
     setItemSaving(true);
     setItemSaveError("");
     try {
-      await adicionarItemExistenteNaLoja(
-        campaignId,
-        reuseItemId,
-        Number(reusePrice),
-        Number(reuseStock),
+      const results = await Promise.allSettled(
+        selectedItems.map((catalogItem) =>
+          adicionarItemExistenteNaLoja(
+            campaignId,
+            catalogItem.itemId,
+            Number(reusePrice),
+            Number(reuseStock),
+          ),
+        ),
       );
-      const refreshed = await listarItensDaLoja(campaignId);
-      setItems(refreshed.map(fromDatabaseShopItem));
+      const failedItemIds = results.flatMap((result, index) =>
+        result.status === "rejected" ? [selectedItems[index].itemId] : [],
+      );
+      const addedCount = results.length - failedItemIds.length;
+
+      if (addedCount > 0) {
+        try {
+          const refreshed = await listarItensDaLoja(campaignId);
+          setItems(refreshed.map(fromDatabaseShopItem));
+        } catch (error) {
+          setItemSaveError(
+            `${addedCount} carta(s) adicionada(s), mas não foi possível atualizar a loja. ${
+              error instanceof Error ? error.message : "Tente atualizar a página."
+            }`,
+          );
+          return;
+        }
+      }
+
+      setSelectedReuseItemIds(failedItemIds);
+      if (failedItemIds.length > 0) {
+        setItemSaveError(
+          addedCount > 0
+            ? `${addedCount} carta(s) adicionada(s); ${failedItemIds.length} não puderam ser adicionada(s). Revise a seleção e tente novamente.`
+            : "Não foi possível adicionar as cartas selecionadas. Tente novamente.",
+        );
+        return;
+      }
+
       setShowReuseForm(false);
+      setSelectedReuseItemIds([]);
       setReusePrice("100");
       setReuseStock("1");
     } catch (error) {
       setItemSaveError(
-        error instanceof Error ? error.message : "Não foi possível reutilizar esta carta.",
+        error instanceof Error ? error.message : "Não foi possível reutilizar as cartas selecionadas.",
       );
     } finally {
       setItemSaving(false);
@@ -915,12 +1060,19 @@ export default function Shop() {
   };
 
   const handleRemoveFromShop = async (item: ShopItem) => {
+    const confirmed = window.confirm(
+      `Excluir definitivamente a oferta de “${item.nome}” desta loja? A carta continuará no catálogo e em outros inventários.`,
+    );
+    if (!confirmed) return;
+
     setItemSaving(true);
     setItemSaveError("");
     try {
       await removerItemDaLoja(campaignId, item.id);
       setItems((current) => current.filter((entry) => entry.id !== item.id));
-      setItemSaveError("Carta removida desta loja; ela continua no catálogo para ser reutilizada.");
+      setItemSaveError(
+        "Oferta excluída definitivamente desta loja. O item-base permanece no catálogo e nos inventários.",
+      );
     } catch (error) {
       setItemSaveError(
         error instanceof Error ? error.message : "Não foi possível remover a carta desta loja.",
@@ -1417,7 +1569,7 @@ export default function Shop() {
                 setShowReuseForm((show) => !show);
               }}
             >
-              {showReuseForm ? "Fechar catálogo" : "Reutilizar carta"}
+              {showReuseForm ? "Fechar catálogo" : "Reutilizar cartas"}
             </button>
           </div>
         </section>
@@ -1506,16 +1658,22 @@ export default function Shop() {
               />
             </label>
             <label className="shop-item-form-wide">
-              Imagem da carta (PNG)
+              Imagem da carta (PNG, até 3 MB)
               <input
                 required={!editingItemId}
                 type="file"
                 accept="image/png"
+                aria-describedby="shop-image-upload-help"
                 onChange={handleImageUpload}
               />
+              <span id="shop-image-upload-help">Envio de uma imagem PNG por carta, com até 3 MB.</span>
             </label>
-            {itemDraft.imagem && (
-              <img className="shop-item-image-preview" src={itemDraft.imagem} alt="Prévia da carta" />
+            {(selectedImagePreview || itemDraft.imagem) && (
+              <img
+                className="shop-item-image-preview"
+                src={selectedImagePreview || itemDraft.imagem}
+                alt="Prévia da carta"
+              />
             )}
             <label className="shop-item-form-wide">
               Descrição
@@ -1537,7 +1695,9 @@ export default function Shop() {
           </div>
           <div className="shop-item-form-actions">
             <button className="shop-admin-button" type="submit" disabled={itemSaving}>
-              {itemSaving ? "Salvando..." : editingItemId ? "Salvar alterações" : "Publicar carta"}
+              {itemSaving
+                ? selectedImageFile ? "Enviando imagem..." : "Salvando..."
+                : editingItemId ? "Salvar alterações" : "Publicar carta"}
             </button>
             <button className="btn-ghost" type="button" onClick={closeItemForm}>
               Cancelar
@@ -1548,38 +1708,66 @@ export default function Shop() {
 
       {isMaster && !itemsLoading && showReuseForm && (
         <form className="shop-item-form" onSubmit={handleReuseSubmit}>
-          <h3>Reutilizar carta do catálogo</h3>
+          <h3>Reutilizar cartas do catálogo</h3>
           {itemSaveError && <p role="alert">{itemSaveError}</p>}
           {reusableCatalogItems.length > 0 ? (
             <div className="shop-item-form-grid">
-              <label className="shop-item-form-wide">
-                Carta existente
-                <select
-                  required
-                  value={reuseItemId}
-                  onChange={(event) => setReuseItemId(event.target.value)}
-                >
+              <fieldset className="shop-reuse-selection shop-item-form-wide">
+                <legend>Cartas que serão adicionadas</legend>
+                <div className="shop-reuse-selection-toolbar">
+                  <span role="status">
+                    {selectedReusableItemCount} de {reusableCatalogItems.length} selecionadas
+                  </span>
+                  <button
+                    className="btn-ghost small"
+                    type="button"
+                    disabled={itemSaving}
+                    onClick={() => setSelectedReuseItemIds(
+                      allReusableItemsSelected
+                        ? []
+                        : reusableCatalogItems.map((item) => item.itemId),
+                    )}
+                    aria-pressed={allReusableItemsSelected}
+                  >
+                    {allReusableItemsSelected ? "Desmarcar todas" : "Selecionar todas"}
+                  </button>
+                </div>
+                <div className="shop-reuse-selection-list">
                   {reusableCatalogItems.map((item) => (
-                    <option key={item.itemId} value={item.itemId}>{item.nome}</option>
+                    <label className="shop-reuse-checkbox-row" key={item.itemId}>
+                      <input
+                        type="checkbox"
+                        disabled={itemSaving}
+                        checked={selectedReuseItemIdSet.has(item.itemId)}
+                        onChange={(event) => setSelectedReuseItemIds((current) =>
+                          event.target.checked
+                            ? [...current, item.itemId]
+                            : current.filter((itemId) => itemId !== item.itemId),
+                        )}
+                      />
+                      <span>{item.nome}</span>
+                    </label>
                   ))}
-                </select>
-              </label>
+                </div>
+              </fieldset>
               <label>
-                Preço em PO
+                Preço em PO (para todas)
                 <input
                   type="number"
                   min={0}
                   required
+                  disabled={itemSaving}
                   value={reusePrice}
                   onChange={(event) => setReusePrice(event.target.value)}
                 />
               </label>
               <label>
-                Estoque
+                Estoque (para todas)
                 <input
                   type="number"
                   min={0}
                   required
+                  disabled={itemSaving}
                   value={reuseStock}
                   onChange={(event) => setReuseStock(event.target.value)}
                 />
@@ -1592,13 +1780,16 @@ export default function Shop() {
             <button
               className="shop-admin-button"
               type="submit"
-              disabled={itemSaving || !reuseItemId || reusableCatalogItems.length === 0}
+              disabled={itemSaving || selectedReusableItemCount === 0}
             >
-              {itemSaving ? "Adicionando..." : "Adicionar à campanha"}
+              {itemSaving
+                ? "Adicionando..."
+                : `Adicionar ${selectedReusableItemCount} ${selectedReusableItemCount === 1 ? "carta" : "cartas"} à campanha`}
             </button>
             <button
               className="btn-ghost"
               type="button"
+              disabled={itemSaving}
               onClick={() => setShowReuseForm(false)}
             >
               Cancelar
@@ -1872,9 +2063,9 @@ export default function Shop() {
                           className="btn-ghost small"
                           disabled={itemSaving}
                           onClick={() => void handleRemoveFromShop(item)}
-                          title="Remove a oferta desta campanha; mantém a carta no catálogo"
-                        >
-                          Remover da loja
+                           title="Exclui definitivamente esta oferta; mantém o item-base no catálogo e nos inventários"
+                         >
+                           Excluir oferta
                         </button>
                       </div>
                     )}

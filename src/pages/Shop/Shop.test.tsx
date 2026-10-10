@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, vi } from 'vitest';
 import Shop from './Shop';
@@ -113,6 +113,7 @@ vi.mock('../../services/api', () => ({
       imagemUrl: '',
     },
   ]),
+  enviarRetrato: vi.fn().mockResolvedValue('https://cdn.example.com/shop-card.png'),
   adicionarItemExistenteNaLoja: vi.fn().mockResolvedValue('store-item-added'),
   removerItemDaLoja: vi.fn().mockResolvedValue(undefined),
   comprarCarrinho: vi.fn().mockResolvedValue({
@@ -164,7 +165,7 @@ describe('Shop', () => {
     expect(within(amuletCard).getByText('180 PO')).toBeInTheDocument();
   });
 
-  it('publica uma carta com PNG enviada pelo mestre', async () => {
+  it('publica uma carta com PNG enviada ao armazenamento da campanha', async () => {
     render(
       <MemoryRouter initialEntries={['/campanha/teste/loja']}>
         <Routes>
@@ -175,7 +176,7 @@ describe('Shop', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: /adicionar carta/i }));
 
-    const imageInput = screen.getByLabelText(/imagem da carta \(png\)/i);
+    const imageInput = screen.getByLabelText(/imagem da carta \(png, até 3 mb\)/i);
     expect(imageInput).toHaveAttribute('type', 'file');
     expect(imageInput).toHaveAttribute('accept', 'image/png');
 
@@ -188,8 +189,9 @@ describe('Shop', () => {
     fireEvent.change(screen.getByLabelText('Preço em PO'), { target: { value: '325' } });
     fireEvent.change(screen.getByLabelText('Estoque'), { target: { value: '4' } });
     fireEvent.change(screen.getByLabelText('Descrição'), { target: { value: 'Carta de teste com ilustração.' } });
+    const imageFile = new File(['png-data'], 'carta.png', { type: 'image/png' });
     fireEvent.change(imageInput, {
-      target: { files: [new File(['png-data'], 'carta.png', { type: 'image/png' })] },
+      target: { files: [imageFile] },
     });
 
     expect(await screen.findByRole('img', { name: 'Prévia da carta' })).toBeInTheDocument();
@@ -199,6 +201,219 @@ describe('Shop', () => {
     expect(within(createdCard).getByText('325 PO')).toBeInTheDocument();
     expect(within(createdCard).getByText('4 em estoque')).toBeInTheDocument();
     expect(within(createdCard).getByText('+5 Força')).toBeInTheDocument();
+
+    const { enviarRetrato, salvarItemDaLoja } = await import('../../services/api');
+    expect(vi.mocked(enviarRetrato)).toHaveBeenCalledWith(imageFile);
+    expect(vi.mocked(salvarItemDaLoja).mock.calls[0][0].imagemUrl).toBe(
+      'https://cdn.example.com/shop-card.png',
+    );
+  });
+
+  it('recusa formatos diferentes de PNG, imagens vazias e imagens maiores que 3 MB', async () => {
+    const { enviarRetrato } = await import('../../services/api');
+    vi.mocked(enviarRetrato).mockClear();
+    render(
+      <MemoryRouter initialEntries={['/campanha/teste/loja']}>
+        <Routes>
+          <Route path="/campanha/:id/loja" element={<Shop />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: /adicionar carta/i }));
+    const imageInput = screen.getByLabelText(/imagem da carta \(png, até 3 mb\)/i);
+    fireEvent.change(imageInput, {
+      target: { files: [new File(['jpeg-data'], 'carta.jpg', { type: 'image/jpeg' })] },
+    });
+    expect(await screen.findByText('A imagem da carta deve ser um arquivo PNG.')).toBeInTheDocument();
+
+    fireEvent.change(imageInput, {
+      target: { files: [new File([new Uint8Array(3 * 1024 * 1024 + 1)], 'grande.png', { type: 'image/png' })] },
+    });
+    expect(await screen.findByText('A imagem da carta deve ter no máximo 3 MB.')).toBeInTheDocument();
+
+    fireEvent.change(imageInput, {
+      target: { files: [new File([], 'vazia.png', { type: 'image/png' })] },
+    });
+    expect(await screen.findByText('A imagem da carta não pode estar vazia.')).toBeInTheDocument();
+    expect(vi.mocked(enviarRetrato)).not.toHaveBeenCalled();
+  });
+
+  it('mostra erro quando a leitura do preview lança uma exceção síncrona', async () => {
+    const { enviarRetrato } = await import('../../services/api');
+    vi.mocked(enviarRetrato).mockClear();
+    const readSpy = vi.spyOn(FileReader.prototype, 'readAsDataURL').mockImplementation(() => {
+      throw new DOMException('Invalid state', 'InvalidStateError');
+    });
+
+    try {
+      render(
+        <MemoryRouter initialEntries={['/campanha/teste/loja']}>
+          <Routes>
+            <Route path="/campanha/:id/loja" element={<Shop />} />
+          </Routes>
+        </MemoryRouter>,
+      );
+
+      fireEvent.click(await screen.findByRole('button', { name: /adicionar carta/i }));
+      fireEvent.change(screen.getByLabelText(/imagem da carta \(png, até 3 mb\)/i), {
+        target: { files: [new File(['png-data'], 'carta.png', { type: 'image/png' })] },
+      });
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'Não foi possível ler a imagem selecionada. Tente novamente.',
+      );
+      expect(screen.queryByRole('img', { name: 'Prévia da carta' })).not.toBeInTheDocument();
+      expect(enviarRetrato).not.toHaveBeenCalled();
+    } finally {
+      readSpy.mockRestore();
+    }
+  });
+
+  it('não reusa um arquivo PNG anterior se uma seleção inválida for feita ao editar', async () => {
+    const { enviarRetrato, listarItensDaLoja, salvarItemDaLoja } = await import('../../services/api');
+    vi.mocked(enviarRetrato).mockClear();
+    vi.mocked(salvarItemDaLoja).mockClear();
+    const existingImageUrl = 'https://cdn.example.com/existing-card.png';
+    vi.mocked(listarItensDaLoja).mockResolvedValueOnce([{
+      id: 'item-edit-image',
+      lojaId: 'loja-teste',
+      itemId: 'item-base-edit-image',
+      campanhaId: 'teste',
+      nome: 'Carta existente com imagem',
+      descricao: 'Uma carta que já possui arte.',
+      tipo: 'ARMA',
+      raridade: 'COMUM',
+      efeito: null,
+      imagemUrl: existingImageUrl,
+      precoCompra: 100,
+      precoVenda: null,
+      estoque: 1,
+      vendaPermitida: true,
+      ativo: true,
+    }]);
+
+    render(
+      <MemoryRouter initialEntries={['/campanha/teste/loja']}>
+        <Routes>
+          <Route path="/campanha/:id/loja" element={<Shop />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    const existingCard = await screen.findByRole('article', { name: 'Carta existente com imagem' });
+    fireEvent.click(within(existingCard).getByRole('button', { name: 'Editar' }));
+    const imageInput = screen.getByLabelText(/imagem da carta \(png, até 3 mb\)/i);
+    fireEvent.change(imageInput, {
+      target: { files: [new File(['valid-png'], 'novo.png', { type: 'image/png' })] },
+    });
+    await waitFor(() => {
+      expect(screen.getByRole('img', { name: 'Prévia da carta' })).toHaveAttribute(
+        'src',
+        expect.stringContaining('data:image/png;base64'),
+      );
+    });
+
+    fireEvent.change(imageInput, {
+      target: { files: [new File(['invalid-jpeg'], 'nova.jpg', { type: 'image/jpeg' })] },
+    });
+    expect(await screen.findByText('A imagem da carta deve ser um arquivo PNG.')).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'Prévia da carta' })).toHaveAttribute('src', existingImageUrl);
+
+    fireEvent.submit(screen.getByRole('heading', { name: 'Editar carta da loja' }).closest('form')!);
+    await waitFor(() => expect(salvarItemDaLoja).toHaveBeenCalledTimes(1));
+    expect(enviarRetrato).not.toHaveBeenCalled();
+    expect(vi.mocked(salvarItemDaLoja).mock.calls[0][0].imagemUrl).toBe(existingImageUrl);
+  });
+
+  it('mantém a loja aberta e exibe falhas de upload ou salvamento', async () => {
+    const { enviarRetrato, salvarItemDaLoja } = await import('../../services/api');
+    vi.mocked(enviarRetrato).mockRejectedValueOnce(new Error('Falha de rede no upload.'));
+    render(
+      <MemoryRouter initialEntries={['/campanha/teste/loja']}>
+        <Routes>
+          <Route path="/campanha/:id/loja" element={<Shop />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: /adicionar carta/i }));
+    fireEvent.change(screen.getByLabelText(/imagem da carta \(png, até 3 mb\)/i), {
+      target: { files: [new File(['png-data'], 'carta.png', { type: 'image/png' })] },
+    });
+    fireEvent.submit(screen.getByRole('heading', { name: 'Nova carta da loja' }).closest('form')!);
+
+    expect(await screen.findByText('Falha de rede no upload.')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Loja' })).toBeInTheDocument();
+    expect(vi.mocked(salvarItemDaLoja)).not.toHaveBeenCalled();
+
+    vi.mocked(enviarRetrato).mockResolvedValueOnce('https://cdn.example.com/retry.png');
+    vi.mocked(salvarItemDaLoja).mockRejectedValueOnce(new Error('Falha ao gravar a carta.'));
+    fireEvent.submit(screen.getByRole('heading', { name: 'Nova carta da loja' }).closest('form')!);
+
+    expect(await screen.findByText(/imagem enviada, mas a carta não foi salva\. Falha ao gravar a carta\./i)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Loja' })).toBeInTheDocument();
+  });
+
+  it('mantém a loja funcional quando o localStorage lança QuotaExceededError', async () => {
+    const setItemSpy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('Storage quota exceeded', 'QuotaExceededError');
+    });
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+    try {
+      render(
+        <MemoryRouter initialEntries={['/campanha/teste/loja']}>
+          <Routes>
+            <Route path="/campanha/:id/loja" element={<Shop />} />
+          </Routes>
+        </MemoryRouter>,
+      );
+
+      expect(await screen.findByRole('heading', { level: 1, name: 'Loja' })).toBeInTheDocument();
+      expect(await screen.findByRole('article', { name: 'Espada do Crepúsculo' })).toBeInTheDocument();
+      expect(setItemSpy).toHaveBeenCalled();
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('quota'),
+        expect.any(DOMException),
+      );
+    } finally {
+      setItemSpy.mockRestore();
+      warnSpy.mockRestore();
+    }
+  });
+
+  it('não persiste imagens Base64 no cache local da loja', async () => {
+    const { listarItensDaLoja } = await import('../../services/api');
+    vi.mocked(listarItensDaLoja).mockResolvedValueOnce([{
+      id: 'item-base64',
+      lojaId: 'loja-teste',
+      itemId: 'item-base64',
+      campanhaId: 'teste',
+      nome: 'Carta com imagem Base64',
+      descricao: 'Imagem grande.',
+      tipo: 'ARMA',
+      raridade: 'COMUM',
+      efeito: null,
+      imagemUrl: 'data:image/png;base64,aW1hZ2U=',
+      precoCompra: 100,
+      precoVenda: null,
+      estoque: 1,
+      vendaPermitida: true,
+      ativo: true,
+    }]);
+
+    render(
+      <MemoryRouter initialEntries={['/campanha/teste/loja']}>
+        <Routes>
+          <Route path="/campanha/:id/loja" element={<Shop />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByRole('article', { name: 'Carta com imagem Base64' })).toBeInTheDocument();
+    const storedItems = window.localStorage.getItem('rpg-platform-shop-teste') ?? '';
+    expect(storedItems).not.toContain('data:image/png;base64');
   });
 
   it('mostra as ações de administração abaixo do painel e permite editar cartas', async () => {
@@ -216,7 +431,7 @@ describe('Shop', () => {
 
     fireEvent.click(screen.getAllByRole('button', { name: 'Editar' })[0]);
     expect(screen.getByRole('heading', { name: 'Editar carta da loja' })).toBeInTheDocument();
-    expect(screen.getByLabelText(/imagem da carta \(png\)/i)).toHaveAttribute('accept', 'image/png');
+    expect(screen.getByLabelText(/imagem da carta \(png, até 3 mb\)/i)).toHaveAttribute('accept', 'image/png');
     expect(screen.getByRole('button', { name: 'Salvar alterações' })).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText('Nome da carta'), { target: { value: 'Carta revisada' } });
@@ -227,7 +442,39 @@ describe('Shop', () => {
     expect(within(revisedCard).getByText('999 PO')).toBeInTheDocument();
   });
 
-  it('reutiliza uma carta do catálogo com preço e estoque da campanha', async () => {
+  it('seleciona todas ou várias cartas e reutiliza as escolhidas com preço e estoque comuns', async () => {
+    const { adicionarItemExistenteNaLoja, listarCatalogoItens } = await import('../../services/api');
+    vi.mocked(adicionarItemExistenteNaLoja).mockClear();
+    vi.mocked(listarCatalogoItens).mockResolvedValueOnce([
+      {
+        itemId: 'catalog-sword',
+        nome: 'Espada da Aurora',
+        descricao: 'Lâmina encantada.',
+        tipo: 'ARMA',
+        raridade: 'RARO',
+        efeito: '+1 ataque',
+        imagemUrl: null,
+      },
+      {
+        itemId: 'catalog-cloak',
+        nome: 'Manto da Névoa',
+        descricao: 'Manto leve.',
+        tipo: 'ARMADURA',
+        raridade: 'INCOMUM',
+        efeito: null,
+        imagemUrl: null,
+      },
+      {
+        itemId: 'catalog-ring',
+        nome: 'Anel das Marés',
+        descricao: 'Anel antigo.',
+        tipo: 'ACESSORIO',
+        raridade: 'COMUM',
+        efeito: null,
+        imagemUrl: null,
+      },
+    ]);
+
     render(
       <MemoryRouter initialEntries={['/campanha/teste/loja']}>
         <Routes>
@@ -237,28 +484,128 @@ describe('Shop', () => {
     );
 
     await screen.findByRole('heading', { name: 'Aventureiro Teste' });
-    fireEvent.click(await screen.findByRole('button', { name: 'Reutilizar carta' }));
-    expect(await screen.findByRole('option', { name: 'Capa Arcana' })).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText('Preço em PO'), { target: { value: '400' } });
-    fireEvent.change(screen.getByLabelText('Estoque'), { target: { value: '3' } });
+    fireEvent.click(await screen.findByRole('button', { name: 'Reutilizar cartas' }));
+    const swordCheckbox = await screen.findByRole('checkbox', { name: 'Espada da Aurora' });
+    const cloakCheckbox = screen.getByRole('checkbox', { name: 'Manto da Névoa' });
+    const ringCheckbox = screen.getByRole('checkbox', { name: 'Anel das Marés' });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Selecionar todas' }));
+    expect(swordCheckbox).toBeChecked();
+    expect(cloakCheckbox).toBeChecked();
+    expect(ringCheckbox).toBeChecked();
+    fireEvent.click(ringCheckbox);
+    expect(screen.getByText('2 de 3 selecionadas')).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('Preço em PO (para todas)'), { target: { value: '400' } });
+    fireEvent.change(screen.getByLabelText('Estoque (para todas)'), { target: { value: '3' } });
 
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Adicionar à campanha' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Adicionar 2 cartas à campanha' }));
+      await Promise.resolve();
       await Promise.resolve();
       await Promise.resolve();
     });
-    expect(await screen.findByRole('button', { name: 'Reutilizar carta' })).toBeInTheDocument();
-
-    const { adicionarItemExistenteNaLoja } = await import('../../services/api');
-    expect(vi.mocked(adicionarItemExistenteNaLoja)).toHaveBeenCalledWith(
+    expect(await screen.findByRole('button', { name: 'Reutilizar cartas' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Reutilizar cartas do catálogo' })).not.toBeInTheDocument();
+    expect(vi.mocked(adicionarItemExistenteNaLoja)).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(adicionarItemExistenteNaLoja)).toHaveBeenNthCalledWith(
+      1,
       'teste',
-      'item-base-reutilizavel',
+      'catalog-sword',
+      400,
+      3,
+    );
+    expect(vi.mocked(adicionarItemExistenteNaLoja)).toHaveBeenNthCalledWith(
+      2,
+      'teste',
+      'catalog-cloak',
       400,
       3,
     );
   });
 
-  it('remove a oferta da campanha sem excluir a carta-base', async () => {
+  it('mantém selecionados somente os itens que falharam na reutilização em lote', async () => {
+    const { adicionarItemExistenteNaLoja, listarCatalogoItens, listarItensDaLoja } = await import('../../services/api');
+    vi.mocked(adicionarItemExistenteNaLoja)
+      .mockResolvedValueOnce('offer-created')
+      .mockRejectedValueOnce(new Error('Falha ao adicionar esta carta.'));
+    const catalogItems = [
+      {
+        itemId: 'catalog-success',
+        nome: 'Carta adicionada',
+        descricao: 'Foi adicionada.',
+        tipo: 'ARMA',
+        raridade: 'COMUM',
+        efeito: null,
+        imagemUrl: null,
+      },
+      {
+        itemId: 'catalog-failure',
+        nome: 'Carta com falha',
+        descricao: 'Falhou ao adicionar.',
+        tipo: 'ACESSORIO',
+        raridade: 'INCOMUM',
+        efeito: null,
+        imagemUrl: null,
+      },
+    ];
+    vi.mocked(listarCatalogoItens)
+      .mockResolvedValueOnce(catalogItems)
+      .mockResolvedValueOnce(catalogItems);
+    const existingItems = await listarItensDaLoja('teste');
+    vi.mocked(listarItensDaLoja)
+      .mockResolvedValueOnce(existingItems)
+      .mockResolvedValueOnce([
+        ...existingItems,
+        {
+          id: 'offer-created',
+          lojaId: 'loja-teste',
+          itemId: 'catalog-success',
+          campanhaId: 'teste',
+          nome: 'Carta adicionada',
+          descricao: 'Foi adicionada.',
+          tipo: 'ARMA',
+          raridade: 'COMUM',
+          efeito: null,
+          imagemUrl: null,
+          precoCompra: 100,
+          precoVenda: null,
+          estoque: 1,
+          vendaPermitida: true,
+          ativo: true,
+        },
+      ]);
+
+    render(
+      <MemoryRouter initialEntries={['/campanha/teste/loja']}>
+        <Routes>
+          <Route path="/campanha/:id/loja" element={<Shop />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole('heading', { name: 'Aventureiro Teste' });
+    fireEvent.click(await screen.findByRole('button', { name: 'Reutilizar cartas' }));
+    await screen.findByRole('checkbox', { name: 'Carta com falha' });
+    fireEvent.click(screen.getByRole('button', { name: 'Selecionar todas' }));
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Adicionar 2 cartas à campanha' }));
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/1 carta\(s\) adicionada\(s\); 1 não puderam ser adicionada\(s\)/i);
+    expect(screen.getByRole('article', { name: 'Carta adicionada' })).toBeInTheDocument();
+    expect(screen.queryByRole('checkbox', { name: 'Carta adicionada' })).not.toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: 'Carta com falha' })).toBeChecked();
+  });
+
+  it('confirma a exclusão definitiva da oferta sem excluir a carta-base', async () => {
+    const { removerItemDaLoja } = await import('../../services/api');
+    vi.mocked(removerItemDaLoja).mockClear();
+    const confirmSpy = vi.spyOn(window, 'confirm');
     render(
       <MemoryRouter initialEntries={['/campanha/teste/loja']}>
         <Routes>
@@ -269,16 +616,24 @@ describe('Shop', () => {
 
     await screen.findByRole('heading', { name: 'Aventureiro Teste' });
     const itemCard = await screen.findByRole('article', { name: 'Amuleto do Pescador' });
+    confirmSpy.mockReturnValueOnce(false);
+    fireEvent.click(within(itemCard).getByRole('button', { name: 'Excluir oferta' }));
+    expect(removerItemDaLoja).not.toHaveBeenCalled();
+    expect(screen.getByRole('article', { name: 'Amuleto do Pescador' })).toBeInTheDocument();
 
+    confirmSpy.mockReturnValueOnce(true);
     await act(async () => {
-      fireEvent.click(within(itemCard).getByRole('button', { name: 'Remover da loja' }));
+      fireEvent.click(within(itemCard).getByRole('button', { name: 'Excluir oferta' }));
       await Promise.resolve();
     });
-    expect(await screen.findByRole('status')).toHaveTextContent(/continua no catálogo/i);
 
-    const { removerItemDaLoja } = await import('../../services/api');
+    expect(await screen.findByRole('status')).toHaveTextContent(/excluída definitivamente/i);
     expect(vi.mocked(removerItemDaLoja)).toHaveBeenCalledWith('teste', 'item-3');
     expect(screen.queryByRole('article', { name: 'Amuleto do Pescador' })).not.toBeInTheDocument();
+    expect(confirmSpy).toHaveBeenCalledWith(
+      expect.stringContaining('A carta continuará no catálogo e em outros inventários.'),
+    );
+    confirmSpy.mockRestore();
   });
 
   it('não exibe a administração para um jogador', async () => {
