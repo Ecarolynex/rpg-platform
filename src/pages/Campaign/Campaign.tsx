@@ -1,11 +1,17 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
-  atualizarPersonagem,
+  creditarOuroCampanha,
+  creditarExperienciaCampanha,
+  entregarItemCampanha,
+  listarCatalogoItens,
+  listarRecompensasCampanha,
   excluirCampanha,
   getCatalogoGlobalClasses,
   getCampaignAccess,
+  getCampaignResourceMaximums,
   getCharacters,
+  getEquippedAttributeBonusesByCharacter,
   listarConteudosClasseCampanha,
   listarMinhasCampanhas,
   listarPersonagensDaCampanha,
@@ -17,6 +23,7 @@ import {
   type Campaign,
 } from "../../services/api";
 import type { Character } from "../../types/character";
+import { calculateDerivedCharacterStats } from "../../domain/characterRules";
 import {
   ATTRIBUTE_CONFIG,
   normalizarBonusClassesCampanha,
@@ -33,6 +40,14 @@ function criarIdClasseCampanha() {
   return `camp-${globalThis.crypto?.randomUUID?.() ?? Date.now()}`;
 }
 
+function criarRequestId(): string {
+  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (token) => {
+    const value = Math.floor(Math.random() * 16);
+    return (token === "x" ? value : (value & 0x3) | 0x8).toString(16);
+  });
+}
+
 export default function Campaign() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -45,6 +60,9 @@ export default function Campaign() {
   const [bonusClassesMensagem, setBonusClassesMensagem] = useState("");
   const [catalogoClasses, setCatalogoClasses] = useState<ClassDefinition[]>([]);
   const [conteudosClasses, setConteudosClasses] = useState<CampaignClassContent[]>([]);
+  const [bonusEquipamentos, setBonusEquipamentos] = useState<Record<string, Partial<Record<BaseAttributeKey, number>>>>({});
+  const [erroBonusEquipamentos, setErroBonusEquipamentos] = useState("");
+  const [maximosServidor, setMaximosServidor] = useState<Record<string, { hp: number; mp: number; hpAtual: number; mpAtual: number }>>({});
   const [tipoNovoConteudo, setTipoNovoConteudo] = useState<"CLASSE" | "PERICIA" | "HABILIDADE">("HABILIDADE");
   const [classeNovoConteudo, setClasseNovoConteudo] = useState("");
   const [nomeNovoConteudo, setNomeNovoConteudo] = useState("");
@@ -75,13 +93,34 @@ export default function Campaign() {
   const [versao, setVersao] = useState(0);
 
   // Ferramenta do Mestre: Distribuição de Ouro
-  const [ouroDistribuir, setOuroDistribuir] = useState("50");
+  const [tipoRecompensa, setTipoRecompensa] = useState<"OURO" | "XP" | "ITEM">("OURO");
+  const [quantidadeRecompensa, setQuantidadeRecompensa] = useState("50");
+  const [itemRecompensa, setItemRecompensa] = useState("");
+  const [catalogoItens, setCatalogoItens] = useState<Awaited<ReturnType<typeof listarCatalogoItens>>>([]);
+  const [historicoRecompensas, setHistoricoRecompensas] = useState<Awaited<ReturnType<typeof listarRecompensasCampanha>>>([]);
   const [destinatarioOuro, setDestinatarioOuro] = useState("TODOS");
   const [distribuindoOuro, setDistribuindoOuro] = useState(false);
   const [ouroMensagem, setOuroMensagem] = useState("");
+  const rewardRequestIdsRef = useRef(new Map<string, string>());
 
   // Feedback de cópia do código
   const [copiado, setCopiado] = useState(false);
+  const [erroCopiarConvite, setErroCopiarConvite] = useState("");
+
+  async function atualizarMaximosServidor(campanhaId: string) {
+    try {
+      const maximums = await getCampaignResourceMaximums(campanhaId);
+      setMaximosServidor(Object.fromEntries(maximums.map((row) => [row.personagem_id, {
+        hp: row.hp_max,
+        mp: row.mp_max,
+        hpAtual: row.hp_atual,
+        mpAtual: row.mp_atual,
+      }])));
+    } catch (error) {
+      console.error("Não foi possível atualizar máximos autoritativos da campanha:", error);
+      setMaximosServidor({});
+    }
+  }
 
   useEffect(() => {
     if (!id) return;
@@ -99,6 +138,39 @@ export default function Campaign() {
 
         const meusIds = new Set(meus.map((personagem) => personagem.id));
         const livres = meus.filter((personagem) => personagem.campanhaId === null);
+        let equipamentoPorPersonagem: Record<string, Partial<Record<BaseAttributeKey, number>>> = {};
+        try {
+          equipamentoPorPersonagem = await getEquippedAttributeBonusesByCharacter(
+            daCampanha.map((personagem) => personagem.id),
+          );
+          setErroBonusEquipamentos("");
+        } catch (error) {
+          console.error("Não foi possível carregar bônus de equipamento da campanha:", error);
+          setErroBonusEquipamentos("Bônus de equipamento não carregaram; os máximos mostrados podem estar incompletos.");
+        }
+        setBonusEquipamentos(equipamentoPorPersonagem);
+        try {
+          const maxima = await getCampaignResourceMaximums(campanhaId);
+          setMaximosServidor(Object.fromEntries(maxima.map((row) => [row.personagem_id, {
+            hp: row.hp_max,
+            mp: row.mp_max,
+            hpAtual: row.hp_atual,
+            mpAtual: row.mp_atual,
+          }])));
+        } catch (error) {
+          console.error("Não foi possível carregar máximos autoritativos da campanha:", error);
+          setMaximosServidor({});
+        }
+        try {
+          const [catalogoItensAtual, historicoAtual] = await Promise.all([
+            listarCatalogoItens(),
+            listarRecompensasCampanha(campanhaId),
+          ]);
+          setCatalogoItens(catalogoItensAtual);
+          setHistoricoRecompensas(historicoAtual);
+        } catch (error) {
+          console.error("Não foi possível carregar o histórico ou catálogo de recompensas:", error);
+        }
 
         const campanhaAtual =
           campanhas.find((item) => item.id === campanhaId) ?? null;
@@ -229,6 +301,7 @@ export default function Campaign() {
       setCampaign((atual) =>
         atual ? { ...atual, bonus_classes: salvo } : atual,
       );
+      void atualizarMaximosServidor(id);
       setBonusClassesMensagem("Bônus de classe salvos para esta campanha.");
     } catch (error) {
       setBonusClassesMensagem(
@@ -280,6 +353,7 @@ export default function Campaign() {
         bonus_mp: tipoNovoConteudo === "CLASSE" ? manaNovaClasse : 0,
       });
       setConteudosClasses((atuais) => [...atuais, novo]);
+      void atualizarMaximosServidor(id);
       if (novo.tipo === "CLASSE") {
         setBonusClasses((atuais) => ({
           ...atuais,
@@ -316,6 +390,7 @@ export default function Campaign() {
       setConteudosClasses((atuais) =>
         atuais.filter((item) => item.id !== conteudo.id),
       );
+      if (id) void atualizarMaximosServidor(id);
       setMensagemConteudo("Conteúdo removido desta campanha.");
     } catch (error) {
       setMensagemConteudo(
@@ -351,62 +426,79 @@ export default function Campaign() {
 
   async function handleDistribuirOuro(event: React.FormEvent) {
     event.preventDefault();
-    const quantia = parseInt(ouroDistribuir, 10);
-    if (isNaN(quantia) || quantia <= 0 || todosDaCampanha.length === 0) return;
+    const quantia = Number(quantidadeRecompensa);
+    if (!Number.isSafeInteger(quantia) || quantia <= 0 || todosDaCampanha.length === 0) return;
+    if (tipoRecompensa === "OURO" && quantia > 100000) return;
+    if (tipoRecompensa === "ITEM" && (!itemRecompensa || quantia > 9999)) return;
 
     setDistribuindoOuro(true);
     setOuroMensagem("");
 
+    const requestSignature = JSON.stringify([
+      id,
+      tipoRecompensa,
+      quantia,
+      destinatarioOuro,
+      tipoRecompensa === "ITEM" ? itemRecompensa : null,
+    ]);
+    let requestId = rewardRequestIdsRef.current.get(requestSignature);
+    if (!requestId) {
+      requestId = criarRequestId();
+      rewardRequestIdsRef.current.set(requestSignature, requestId);
+    }
+
     try {
-      if (destinatarioOuro === "TODOS") {
-        for (const char of todosDaCampanha) {
-          const carteiraAtual = char.carteira ?? { pc: 0, pp: 0, pe: 0, po: 0, pl: 0 };
-          const novoOuro = Math.min(9999999, (carteiraAtual.po || 0) + quantia);
-          await atualizarPersonagem(char.id, {
-            ...char,
-            carteira: {
-              ...carteiraAtual,
-              po: novoOuro,
-            },
-          });
-        }
-        setOuroMensagem(
-          `Concluído! ${quantia} PO foram distribuídos para todos os ${todosDaCampanha.length} personagens do grupo.`,
-        );
-      } else {
-        const alvo = todosDaCampanha.find((c) => c.id === destinatarioOuro);
-        if (!alvo) {
-          throw new Error("Personagem selecionado não foi encontrado.");
-        }
-        const carteiraAtual = alvo.carteira ?? { pc: 0, pp: 0, pe: 0, po: 0, pl: 0 };
-        const novoOuro = Math.min(9999999, (carteiraAtual.po || 0) + quantia);
-        await atualizarPersonagem(alvo.id, {
-          ...alvo,
-          carteira: {
-            ...carteiraAtual,
-            po: novoOuro,
-          },
-        });
-        setOuroMensagem(
-          `Concluído! ${quantia} PO foram entregues para ${alvo.nome}.`,
-        );
+      const alvo = destinatarioOuro === "TODOS"
+        ? null
+        : todosDaCampanha.find((character) => character.id === destinatarioOuro);
+      if (destinatarioOuro !== "TODOS" && !alvo) {
+        throw new Error("Personagem selecionado não foi encontrado.");
       }
 
+      if (tipoRecompensa === "OURO") {
+        const count = await creditarOuroCampanha(id!, quantia, alvo?.id, requestId);
+        setOuroMensagem(destinatarioOuro === "TODOS"
+          ? `Concluído! ${quantia} PO foram distribuídos para ${count} personagens do grupo.`
+          : `Concluído! ${quantia} PO foram entregues para ${alvo?.nome}.`);
+      } else if (tipoRecompensa === "XP") {
+        const count = await creditarExperienciaCampanha(id!, quantia, alvo?.id, requestId);
+        setOuroMensagem(destinatarioOuro === "TODOS"
+          ? `Concluído! ${quantia} XP foram distribuídos para ${count} personagens do grupo.`
+          : `Concluído! ${quantia} XP foram entregues para ${alvo?.nome}.`);
+      } else {
+        const count = await entregarItemCampanha(id!, itemRecompensa, quantia, alvo?.id, requestId);
+        const nomeItem = catalogoItens.find((item) => item.itemId === itemRecompensa)?.nome ?? "item";
+        setOuroMensagem(destinatarioOuro === "TODOS"
+          ? `Concluído! ${quantia} ${nomeItem} foram entregues para ${count} personagens do grupo.`
+          : `Concluído! ${quantia} ${nomeItem} foram entregues para ${alvo?.nome}.`);
+      }
+
+      rewardRequestIdsRef.current.delete(requestSignature);
       setVersao((v) => v + 1);
     } catch (err) {
       setOuroMensagem(
-        err instanceof Error ? err.message : "Erro ao entregar ouro.",
+        err instanceof Error ? err.message : "Erro ao entregar recompensa.",
       );
     } finally {
       setDistribuindoOuro(false);
     }
   }
 
-  const handleCopiarCodigo = () => {
+  const handleCopiarCodigo = async () => {
     if (!campaign?.codigo_convite) return;
-    navigator.clipboard.writeText(campaign.codigo_convite);
-    setCopiado(true);
-    setTimeout(() => setCopiado(false), 2000);
+
+    setCopiado(false);
+    setErroCopiarConvite("");
+    try {
+      const clipboard = navigator.clipboard;
+      if (!clipboard?.writeText) throw new Error("Clipboard API indisponível.");
+      await clipboard.writeText(campaign.codigo_convite);
+      setCopiado(true);
+    } catch {
+      setErroCopiarConvite(
+        "Não foi possível copiar o convite. Selecione o código para copiá-lo manualmente.",
+      );
+    }
   };
 
   async function handleExcluirCampanha() {
@@ -454,6 +546,8 @@ export default function Campaign() {
   return (
     <div className="campaign-detail-page">
       {/* Cabeçalho da Campanha */}
+      {erroBonusEquipamentos && <p className="campaign-status-message" role="alert">{erroBonusEquipamentos}</p>}
+
       <header className="campaign-detail-header">
         <div className="campaign-detail-nav">
           <Link to="/campanhas" className="campaign-back-link">
@@ -519,6 +613,16 @@ export default function Campaign() {
               {copiado ? "Copiado!" : "Copiar"}
             </button>
           </div>
+          {copiado && (
+            <p className="campaign-copy-feedback" role="status">
+              Convite copiado!
+            </p>
+          )}
+          {erroCopiarConvite && (
+            <p className="campaign-copy-feedback campaign-copy-feedback--error" role="alert">
+              {erroCopiarConvite}
+            </p>
+          )}
         </div>
       </div>
 
@@ -529,9 +633,10 @@ export default function Campaign() {
           </div>
         </div>
         <p className="campaign-content-intro">
-          O catálogo global está disponível para todos. Aqui, qualquer participante
-          pode adicionar classes, perícias e habilidades exclusivas desta aventura.
+          O catálogo global está disponível para todos. Somente o Mestre pode
+          adicionar ou remover classes, perícias e habilidades desta aventura.
         </p>
+        {isMaster && (
         <form
           className="campaign-content-form"
           onSubmit={handleAdicionarConteudoClasse}
@@ -666,6 +771,7 @@ export default function Campaign() {
             {salvandoConteudo ? "Adicionando..." : "Adicionar à campanha"}
           </button>
         </form>
+        )}
         {mensagemConteudo && (
           <p className="campaign-content-message" role="status">{mensagemConteudo}</p>
         )}
@@ -696,13 +802,15 @@ export default function Campaign() {
                 {conteudo.tipo === "HABILIDADE" && <p>Desbloqueia no nível {conteudo.nivel}</p>}
                 {conteudo.descricao && <p>{conteudo.descricao}</p>}
               </div>
-              <button
-                type="button"
-                className="campaign-content-remove"
-                onClick={() => void handleRemoverConteudoClasse(conteudo)}
-              >
-                Remover
-              </button>
+              {isMaster && (
+                <button
+                  type="button"
+                  className="campaign-content-remove"
+                  onClick={() => void handleRemoverConteudoClasse(conteudo)}
+                >
+                  Remover
+                </button>
+              )}
             </article>
           ))}
           {conteudosClasses.length === 0 && (
@@ -827,6 +935,22 @@ export default function Campaign() {
             <div className="party-overview-grid">
               {todosDaCampanha.map((personagem) => {
                 const po = personagem.carteira?.po ?? 0;
+                const derived = calculateDerivedCharacterStats(personagem, {
+                  classCatalog: catalogoClasses,
+                  campaignClassBonuses: bonusClasses,
+                  campaignClassContents: conteudosClasses,
+                  equippedItemBonuses: bonusEquipamentos[personagem.id]
+                    ? [bonusEquipamentos[personagem.id]]
+                    : [],
+                  serverResourceMaximums: maximosServidor[personagem.id]
+                    ? { hpMax: maximosServidor[personagem.id].hp, mpMax: maximosServidor[personagem.id].mp }
+                    : undefined,
+                });
+                const maximosAutoritativos = maximosServidor[personagem.id];
+                const hpMax = maximosAutoritativos?.hp ?? derived.hpMax;
+                const mpMax = maximosAutoritativos?.mp ?? derived.mpMax;
+                const hpAtual = Math.min(maximosAutoritativos?.hpAtual ?? personagem.hp.atual, hpMax);
+                const mpAtual = Math.min(maximosAutoritativos?.mpAtual ?? personagem.mp.atual, mpMax);
                 return (
                   <article key={personagem.id} className="party-char-card">
                     <div className="party-char-head">
@@ -849,11 +973,11 @@ export default function Campaign() {
                     <div className="party-char-stats-row">
                       <div className="party-stat-mini">
                         <span>Vida</span>
-                        <strong>{personagem.hp.atual} / {personagem.hp.max}</strong>
+                        <strong>{hpAtual} / {hpMax}</strong>
                       </div>
                       <div className="party-stat-mini">
                         <span>Mana</span>
-                        <strong>{personagem.mp.atual} / {personagem.mp.max}</strong>
+                        <strong>{mpAtual} / {mpMax}</strong>
                       </div>
                       <div className="party-stat-mini">
                         <span>Ouro</span>
@@ -864,14 +988,14 @@ export default function Campaign() {
                     <div className="party-char-vitals">
                       <StatBar
                         label="Vida"
-                        atual={personagem.hp.atual}
-                        max={personagem.hp.max}
+                        atual={hpAtual}
+                        max={hpMax}
                         tone="wine"
                       />
                       <StatBar
                         label="Mana"
-                        atual={personagem.mp.atual}
-                        max={personagem.mp.max}
+                        atual={mpAtual}
+                        max={mpMax}
                         tone="forest"
                       />
                     </div>
@@ -901,25 +1025,57 @@ export default function Campaign() {
           {todosDaCampanha.length > 0 && (
             <div className="master-reward-box">
               <div className="master-reward-info">
-                <h4>Entregar Recompensa em Ouro</h4>
-                <p>Distribua moedas de ouro para todo o grupo ou para um jogador específico da mesa.</p>
+                <h4>Entregar recompensa</h4>
+                <p>Distribua ouro ou XP para todo o grupo ou para um personagem específico.</p>
               </div>
 
               <form onSubmit={handleDistribuirOuro} className="master-reward-form">
                 <div className="master-reward-field">
-                  <label htmlFor="master-gold-input">Quantia</label>
+                  <label htmlFor="master-reward-type">Tipo de recompensa</label>
+                  <select
+                    id="master-reward-type"
+                    className="master-reward-select"
+                    value={tipoRecompensa}
+                    onChange={(event) => setTipoRecompensa(event.target.value as "OURO" | "XP" | "ITEM")}
+                    disabled={distribuindoOuro}
+                  >
+                    <option value="OURO">Ouro</option>
+                    <option value="XP">Experiência (XP)</option>
+                    <option value="ITEM">Item</option>
+                  </select>
+                </div>
+                {tipoRecompensa === "ITEM" && (
+                  <div className="master-reward-field">
+                    <label htmlFor="master-reward-item">Item</label>
+                    <select
+                      id="master-reward-item"
+                      className="master-reward-select"
+                      value={itemRecompensa}
+                      onChange={(event) => setItemRecompensa(event.target.value)}
+                      disabled={distribuindoOuro}
+                      required
+                    >
+                      <option value="">Selecione um item do catálogo</option>
+                      {catalogoItens.map((item) => (
+                        <option key={item.itemId} value={item.itemId}>{item.nome}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+                <div className="master-reward-field">
+                  <label htmlFor="master-gold-input">Quantidade</label>
                   <div className="master-reward-amount-wrap">
                     <input
                       id="master-gold-input"
                       type="number"
                       className="master-reward-input"
                       min="1"
-                      max="100000"
-                      value={ouroDistribuir}
-                      onChange={(e) => setOuroDistribuir(e.target.value)}
+                      max={tipoRecompensa === "OURO" ? 100000 : tipoRecompensa === "ITEM" ? 9999 : 2147483647}
+                      value={quantidadeRecompensa}
+                      onChange={(event) => setQuantidadeRecompensa(event.target.value)}
                       disabled={distribuindoOuro}
                     />
-                    <span className="master-reward-unit">PO</span>
+                    <span className="master-reward-unit">{tipoRecompensa === "OURO" ? "PO" : tipoRecompensa === "XP" ? "XP" : "un."}</span>
                   </div>
                 </div>
 
@@ -936,7 +1092,7 @@ export default function Campaign() {
                     <optgroup label="Jogador Específico">
                       {todosDaCampanha.map((char) => (
                         <option key={char.id} value={char.id}>
-                          {char.nome} ({char.classe} · Nvl {char.nivel})
+                          {char.nome} ({char.classe} · Nvl {char.nivel} · {char.xp ?? 0} XP)
                         </option>
                       ))}
                     </optgroup>
@@ -946,7 +1102,7 @@ export default function Campaign() {
                 <button
                   type="submit"
                   className="btn-primary master-reward-submit"
-                  disabled={distribuindoOuro || !ouroDistribuir}
+                  disabled={distribuindoOuro || !quantidadeRecompensa || Number(quantidadeRecompensa) <= 0 || (tipoRecompensa === "OURO" && Number(quantidadeRecompensa) > 100000) || (tipoRecompensa === "ITEM" && (!itemRecompensa || Number(quantidadeRecompensa) > 9999)) || Number(quantidadeRecompensa) > 2147483647}
                 >
                   {distribuindoOuro ? "Entregando..." : "Entregar Recompensa"}
                 </button>
@@ -962,6 +1118,36 @@ export default function Campaign() {
         </section>
       )}
 
+      {historicoRecompensas.length > 0 && (
+        <section className="campaign-section" aria-labelledby="reward-history-title">
+          <div className="campaign-section-header">
+            <div className="campaign-section-title">
+              <h2 id="reward-history-title">Histórico de recompensas</h2>
+            </div>
+          </div>
+          <ul className="campaign-content-list">
+            {historicoRecompensas.map((reward) => {
+              const item = reward.item_id ? catalogoItens.find((entry) => entry.itemId === reward.item_id) : undefined;
+              const recipient = reward.personagem_id
+                ? todosDaCampanha.find((character) => character.id === reward.personagem_id)?.nome ?? "Personagem removido"
+                : `${reward.total_destinatarios} personagens`;
+              const description = reward.tipo === "OURO"
+                ? `${reward.quantidade} PO`
+                : reward.tipo === "XP"
+                  ? `${reward.quantidade} XP`
+                  : `${reward.quantidade_item ?? reward.quantidade} × ${item?.nome ?? "item removido"}`;
+              return (
+                <li key={reward.id} className="campaign-content-card">
+                  <strong>{description}</strong>
+                  <span> para {recipient}</span>
+                  <time dateTime={reward.created_at}>{new Date(reward.created_at).toLocaleString()}</time>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
+
       {/* ÁREA DO JOGADOR: Meu Personagem na Campanha */}
       <section className="campaign-section">
         <div className="campaign-section-header">
@@ -973,7 +1159,21 @@ export default function Campaign() {
         {meusNaCampanha.length > 0 ? (
           <div className="dashboard-grid">
             {meusNaCampanha.map((personagem) => (
-              <CharacterCard key={personagem.id} character={personagem} />
+              <CharacterCard
+                key={personagem.id}
+                character={personagem}
+                rulesContext={{
+                  classCatalog: catalogoClasses,
+                  campaignClassBonuses: bonusClasses,
+                  campaignClassContents: conteudosClasses,
+                  equippedItemBonuses: bonusEquipamentos[personagem.id]
+                    ? [bonusEquipamentos[personagem.id]]
+                    : [],
+                  serverResourceMaximums: maximosServidor[personagem.id]
+                    ? { hpMax: maximosServidor[personagem.id].hp, mpMax: maximosServidor[personagem.id].mp }
+                    : undefined,
+                }}
+              />
             ))}
           </div>
         ) : isMaster ? (
@@ -1066,7 +1266,21 @@ export default function Campaign() {
 
           <div className="dashboard-grid">
             {outrosPersonagens.map((personagem) => (
-              <CharacterCard key={personagem.id} character={personagem} />
+              <CharacterCard
+                key={personagem.id}
+                character={personagem}
+                rulesContext={{
+                  classCatalog: catalogoClasses,
+                  campaignClassBonuses: bonusClasses,
+                  campaignClassContents: conteudosClasses,
+                  equippedItemBonuses: bonusEquipamentos[personagem.id]
+                    ? [bonusEquipamentos[personagem.id]]
+                    : [],
+                  serverResourceMaximums: maximosServidor[personagem.id]
+                    ? { hpMax: maximosServidor[personagem.id].hp, mpMax: maximosServidor[personagem.id].mp }
+                    : undefined,
+                }}
+              />
             ))}
           </div>
         </section>

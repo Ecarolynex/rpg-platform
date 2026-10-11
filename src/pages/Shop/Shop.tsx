@@ -18,7 +18,7 @@ import type {
   CatalogItem,
   ShopItem as DatabaseShopItem,
 } from "../../services/api";
-import type { Character } from "../../types/character";
+import type { Character, ItemEffect } from "../../types/character";
 import "./Shop.css";
 
 interface ShopItem {
@@ -38,6 +38,9 @@ interface ShopItem {
   efeitos: string[];
   atributo?: string;
   bonus?: number;
+  bonusAtributos?: Partial<Record<"forca" | "destreza" | "constituicao" | "inteligencia" | "carisma", number>>;
+  efeitoMecanico?: ItemEffect | null;
+  cargasMaximas?: number | null;
   preco: number;
   moeda: string;
   estoque: number;
@@ -76,9 +79,25 @@ const ATRIBUTOS = [
   "Constituição",
   "Inteligência",
   "Carisma",
-];
+] as const;
+
+const ATTRIBUTE_KEYS_BY_LABEL = {
+  Força: "forca",
+  Destreza: "destreza",
+  Constituição: "constituicao",
+  Inteligência: "inteligencia",
+  Carisma: "carisma",
+} as const;
 
 const MAX_SHOP_IMAGE_SIZE_BYTES = 3 * 1024 * 1024;
+
+function criarCheckoutRequestId(): string {
+  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (token) => {
+    const value = Math.floor(Math.random() * 16);
+    return (token === "x" ? value : (value & 0x3) | 0x8).toString(16);
+  });
+}
 
 const initialItemDraft = {
   nome: "",
@@ -89,6 +108,10 @@ const initialItemDraft = {
   efeitos: "",
   atributo: "",
   bonus: "0",
+  bonusAtributos: {} as Partial<Record<"forca" | "destreza" | "constituicao" | "inteligencia" | "carisma", number>>,
+  recurso: "",
+  valorRecurso: "0",
+  cargas: "",
   preco: "",
   estoque: "1",
   imagem: "",
@@ -194,18 +217,21 @@ function getDefaultItems(campaignId: string): ShopItem[] {
 }
 
 function normalizeShopItem(item: ShopItem): ShopItem {
-  if (item.atributo && item.bonus !== undefined) {
-    return item;
-  }
-
   const effectWithAttribute = (item.efeitos ?? [])
     .map((effect) => effect.match(/^\s*([+-]?\d+)\s+(Força|Destreza|Constituição|Inteligência|Carisma)\s*$/i))
     .find(Boolean);
+  const attribute = item.atributo ?? effectWithAttribute?.[2];
+  const bonus = item.bonus ?? (effectWithAttribute ? Number(effectWithAttribute[1]) : undefined);
+  const bonusKeys = Object.keys(item.bonusAtributos ?? {});
+  const bonusAtributos = bonusKeys.length > 0 || !attribute || bonus === undefined
+    ? item.bonusAtributos ?? {}
+    : { [ATTRIBUTE_KEYS_BY_LABEL[attribute as keyof typeof ATTRIBUTE_KEYS_BY_LABEL]]: bonus };
 
   return {
     ...item,
-    atributo: item.atributo ?? effectWithAttribute?.[2],
-    bonus: item.bonus ?? (effectWithAttribute ? Number(effectWithAttribute[1]) : undefined),
+    atributo: attribute,
+    bonus,
+    bonusAtributos,
   };
 }
 
@@ -244,6 +270,15 @@ function fromDatabaseShopItem(item: DatabaseShopItem): ShopItem {
     raridade,
     descricao: item.descricao ?? "",
     efeitos: item.efeito?.split(/\r?\n/).filter(Boolean) ?? [],
+    atributo: item.bonusAtributos?.forca ? "Força"
+      : item.bonusAtributos?.destreza ? "Destreza"
+        : item.bonusAtributos?.constituicao ? "Constituição"
+          : item.bonusAtributos?.inteligencia ? "Inteligência"
+            : item.bonusAtributos?.carisma ? "Carisma" : undefined,
+    bonus: Object.values(item.bonusAtributos ?? {}).find((value) => value !== 0),
+    bonusAtributos: item.bonusAtributos,
+    efeitoMecanico: item.efeitoMecanico,
+    cargasMaximas: item.cargasMaximas,
     preco: item.precoCompra,
     moeda: "PO",
     estoque: item.estoque,
@@ -325,6 +360,7 @@ export default function Shop() {
     useState("");
   const [checkoutError, setCheckoutError] = useState("");
   const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const checkoutRequest = useRef<{ signature: string; id: string } | null>(null);
 
   const [selectedItem, setSelectedItem] =
     useState<ShopItem | null>(null);
@@ -757,16 +793,23 @@ export default function Shop() {
       return;
     }
 
+    const purchaseLines = cartRows.map(({ item, quantity }) => ({
+      lojaItemId: item.id,
+      quantidade: quantity,
+    }));
+    const signature = JSON.stringify([activeCharacter.id, purchaseLines]);
+    if (checkoutRequest.current?.signature !== signature) {
+      checkoutRequest.current = { signature, id: criarCheckoutRequestId() };
+    }
+
     setCheckoutLoading(true);
     setCheckoutError("");
 
     try {
       const receipt = await comprarCarrinho(
         activeCharacter.id,
-        cartRows.map(({ item, quantity }) => ({
-          lojaItemId: item.id,
-          quantidade: quantity,
-        })),
+        purchaseLines,
+        checkoutRequest.current.id,
       );
 
       setCharacters((current) => current.map((character) => {
@@ -776,6 +819,7 @@ export default function Shop() {
         return { ...character, carteira: { ...carteira, po: receipt.saldo_po } };
       }));
       setCart([]);
+      checkoutRequest.current = null;
       setCheckoutMessage("Compra concluída e registrada no inventário do personagem.");
 
       try {
@@ -863,6 +907,11 @@ export default function Shop() {
       efeitos: itemDraft.efeitos.split("\n").map((effect) => effect.trim()).filter(Boolean),
       atributo: itemDraft.atributo || undefined,
       bonus: itemDraft.atributo ? Number(itemDraft.bonus) : undefined,
+      bonusAtributos: itemDraft.bonusAtributos,
+      efeitoMecanico: itemDraft.recurso
+        ? { tipo: "RECURSO", recurso: itemDraft.recurso as "hp" | "mp", valor: Number(itemDraft.valorRecurso) }
+        : { tipo: "NENHUM" },
+      cargasMaximas: itemDraft.cargas ? Math.max(1, Number(itemDraft.cargas)) : null,
       preco: Number(itemDraft.preco),
       moeda: "PO",
       estoque: Number(itemDraft.estoque),
@@ -909,6 +958,9 @@ export default function Shop() {
         raridade: nextItem.raridade.toUpperCase(),
         efeito: effects.join("\n"),
         imagemUrl,
+        bonusAtributos: nextItem.bonusAtributos,
+        efeitoMecanico: nextItem.efeitoMecanico,
+        cargasMaximas: nextItem.cargasMaximas,
         precoCompra: nextItem.preco,
         estoque: nextItem.estoque,
         ativo: nextItem.disponivel,
@@ -946,6 +998,10 @@ export default function Shop() {
       efeitos: item.efeitos.join("\n"),
       atributo: item.atributo ?? "",
       bonus: String(item.bonus ?? 0),
+      bonusAtributos: item.bonusAtributos ?? {},
+      recurso: item.efeitoMecanico?.tipo === "RECURSO" ? item.efeitoMecanico.recurso : "",
+      valorRecurso: item.efeitoMecanico?.tipo === "RECURSO" ? String(item.efeitoMecanico.valor) : "0",
+      cargas: item.cargasMaximas ? String(item.cargasMaximas) : "",
       preco: String(item.preco),
       estoque: String(item.estoque),
       imagem: item.imagem ?? "",
@@ -981,9 +1037,12 @@ export default function Shop() {
           Diversos: "DIVERSOS",
         }[item.categoria] ?? "DIVERSOS",
         raridade: item.raridade.toUpperCase(),
-        efeito: item.efeitos.join("\n"),
-        imagemUrl: item.imagem ?? null,
-        precoCompra: item.preco,
+      efeito: item.efeitos.join("\n"),
+      imagemUrl: item.imagem ?? null,
+      bonusAtributos: item.bonusAtributos ?? {},
+      efeitoMecanico: item.efeitoMecanico ?? { tipo: "NENHUM" },
+      cargasMaximas: item.cargasMaximas ?? null,
+      precoCompra: item.preco,
         estoque: item.estoque,
         ativo: !item.disponivel,
       });
@@ -1622,7 +1681,16 @@ export default function Shop() {
               <select
                 value={itemDraft.atributo}
                 required={Number(itemDraft.bonus) !== 0}
-                onChange={(event) => setItemDraft((current) => ({ ...current, atributo: event.target.value }))}
+                onChange={(event) => setItemDraft((current) => {
+                  const nextBonuses = { ...current.bonusAtributos };
+                  if (current.atributo) delete nextBonuses[ATTRIBUTE_KEYS_BY_LABEL[current.atributo as keyof typeof ATTRIBUTE_KEYS_BY_LABEL]];
+                  const selectedAttribute = event.target.value;
+                  const attributeKey = selectedAttribute
+                    ? ATTRIBUTE_KEYS_BY_LABEL[selectedAttribute as keyof typeof ATTRIBUTE_KEYS_BY_LABEL]
+                    : undefined;
+                  if (attributeKey && Number(current.bonus) !== 0) nextBonuses[attributeKey] = Number(current.bonus);
+                  return { ...current, atributo: selectedAttribute, bonusAtributos: nextBonuses };
+                })}
               >
                 <option value="">Nenhum</option>
                 {ATRIBUTOS.map((attribute) => <option key={attribute}>{attribute}</option>)}
@@ -1634,7 +1702,49 @@ export default function Shop() {
                 type="number"
                 step="1"
                 value={itemDraft.bonus}
-                onChange={(event) => setItemDraft((current) => ({ ...current, bonus: event.target.value }))}
+                onChange={(event) => setItemDraft((current) => {
+                  const nextBonuses = { ...current.bonusAtributos };
+                  const attributeKey = current.atributo
+                    ? ATTRIBUTE_KEYS_BY_LABEL[current.atributo as keyof typeof ATTRIBUTE_KEYS_BY_LABEL]
+                    : undefined;
+                  if (attributeKey) {
+                    if (Number(event.target.value) === 0) delete nextBonuses[attributeKey];
+                    else nextBonuses[attributeKey] = Number(event.target.value);
+                  }
+                  return { ...current, bonus: event.target.value, bonusAtributos: nextBonuses };
+                })}
+              />
+            </label>
+            <label>
+              Recurso ao usar
+              <select
+                value={itemDraft.recurso}
+                onChange={(event) => setItemDraft((current) => ({ ...current, recurso: event.target.value }))}
+              >
+                <option value="">Sem efeito de recurso</option>
+                <option value="hp">Vida (PV)</option>
+                <option value="mp">Mana (PM)</option>
+              </select>
+            </label>
+            <label>
+              Quantidade de PV/PM aplicada
+              <input
+                type="number"
+                min={itemDraft.recurso ? 1 : undefined}
+                step="1"
+                value={itemDraft.valorRecurso}
+                disabled={!itemDraft.recurso}
+                onChange={(event) => setItemDraft((current) => ({ ...current, valorRecurso: event.target.value }))}
+              />
+            </label>
+            <label>
+              Cargas máximas (opcional)
+              <input
+                type="number"
+                min="1"
+                step="1"
+                value={itemDraft.cargas}
+                onChange={(event) => setItemDraft((current) => ({ ...current, cargas: event.target.value }))}
               />
             </label>
             <label>

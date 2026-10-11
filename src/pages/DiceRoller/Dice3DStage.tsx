@@ -4,9 +4,8 @@ import { getDie3DDefinition, type Die3DDefinition } from "./diceGeometries";
 import {
   createDiceAtlasTexture,
   createDieMaterial,
-  type DiceColorTheme,
-  DICE_COLOR_THEMES,
 } from "./diceMaterials";
+import { DICE_COLOR_THEMES, type DiceColorTheme } from "./diceThemes";
 import type { DiceRoll, DieSides } from "./diceRoller.types";
 import { DieIcon } from "./DiceIcons";
 

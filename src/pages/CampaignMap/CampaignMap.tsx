@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
 import { Link, useParams } from "react-router-dom";
 import { supabase } from "../../services/supabase";
+import { getCampaignAccess } from "../../services/api";
 import "./CampaignMap.css";
 
 type Campaign = {
@@ -121,7 +122,8 @@ export default function CampaignMap() {
         }
 
         setCampaign(campanhaData);
-        setIsMaster(campanhaData.created_by === user.id);
+        const { isMaster: ehMestreAtivo } = await getCampaignAccess(campanhaId!);
+        setIsMaster(ehMestreAtivo);
 
         const { data: mapaData, error: mapaError } = await supabase
           .from("mapas")
@@ -141,12 +143,13 @@ export default function CampaignMap() {
         if (mapaData) {
           setMapa(mapaData);
 
-          const { data: marcadorData, error: marcadorError } =
-            await supabase
-              .from("mapa_marcadores")
-              .select("*")
-              .eq("mapa_id", mapaData.id)
-              .order("criado_em", { ascending: true });
+          let marcadorQuery = supabase
+            .from("mapa_marcadores")
+            .select("*")
+            .eq("mapa_id", mapaData.id)
+            .order("criado_em", { ascending: true });
+          if (!ehMestreAtivo) marcadorQuery = marcadorQuery.eq("visivel", true);
+          const { data: marcadorData, error: marcadorError } = await marcadorQuery;
 
           if (marcadorError) {
             throw marcadorError;
@@ -197,11 +200,13 @@ export default function CampaignMap() {
   }, [campanhaId]);
 
   async function recarregarMarcadores(mapaId: string) {
-    const { data, error } = await supabase
+    let query = supabase
       .from("mapa_marcadores")
       .select("*")
       .eq("mapa_id", mapaId)
       .order("criado_em", { ascending: true });
+    if (!isMaster) query = query.eq("visivel", true);
+    const { data, error } = await query;
 
     if (error) {
       throw error;
@@ -719,7 +724,7 @@ export default function CampaignMap() {
                 alt={`Mapa da campanha ${campaign.nome}`}
               />
 
-              {marcadores.map((marker) => (
+              {marcadores.filter((marker) => isMaster || marker.visivel).map((marker) => (
                 <div
                   key={marker.id}
                   className={`map-marker marker-${marker.tipo}`}
@@ -761,7 +766,7 @@ export default function CampaignMap() {
             <h2>Marcadores</h2>
 
             <div className="map-legend-grid">
-              {marcadores.map((marker) => (
+              {marcadores.filter((marker) => isMaster || marker.visivel).map((marker) => (
                 <div key={marker.id} className="map-legend-item">
                   <span>
                     {marker.icone ??

@@ -135,6 +135,13 @@
   cursor: wait;
 }
 
+.dice-3d-stage.is-loading {
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  cursor: progress;
+}
+
 .dice-3d-canvas-container {
   width: 100%;
   height: 100%;

@@ -1,6 +1,10 @@
 import type { Attributes } from "../../types/character";
 import type { CampaignClassContent } from "../../services/api";
-import { ATTRIBUTE_CONFIG, type ClassDefinition } from "../../data/personaRules";
+import {
+  ATTRIBUTE_CONFIG,
+  type CampaignClassBonuses,
+  type ClassDefinition,
+} from "../../data/personaRules";
 
 export interface ClassInfo {
   nome: string;
@@ -18,45 +22,61 @@ function texto(valor: unknown): string {
   return typeof valor === "string" ? valor.trim() : "";
 }
 
+function normalizarChave(valor: string): string {
+  return valor.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLocaleLowerCase();
+}
+
+function resolverBonusCampanha(
+  classeNome: string,
+  classeId: string | undefined,
+  bonuses: CampaignClassBonuses,
+) {
+  const entrada = Object.entries(bonuses).find(([key]) =>
+    normalizarChave(key) === normalizarChave(classeNome) ||
+    normalizarChave(key) === normalizarChave(classeId ?? ""),
+  );
+  return entrada?.[1];
+}
+
 /**
- * Junta o que existe sobre a classe: catálogo global (data/personaRules + banco)
- * e conteúdo personalizado da campanha. Retorna null se a classe não for encontrada.
+ * Apresenta a regra efetiva da classe, seguindo a mesma precedência do cálculo:
+ * override da campanha > classe criada na campanha > catálogo global/local.
  */
 export function montarInfoClasse(
   nome: string | undefined,
   classeId: string | undefined,
   catalogo: ClassDefinition[],
   conteudos: CampaignClassContent[],
+  bonusCampanha: CampaignClassBonuses = {},
 ): ClassInfo | null {
   if (!nome) return null;
 
+  const chaveNome = normalizarChave(nome);
   const definicao = catalogo.find(
     (item) =>
       (classeId && item.id === classeId) ||
-      item.nome === nome ||
-      item.aliases?.includes(nome),
+      normalizarChave(item.nome) === chaveNome ||
+      item.aliases?.some((alias) => normalizarChave(alias) === chaveNome),
   );
 
   const idClasse = definicao?.id ?? classeId;
-
   const conteudoClasse = conteudos.find(
     (item) =>
       item.tipo === "CLASSE" &&
-      ((idClasse && item.classe_id === idClasse) || item.nome === nome),
+      ((idClasse && item.classe_id === idClasse) || normalizarChave(item.nome) === chaveNome),
   );
+  const override = resolverBonusCampanha(nome, idClasse, bonusCampanha);
 
-  if (!definicao && !conteudoClasse) return null;
+  if (!definicao && !conteudoClasse && !override) return null;
 
   const descricao =
     texto(conteudoClasse?.descricao) ||
-    texto(
-      (definicao as (ClassDefinition & { descricao?: unknown }) | undefined)
-        ?.descricao,
-    );
+    texto((definicao as (ClassDefinition & { descricao?: unknown }) | undefined)?.descricao);
 
-  const bonusBrutos = (definicao?.atributoBonus ??
+  const bonusBrutos = (override?.atributoBonus ??
     conteudoClasse?.bonus_atributos ??
-    {}) as unknown as BonusAtributos;
+    definicao?.atributoBonus ??
+    {}) as BonusAtributos;
 
   const bonusAtributos = ATTRIBUTE_CONFIG.map(({ key, label }) => ({
     chave: String(key),
@@ -73,16 +93,11 @@ export function montarInfoClasse(
   }));
 
   const habilidadesCampanha = conteudos
-    .filter(
-      (item) =>
-        (item.tipo as string) === "HABILIDADE" &&
-        idClasse &&
-        item.classe_id === idClasse,
-    )
+    .filter((item) => item.tipo === "HABILIDADE" && idClasse && item.classe_id === idClasse)
     .map((item) => ({
       nome: texto(item.nome),
       descricao: texto(item.descricao),
-      nivel: undefined as number | undefined,
+      nivel: typeof item.nivel === "number" ? item.nivel : undefined,
     }));
 
   const habilidades = [...habilidadesDefinicao, ...habilidadesCampanha].filter(
@@ -94,8 +109,8 @@ export function montarInfoClasse(
     nome: definicao?.nome ?? conteudoClasse?.nome ?? nome,
     descricao,
     bonusAtributos,
-    bonusHp: Number(definicao?.hpBonus ?? conteudoClasse?.bonus_hp ?? 0) || 0,
-    bonusMp: Number(definicao?.mpBonus ?? conteudoClasse?.bonus_mp ?? 0) || 0,
+    bonusHp: Number(override?.hpBonus ?? conteudoClasse?.bonus_hp ?? definicao?.hpBonus ?? 0) || 0,
+    bonusMp: Number(override?.mpBonus ?? conteudoClasse?.bonus_mp ?? definicao?.mpBonus ?? 0) || 0,
     habilidades,
   };
 }

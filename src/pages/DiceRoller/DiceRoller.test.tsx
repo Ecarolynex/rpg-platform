@@ -47,7 +47,7 @@ describe("DiceRoller", () => {
 
     expect(await screen.findAllByText("Falha crítica")).toHaveLength(2);
     expect(screen.getByText("Dado: d20 | Rolado: 1 | Modificador: -1 | Total: 0")).toBeInTheDocument();
-    expect(screen.getByRole("status").querySelector(".dice-result-mark span")).toBeNull();
+    expect(document.querySelector(".dice-result .dice-result-mark span")).toBeNull();
     await waitFor(() => {
       expect(historyStore.save).toHaveBeenCalledWith(
         "campaign-1",

@@ -3,23 +3,29 @@ import { Link } from "react-router-dom";
 import {
   alterarItemEquipado,
   getInventory,
+  usarItemPersonagem,
+  type ItemUseReceipt,
 } from "../../services/api";
 import "./InventoryItems.css";
 
 type InventoryItemData = {
   id: string;
+  bonus_atributos?: Record<string, number> | null;
   nome: string;
   descricao: string | null;
   tipo: string | null;
   raridade: string | null;
   efeito: string | null;
   imagem_url: string | null;
+  efeito_mecanico?: { tipo: string; recurso?: "hp" | "mp"; valor?: number } | null;
+  cargas_maximas?: number | null;
 };
 
 type InventoryRow = {
   personagem_id: string;
   item_id: string;
   quantidade: number;
+  cargas_atuais?: number | null;
   equipado?: boolean;
   itens: InventoryItemData | InventoryItemData[] | null;
 };
@@ -27,6 +33,7 @@ type InventoryRow = {
 type PersistedInventoryItem = {
   itemId: string;
   quantidade: number;
+  cargasAtuais: number | null;
   equipado: boolean;
   item: InventoryItemData | null;
 };
@@ -34,24 +41,31 @@ type PersistedInventoryItem = {
 type InventoryItemsProps = {
   characterId: string;
   campaignId?: string | null;
+  onEquipmentChanged?: () => void;
+  onItemUsed?: (receipt: ItemUseReceipt) => void | Promise<void>;
 };
 
 function normalizeInventoryRows(
   rows: InventoryRow[],
 ): PersistedInventoryItem[] {
-  return rows.map((row) => ({
-    itemId: row.item_id,
-    quantidade: Number(row.quantidade) || 0,
-    equipado: row.equipado === true,
-    item: Array.isArray(row.itens)
-      ? row.itens[0] ?? null
-      : row.itens,
-  }));
+  return rows.map((row) => {
+    const quantidade = Number(row.quantidade) || 0;
+    const item = Array.isArray(row.itens) ? row.itens[0] ?? null : row.itens;
+    return {
+      itemId: row.item_id,
+      quantidade,
+      cargasAtuais: row.cargas_atuais ?? (item?.cargas_maximas ? item.cargas_maximas * quantidade : null),
+      equipado: row.equipado === true,
+      item,
+    };
+  });
 }
 
 export default function InventoryItems({
   characterId,
   campaignId,
+  onEquipmentChanged,
+  onItemUsed,
 }: InventoryItemsProps) {
   const [items, setItems] = useState<PersistedInventoryItem[]>([]);
   const [loadResult, setLoadResult] = useState<{
@@ -98,6 +112,24 @@ export default function InventoryItems({
     };
   }, [characterId, requestKey]);
 
+  async function usarItem(item: PersistedInventoryItem) {
+    if (!item.item || (!item.item.efeito_mecanico || item.item.efeito_mecanico.tipo === "NENHUM") && item.item.tipo !== "CONSUMIVEL" && !item.item.cargas_maximas) return;
+    setAlterandoItem(item.itemId);
+    setActionError("");
+    try {
+      const receipt = await usarItemPersonagem(characterId, item.itemId);
+      setItems((current) => current.map((entry) => entry.itemId === item.itemId
+        ? { ...entry, quantidade: receipt.quantidade, cargasAtuais: item.item?.cargas_maximas ? Math.max(0, (item.cargasAtuais ?? 0) - 1) : entry.cargasAtuais }
+        : entry).filter((entry) => entry.quantidade > 0));
+      await onItemUsed?.(receipt);
+      setAttempt((current) => current + 1);
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "Não foi possível usar o item.");
+    } finally {
+      setAlterandoItem(null);
+    }
+  }
+
   async function alternarEquipamento(
     item: PersistedInventoryItem,
   ) {
@@ -127,6 +159,7 @@ export default function InventoryItems({
             : itemAtual,
         ),
       );
+      onEquipmentChanged?.();
     } catch (err: unknown) {
       console.error(
         "Erro ao alterar equipamento:",
@@ -284,9 +317,14 @@ export default function InventoryItems({
                     </span>
                   )}
 
-                  {estaEquipado && (
+              {estaEquipado && (
                     <span className="inventory-item-equipped">
                       Equipado
+                    </span>
+                  )}
+                  {inventoryItem.item?.cargas_maximas && (
+                    <span className="inventory-item-equipped">
+                      Cargas {inventoryItem.cargasAtuais ?? 0}
                     </span>
                   )}
                 </div>
@@ -313,11 +351,7 @@ export default function InventoryItems({
                       : "btn-primary inventory-equip-button"
                   }
                   disabled={alterando}
-                  onClick={() =>
-                    void alternarEquipamento(
-                      inventoryItem,
-                    )
-                  }
+                  onClick={() => void alternarEquipamento(inventoryItem)}
                 >
                   {alterando
                     ? "Salvando..."
@@ -325,6 +359,16 @@ export default function InventoryItems({
                       ? "Desequipar"
                       : "Equipar"}
                 </button>
+                {(inventoryItem.item?.tipo === "CONSUMIVEL" || (inventoryItem.item?.cargas_maximas ?? 0) > 0) && (
+                  <button
+                    type="button"
+                    className="btn-ghost inventory-use-button"
+                    disabled={alterando || inventoryItem.quantidade <= 0 || (inventoryItem.cargasAtuais !== null && inventoryItem.cargasAtuais <= 0)}
+                    onClick={() => void usarItem(inventoryItem)}
+                  >
+                    {alterando ? "Usando..." : "Usar"}
+                  </button>
+                )}
               </div>
             </article>
           );

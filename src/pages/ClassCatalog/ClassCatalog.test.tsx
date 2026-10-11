@@ -1,12 +1,14 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
 import {
+  canManageGlobalClassCatalog,
   getCatalogoGlobalClasses,
   salvarCatalogoGlobalClasses,
 } from "../../services/api";
 import ClassCatalog from "./ClassCatalog";
 
 vi.mock("../../services/api", () => ({
+  canManageGlobalClassCatalog: vi.fn(),
   getCatalogoGlobalClasses: vi.fn(),
   salvarCatalogoGlobalClasses: vi.fn(),
 }));
@@ -34,6 +36,7 @@ describe("catálogo global de classes", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(getCatalogoGlobalClasses).mockResolvedValue([warrior]);
+    vi.mocked(canManageGlobalClassCatalog).mockResolvedValue(true);
     vi.mocked(salvarCatalogoGlobalClasses).mockImplementation(async (catalogo) => catalogo);
   });
 
@@ -75,6 +78,17 @@ describe("catálogo global de classes", () => {
     expect(await screen.findByRole("status")).toHaveTextContent(
       "Catálogo compartilhado atualizado.",
     );
+  });
+
+  it("exibe o catálogo em modo somente leitura sem a claim administrativa", async () => {
+    vi.mocked(canManageGlobalClassCatalog).mockResolvedValue(false);
+
+    render(<ClassCatalog />);
+
+    expect(await screen.findByText("Catálogo somente leitura.")).toBeInTheDocument();
+    expect(screen.getByRole("spinbutton", { name: "Guerreiro - Força" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Salvar catálogo" })).toBeDisabled();
+    expect(screen.queryByRole("textbox", { name: "Nova classe" })).not.toBeInTheDocument();
   });
 });
 

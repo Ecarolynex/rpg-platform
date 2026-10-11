@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import {
+  canManageGlobalClassCatalog,
   getCatalogoGlobalClasses,
   salvarCatalogoGlobalClasses,
 } from "../../services/api";
@@ -23,13 +24,17 @@ export default function ClassCatalog() {
   const [classes, setClasses] = useState<ClassDefinition[]>([]);
   const [nomeNovaClasse, setNomeNovaClasse] = useState("");
   const [carregando, setCarregando] = useState(true);
+  const [podeAdministrar, setPodeAdministrar] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [mensagem, setMensagem] = useState("");
   const [erro, setErro] = useState("");
 
   useEffect(() => {
-    getCatalogoGlobalClasses()
-      .then((dados) => setClasses(dados))
+    Promise.all([getCatalogoGlobalClasses(), canManageGlobalClassCatalog()])
+      .then(([dados, podeEditar]) => {
+        setClasses(dados);
+        setPodeAdministrar(podeEditar);
+      })
       .catch((error: unknown) => {
         setErro(
           error instanceof Error
@@ -144,14 +149,14 @@ export default function ClassCatalog() {
         <span className="class-catalog-kicker">Regras compartilhadas</span>
         <h1>Classes, perícias e habilidades</h1>
         <p>
-          Catálogo global colaborativo. As classes cadastradas ficam disponíveis
-          na criação de personagens e em todas as campanhas.
+          Catálogo global administrado por operadores autorizados. As classes
+          cadastradas ficam disponíveis na criação de personagens e em todas as campanhas.
         </p>
       </header>
 
       <div>
         <div className="class-catalog-toolbar">
-          <form onSubmit={adicionarClasse} className="class-catalog-add">
+          {podeAdministrar ? <form onSubmit={adicionarClasse} className="class-catalog-add">
             <label>
               <span>Nova classe</span>
               <input
@@ -165,11 +170,11 @@ export default function ClassCatalog() {
             <button type="submit" className="btn-ghost" disabled={Boolean(erro)}>
               Adicionar classe
             </button>
-          </form>
+          </form> : <p className="class-catalog-readonly">Catálogo somente leitura.</p>}
           <button
             type="button"
             className="btn-primary"
-            disabled={salvando || Boolean(erro)}
+            disabled={!podeAdministrar || salvando || Boolean(erro)}
             onClick={() => void salvar()}
           >
             {salvando ? "Salvando..." : "Salvar catálogo"}
@@ -183,6 +188,7 @@ export default function ClassCatalog() {
           {classes.map((classe) => (
             <ClassEditor
               key={classe.id}
+              readOnly={!podeAdministrar}
               classe={classe}
               onChange={(alterar) => atualizarClasse(classe.id, alterar)}
               onDelete={() =>
@@ -205,6 +211,7 @@ export default function ClassCatalog() {
 
 function ClassEditor({
   classe,
+  readOnly,
   onChange,
   onDelete,
   onUpdateSkill,
@@ -212,6 +219,7 @@ function ClassEditor({
   onUpdateSpell,
 }: {
   classe: ClassDefinition;
+  readOnly: boolean;
   onChange: (alterar: (classe: ClassDefinition) => ClassDefinition) => void;
   onDelete: () => void;
   onUpdateSkill: (
@@ -286,7 +294,7 @@ function ClassEditor({
   }
 
   return (
-    <fieldset className="class-editor-card">
+    <fieldset className="class-editor-card" disabled={readOnly}>
       <legend>
         <input
           aria-label="Nome da classe"

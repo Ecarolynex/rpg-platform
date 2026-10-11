@@ -1,14 +1,18 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import InventoryItems from "./InventoryItems";
 
 const api = vi.hoisted(() => ({
   getInventory: vi.fn(),
+  usarItemPersonagem: vi.fn(),
+  alterarItemEquipado: vi.fn(),
 }));
 
 vi.mock("../../services/api", () => ({
   getInventory: api.getInventory,
+  usarItemPersonagem: api.usarItemPersonagem,
+  alterarItemEquipado: api.alterarItemEquipado,
 }));
 
 const characterId = "persisted-character-1";
@@ -58,6 +62,8 @@ describe("InventoryItems", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     api.getInventory.mockResolvedValue([]);
+    api.usarItemPersonagem.mockResolvedValue({ personagem_id: characterId, hp: null, mp: null, quantidade: 1, hp_max: 10, mp_max: 10 });
+    api.alterarItemEquipado.mockResolvedValue(undefined);
   });
 
   it("mostra o estado de carregamento enquanto busca o inventário", () => {
@@ -107,6 +113,50 @@ describe("InventoryItems", () => {
     );
     expect(api.getInventory).toHaveBeenCalledTimes(1);
     expect(api.getInventory).toHaveBeenCalledWith(characterId);
+  });
+
+  it("consome item via RPC e notifica a ficha para atualizar recursos e regras", async () => {
+    const onItemUsed = vi.fn();
+    api.getInventory.mockResolvedValue([inventoryRow({
+      id: "potion-1",
+      name: "Poção de cura",
+      quantity: 2,
+      equipped: false,
+      items: {
+        id: "potion-1",
+        nome: "Poção de cura",
+        descricao: "Recupera vida.",
+        tipo: "CONSUMIVEL",
+        raridade: "Comum",
+        efeito: "Recupera 4 PV.",
+        imagem_url: null,
+        efeito_mecanico: { tipo: "RECURSO", recurso: "hp", valor: 4 },
+      },
+    })]);
+    api.usarItemPersonagem.mockResolvedValue({
+      personagem_id: characterId,
+      hp: { atual: 14 },
+      mp: null,
+      quantidade: 1,
+      hp_max: 24,
+      mp_max: 10,
+    });
+
+    render(
+      <MemoryRouter>
+        <InventoryItems characterId={characterId} onItemUsed={onItemUsed} />
+      </MemoryRouter>,
+    );
+    const useButton = await screen.findByRole("button", { name: "Usar" });
+    await act(async () => {
+      fireEvent.click(useButton);
+      await Promise.resolve();
+    });
+
+    expect(api.usarItemPersonagem).toHaveBeenCalledWith(characterId, "potion-1");
+    await waitFor(() => {
+      expect(onItemUsed).toHaveBeenCalledWith(expect.objectContaining({ hp: { atual: 14 } }));
+    });
   });
 
   it("mostra estado vazio e link da loja quando pertence a uma campanha", async () => {

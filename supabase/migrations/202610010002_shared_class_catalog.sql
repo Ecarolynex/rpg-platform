@@ -69,7 +69,9 @@ create policy "campanha_classes_conteudos_select_membro"
 
 drop policy if exists "campanha_classes_conteudos_insert_membro"
   on public.campanha_classes_conteudos;
-create policy "campanha_classes_conteudos_insert_membro"
+drop policy if exists "campanha_classes_conteudos_insert_mestre"
+  on public.campanha_classes_conteudos;
+create policy "campanha_classes_conteudos_insert_mestre"
   on public.campanha_classes_conteudos
   for insert to authenticated
   with check (
@@ -79,13 +81,16 @@ create policy "campanha_classes_conteudos_insert_membro"
       from public.campanha_membros membro
       where membro.campanha_id = campanha_classes_conteudos.campanha_id
         and membro.user_id = auth.uid()
+        and membro.papel = 'MESTRE'
         and membro.status = 'ATIVO'
     )
   );
 
 drop policy if exists "campanha_classes_conteudos_delete_membro"
   on public.campanha_classes_conteudos;
-create policy "campanha_classes_conteudos_delete_membro"
+drop policy if exists "campanha_classes_conteudos_delete_mestre"
+  on public.campanha_classes_conteudos;
+create policy "campanha_classes_conteudos_delete_mestre"
   on public.campanha_classes_conteudos
   for delete to authenticated
   using (
@@ -94,6 +99,7 @@ create policy "campanha_classes_conteudos_delete_membro"
       from public.campanha_membros membro
       where membro.campanha_id = campanha_classes_conteudos.campanha_id
         and membro.user_id = auth.uid()
+        and membro.papel = 'MESTRE'
         and membro.status = 'ATIVO'
     )
   );

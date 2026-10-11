@@ -16,6 +16,7 @@ export function AppShell() {
   const personagemAtual = Boolean(personagemFichaAtual);
   const [nomeCampanha, setNomeCampanha] = useState("");
   const [menuAberto, setMenuAberto] = useState(false);
+  const [erroLogout, setErroLogout] = useState("");
 
   useEffect(() => {
     if (!campanhaId) return;
@@ -117,11 +118,15 @@ export function AppShell() {
             </span>
           </div>
 
+          {erroLogout && <p className="app-sidebar-error" role="alert">{erroLogout}</p>}
           <button
             className="btn-ghost app-sidebar-logout"
             aria-label="Sair da conta"
             onClick={() => {
-              void logout();
+              setErroLogout("");
+              void logout().catch((error: unknown) => {
+                setErroLogout(error instanceof Error ? error.message : "Não foi possível sair da conta.");
+              });
             }}
           >
             Sair

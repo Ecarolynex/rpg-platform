@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import "./Campaigns.css";
 import {
@@ -7,6 +7,14 @@ import {
   entrarNaCampanha,
   type Campaign,
 } from "../../services/api";
+
+function criarRequestId(): string {
+  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (token) => {
+    const value = Math.floor(Math.random() * 16);
+    return (token === "x" ? value : (value & 0x3) | 0x8).toString(16);
+  });
+}
 
 export default function Campaigns() {
   const navigate = useNavigate();
@@ -24,42 +32,58 @@ export default function Campaigns() {
 
   const [loading, setLoading] = useState(false);
   const [loadingCampaigns, setLoadingCampaigns] = useState(true);
+  const [campaignsError, setCampaignsError] = useState("");
 
   const [mensagem, setMensagem] = useState("");
   const [codigoCriado, setCodigoCriado] = useState("");
   const [campanhaCriadaId, setCampanhaCriadaId] = useState("");
 
   const [campanhas, setCampanhas] = useState<Campaign[]>([]);
+  const createRequest = useRef<{ signature: string; id: string } | null>(null);
 
-  async function carregarCampanhas() {
+  const carregarCampanhas = useCallback(async () => {
+    setLoadingCampaigns(true);
+    setCampaignsError("");
+
     try {
-      const resultado = await listarMinhasCampanhas();
-
-      setCampanhas(resultado);
+      setCampanhas(await listarMinhasCampanhas());
     } catch (error) {
-      console.error("Erro ao carregar campanhas:", error);
+      setCampaignsError(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível carregar suas campanhas.",
+      );
     } finally {
       setLoadingCampaigns(false);
     }
-  }
+  }, []);
 
   useEffect(() => {
-    let active = true;
+    let ativo = true;
 
-    async function loadInitialCampaigns() {
+    async function carregarInicial() {
       try {
         const resultado = await listarMinhasCampanhas();
-        if (active) setCampanhas(resultado);
+        if (ativo) {
+          setCampanhas(resultado);
+          setCampaignsError("");
+        }
       } catch (error) {
-        console.error("Erro ao carregar campanhas:", error);
+        if (ativo) {
+          setCampaignsError(
+            error instanceof Error
+              ? error.message
+              : "Não foi possível carregar suas campanhas.",
+          );
+        }
       } finally {
-        if (active) setLoadingCampaigns(false);
+        if (ativo) setLoadingCampaigns(false);
       }
     }
 
-    void loadInitialCampaigns();
+    void carregarInicial();
     return () => {
-      active = false;
+      ativo = false;
     };
   }, []);
 
@@ -74,13 +98,22 @@ export default function Campaigns() {
     setCampanhaCriadaId("");
 
     try {
-      const campanha = await criarCampanha({
-        nome,
-        descricao,
-        sistema,
-        moeda_principal: moeda,
+      const payload = {
+        nome: nome.trim(),
+        descricao: descricao.trim(),
+        sistema: sistema.trim(),
+        moeda_principal: moeda.trim(),
         ouro_inicial: Number(ouroInicial),
-      });
+      };
+      const signature = JSON.stringify(payload);
+      if (createRequest.current?.signature !== signature) {
+        createRequest.current = {
+          signature,
+          id: criarRequestId(),
+        };
+      }
+      const campanha = await criarCampanha(payload, createRequest.current.id);
+      createRequest.current = null;
 
       setCodigoCriado(campanha.codigo_convite);
       setCampanhaCriadaId(campanha.id);
@@ -92,7 +125,6 @@ export default function Campaigns() {
       setMoeda("");
       setOuroInicial("1250");
 
-      setLoadingCampaigns(true);
       await carregarCampanhas();
     } catch (error) {
       console.error("Erro ao criar campanha:", error);
@@ -118,7 +150,6 @@ export default function Campaigns() {
     try {
       const campanha = await entrarNaCampanha(codigo);
 
-      setLoadingCampaigns(true);
       await carregarCampanhas();
 
       setCodigo("");
@@ -179,11 +210,25 @@ export default function Campaigns() {
 
       <hr className="hairline" />
 
+      {campaignsError && (
+        <div className="status-message status-message--error campaigns-load-error" role="alert">
+          <p>{campaignsError}</p>
+          <button
+            type="button"
+            className="btn-ghost"
+            onClick={() => void carregarCampanhas()}
+            disabled={loadingCampaigns}
+          >
+            {loadingCampaigns ? "Carregando..." : "Tentar novamente"}
+          </button>
+        </div>
+      )}
+
       {!showCreate && !showJoin && (
         <section className="campaign-list">
           {loadingCampaigns ? (
-            <p>Carregando campanhas...</p>
-          ) : campanhas.length > 0 ? (
+            <p role="status">Carregando campanhas...</p>
+          ) : campaignsError && campanhas.length === 0 ? null : campanhas.length > 0 ? (
             <>
               <div className="campaign-list-header">
                 <span className="campaigns-kicker">
@@ -228,7 +273,7 @@ export default function Campaigns() {
 
                       <div className="campaign-card-info-item">
                         <span>Saldo inicial</span>
-                        <strong>0 PO</strong>
+                        <strong>{campanha.ouro_inicial ?? 0} PO</strong>
                       </div>
                     </div>
 

@@ -164,6 +164,16 @@
   padding: 3px 8px;
 }
 
+.campaign-copy-feedback {
+  margin-top: 6px;
+  color: var(--status-success-text);
+  font-size: 0.78rem;
+}
+
+.campaign-copy-feedback--error {
+  color: var(--status-error-text);
+}
+
 /* Seções e Painéis */
 .campaign-section {
   min-width: 0;

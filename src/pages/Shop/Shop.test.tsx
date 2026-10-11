@@ -730,7 +730,7 @@ describe('Shop', () => {
     const { comprarCarrinho } = await import('../../services/api');
     expect(vi.mocked(comprarCarrinho)).toHaveBeenCalledWith('char-1', [
       { lojaItemId: 'item-3', quantidade: 2 },
-    ]);
+    ], expect.any(String));
     expect(screen.getByText('890 PO')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Sua sacola está vazia' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Explorar a loja' })).toHaveClass('shop-empty-action');

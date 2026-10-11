@@ -11,6 +11,10 @@ const api = vi.hoisted(() => ({
   getCharacterAccess: vi.fn(),
   getCharacterById: vi.fn(),
   listarConteudosClasseCampanha: vi.fn(),
+  getCampaignClassBonuses: vi.fn(),
+  getInventory: vi.fn(),
+  reconciliarLimitesRecursosPersonagem: vi.fn(),
+  getCharacterResourceMaximums: vi.fn(),
 }));
 
 vi.mock("../../services/api", () => api);
@@ -76,6 +80,14 @@ describe("CharacterSheet inventory integration", () => {
     api.getCharacterAccess.mockResolvedValue({ canEdit: true, isMaster: false });
     api.getCatalogoGlobalClasses.mockResolvedValue([]);
     api.listarConteudosClasseCampanha.mockResolvedValue([]);
+    api.getCampaignClassBonuses.mockResolvedValue({});
+    api.getInventory.mockResolvedValue([]);
+    api.reconciliarLimitesRecursosPersonagem.mockResolvedValue({
+      dados_version: 1, hp_atual: 10, mp_atual: 10, hp_max: 20, mp_max: 18,
+    });
+    api.getCharacterResourceMaximums.mockResolvedValue({
+      dados_version: 1, hp_atual: 10, mp_atual: 10, hp_max: 20, mp_max: 18,
+    });
     api.atualizarPersonagem.mockImplementation(async (_id, character) => character);
   });
 

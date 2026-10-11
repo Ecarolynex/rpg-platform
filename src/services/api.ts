@@ -1,4 +1,9 @@
-import type { Attributes, Character, User } from "../types/character";
+import type { Character, User } from "../types/character";
+import {
+  parseCharacterData,
+  serializeCharacterData,
+} from "../domain/characterData";
+import { calculateDerivedCharacterStats } from "../domain/characterRules";
 import {
   DEFAULT_CLASS_CATALOG,
   normalizarCatalogoClasses,
@@ -7,7 +12,6 @@ import {
   type CampaignClassBonuses,
   type ClassDefinition,
 } from "../data/personaRules";
-import { LIMITE_RECURSO } from "../data/dnd";
 import { supabase } from "./supabase";
 
 /* =========================================================
@@ -147,68 +151,35 @@ type PersonagemRow = {
   campanha_id?: string | null;
   nome?: string | null;
   nivel?: number | null;
-  dados?: Partial<Character> | null;
+  xp?: number | null;
+  dados_version?: number | null;
+  dados?: unknown;
 };
 
-function rowToCharacter(
-  row: PersonagemRow,
-): Character | null {
-  if (!row.dados) return null;
+function rowToCharacter(row: PersonagemRow): Character | null {
+  const dados = parseCharacterData(row.dados);
+  if (!dados) return null;
 
-  const personagem = row.dados as Character;
-  if (!personagem.attributes) return null;
-  const attributes: Attributes = {
-    forca: personagem.attributes.forca,
-    destreza: personagem.attributes.destreza,
-    constituicao: personagem.attributes.constituicao,
-    inteligencia: personagem.attributes.inteligencia,
-    carisma: personagem.attributes.carisma,
-  };
-
-  return {
+  const { schemaVersion: _schemaVersion, ...personagem } = dados;
+  const base = {
     ...personagem,
-    attributes,
     id: row.id,
+    dataVersion: row.dados_version ?? 1,
     campanhaId: row.campanha_id ?? null,
-    nome: row.nome ?? row.dados.nome ?? "",
-    nivel: row.nivel ?? row.dados.nivel ?? 1,
+    xp: row.xp ?? 0,
+    nome: row.nome ?? personagem.nome,
+    nivel: row.nivel ?? personagem.nivel,
+  };
+  const derived = calculateDerivedCharacterStats(base);
+  return {
+    ...base,
+    hp: { ...personagem.hp, max: derived.hpMax },
+    mp: { ...personagem.mp, max: derived.mpMax },
   };
 }
 
-function paraDados(
-  personagem: Character,
-): Character {
-  const limitarRecurso = (valor: number, minimo: number, maximo: number) =>
-    Number.isFinite(valor)
-      ? Math.max(minimo, Math.min(maximo, Math.trunc(valor)))
-      : minimo;
-  const hpMax = limitarRecurso(personagem.hp.max, 1, LIMITE_RECURSO);
-  const mpMax = limitarRecurso(personagem.mp.max, 0, LIMITE_RECURSO);
-  const copia: Character = {
-    ...personagem,
-    id: "",
-    attributes: {
-      forca: personagem.attributes.forca,
-      destreza: personagem.attributes.destreza,
-      constituicao: personagem.attributes.constituicao,
-      inteligencia: personagem.attributes.inteligencia,
-      carisma: personagem.attributes.carisma,
-    },
-    hp: {
-      ...personagem.hp,
-      max: hpMax,
-      atual: limitarRecurso(personagem.hp.atual, 0, hpMax),
-    },
-    mp: {
-      ...personagem.mp,
-      max: mpMax,
-      atual: limitarRecurso(personagem.mp.atual, 0, mpMax),
-    },
-  };
-
-  delete copia.campanhaId;
-
-  return copia;
+function paraDados(personagem: Character) {
+  return serializeCharacterData(personagem);
 }
 
 /* =========================================================
@@ -284,40 +255,25 @@ export async function atualizarPersonagem(
   id: string,
   personagem: Character,
 ): Promise<Character> {
-  const dados = paraDados(personagem);
-
-  const { data, error } = await supabase
-    .from("personagens")
-    .update({
-      nome: personagem.nome,
-      nivel: personagem.nivel,
-      dados,
-    })
-    .eq("id", id)
-    .select()
-    .maybeSingle();
+  const { data, error } = await supabase.rpc("atualizar_personagem_versionado", {
+    p_personagem_id: id,
+    p_versao_esperada: personagem.dataVersion ?? 1,
+    p_nome: personagem.nome,
+    p_nivel: personagem.nivel,
+    p_dados: paraDados(personagem),
+  });
 
   if (error) {
-    throw new Error(
-      error.message ||
-        "Não foi possível salvar o personagem.",
-    );
+    throw new Error(error.message || "Não foi possível salvar o personagem.");
   }
 
-  if (!data) {
-    throw new Error(
-      "Você não tem permissão para alterar este personagem.",
-    );
+  if (!data || typeof data !== "object") {
+    throw new Error("Você não tem permissão para alterar este personagem.");
   }
 
-  const atualizado = rowToCharacter(
-    data as PersonagemRow,
-  );
-
+  const atualizado = rowToCharacter(data as PersonagemRow);
   if (!atualizado) {
-    throw new Error(
-      "Os dados da ficha ficaram vazios após salvar.",
-    );
+    throw new Error("Os dados da ficha ficaram vazios após salvar.");
   }
 
   return atualizado;
@@ -482,121 +438,25 @@ export async function vincularPersonagem(
   personagemId: string,
   campanhaId: string,
 ): Promise<Character> {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const atual = await getCharacterById(personagemId);
+  if (!atual) throw new Error("Personagem não encontrado.");
 
-  if (!user) {
-    throw new Error("Usuário não autenticado.");
-  }
-
-  const {
-    data: membro,
-    error: membroError,
-  } = await supabase
-    .from("campanha_membros")
-    .select("id")
-    .eq("campanha_id", campanhaId)
-    .eq("user_id", user.id)
-    .eq("status", "ATIVO")
-    .maybeSingle();
-
-  if (membroError) {
-    throw new Error(
-      membroError.message ||
-        "Não foi possível verificar sua participação.",
-    );
-  }
-
-  if (!membro) {
-    throw new Error(
-      "Você precisa participar da campanha para vincular um personagem.",
-    );
-  }
-
-  const {
-    data: linha,
-    error: linhaError,
-  } = await supabase
-    .from("personagens")
-    .select("*")
-    .eq("id", personagemId)
-    .eq("user_id", user.id)
-    .maybeSingle();
-
-  if (linhaError) {
-    throw new Error(
-      linhaError.message ||
-        "Não foi possível carregar o personagem.",
-    );
-  }
-
-  if (!linha) {
-    throw new Error(
-      "Personagem não encontrado.",
-    );
-  }
-
-  if (linha.campanha_id) {
-    throw new Error(
-      "Este personagem já está em uma campanha.",
-    );
-  }
-
-  const atual = rowToCharacter(
-    linha as PersonagemRow,
-  );
-
-  if (!atual) {
-    throw new Error(
-      "Os dados da ficha estão vazios.",
-    );
-  }
-
-  const dados = paraDados({
-    ...atual,
-    carteira: {
-      pc: 0,
-      pp: 0,
-      pe: 0,
-      po: 0,
-      pl: 0,
-    },
+  const { data, error } = await supabase.rpc("vincular_personagem_campanha", {
+    p_personagem_id: personagemId,
+    p_campanha_id: campanhaId,
+    p_versao_esperada: atual.dataVersion ?? 1,
   });
 
-  const {
-    data,
-    error,
-  } = await supabase
-    .from("personagens")
-    .update({
-      campanha_id: campanhaId,
-      dados,
-    })
-    .eq("id", personagemId)
-    .eq("user_id", user.id)
-    .select()
-    .maybeSingle();
-
   if (error) {
-    throw new Error(
-      error.message ||
-        "Não foi possível vincular o personagem.",
-    );
+    throw new Error(error.message || "Não foi possível vincular o personagem.");
   }
 
-  const vinculado = data
-    ? rowToCharacter(
-        data as PersonagemRow,
-      )
+  const vinculado = data && typeof data === "object"
+    ? rowToCharacter(data as PersonagemRow)
     : null;
-
   if (!vinculado) {
-    throw new Error(
-      "Você não tem permissão para vincular este personagem.",
-    );
+    throw new Error("O Supabase não confirmou o vínculo do personagem.");
   }
-
   return vinculado;
 }
 
@@ -671,6 +531,12 @@ export interface CampaignClassContent {
   bonus_hp: number;
   bonus_mp: number;
   created_by: string;
+}
+
+export async function canManageGlobalClassCatalog(): Promise<boolean> {
+  const { data, error } = await supabase.auth.getUser();
+  if (error) throw new Error(error.message || "Não foi possível verificar o acesso ao catálogo.");
+  return data.user?.app_metadata?.global_rules_admin === true;
 }
 
 export async function getCatalogoGlobalClasses(): Promise<ClassDefinition[]> {
@@ -754,7 +620,7 @@ export async function adicionarConteudoClasseCampanha(
 
   const { data: membership, error: membershipError } = await supabase
     .from("campanha_membros")
-    .select("id")
+    .select("papel")
     .eq("campanha_id", campaignId)
     .eq("user_id", user.id)
     .eq("status", "ATIVO")
@@ -762,11 +628,11 @@ export async function adicionarConteudoClasseCampanha(
 
   if (membershipError) {
     throw new Error(
-      membershipError.message || "Não foi possível verificar sua participação.",
+      membershipError.message || "Não foi possível verificar sua permissão.",
     );
   }
-  if (!membership) {
-    throw new Error("Você precisa participar da campanha para adicionar conteúdo.");
+  if (membership?.papel !== "MESTRE") {
+    throw new Error("Somente o Mestre ativo pode alterar as regras da campanha.");
   }
 
   const { data, error } = await supabase
@@ -921,6 +787,7 @@ export async function criarCampanha(
     moeda_principal: string;
     ouro_inicial: number;
   },
+  requestId = criarIdempotencyKey(),
 ): Promise<Campaign> {
   const {
     data: { user },
@@ -929,79 +796,31 @@ export async function criarCampanha(
   if (!user) {
     throw new Error("Usuário não autenticado.");
   }
-
-  for (
-    let tentativa = 0;
-    tentativa < 5;
-    tentativa++
+  if (
+    !Number.isSafeInteger(dados.ouro_inicial) ||
+    dados.ouro_inicial < 0 ||
+    dados.ouro_inicial > 100000
   ) {
-    const codigo =
-      gerarCodigoConvite();
-
-    const {
-      data,
-      error,
-    } = await supabase
-      .from("campanhas")
-      .insert({
-        nome: dados.nome.trim(),
-        descricao:
-          dados.descricao.trim() || null,
-        sistema:
-          dados.sistema.trim() || null,
-        moeda_principal:
-          dados.moeda_principal.trim() || null,
-        ouro_inicial: Math.max(
-          0,
-          Math.floor(
-            dados.ouro_inicial,
-          ),
-        ),
-        codigo_convite: codigo,
-        created_by: user.id,
-        status: "ATIVA",
-      })
-      .select()
-      .single();
-
-    if (!error && data) {
-      const {
-        error: membroError,
-      } = await supabase
-        .from("campanha_membros")
-        .insert({
-          campanha_id: data.id,
-          user_id: user.id,
-          papel: "MESTRE",
-          status: "ATIVO",
-        });
-
-      if (membroError) {
-        await supabase
-          .from("campanhas")
-          .delete()
-          .eq("id", data.id);
-
-        throw new Error(
-          membroError.message ||
-            "A campanha foi criada, mas não foi possível registrar o Mestre.",
-        );
-      }
-
-      return data as Campaign;
-    }
-
-    if (error?.code !== "23505") {
-      throw new Error(
-        error?.message ||
-          "Não foi possível criar a campanha.",
-      );
-    }
+    throw new Error("O ouro inicial deve estar entre 0 e 100000 PO.");
   }
 
-  throw new Error(
-    "Não foi possível gerar um código de convite exclusivo. Tente novamente.",
-  );
+  for (let tentativa = 0; tentativa < 5; tentativa++) {
+    const { data, error } = await supabase.rpc("criar_campanha_atomica", {
+      p_nome: dados.nome.trim(),
+      p_descricao: dados.descricao.trim() || null,
+      p_sistema: dados.sistema.trim() || null,
+      p_moeda_principal: dados.moeda_principal.trim() || null,
+      p_ouro_inicial: Math.max(0, Math.min(100000, Math.floor(dados.ouro_inicial))),
+      p_codigo_convite: gerarCodigoConvite(),
+      p_request_id: requestId,
+    });
+
+    if (!error && data && typeof data === "object") return data as Campaign;
+    if (error?.code === "23505") continue;
+    throw new Error(error?.message || "Não foi possível criar a campanha.");
+  }
+
+  throw new Error("Não foi possível gerar um código de convite exclusivo. Tente novamente.");
 }
 
 export async function excluirCampanha(campanhaId: string): Promise<void> {
@@ -1406,6 +1225,9 @@ export interface ShopItem {
   raridade: string | null;
   efeito: string | null;
   imagemUrl: string | null;
+  bonusAtributos?: Partial<Record<BaseAttributeKey, number>>;
+  efeitoMecanico?: import("../types/character").ItemEffect | null;
+  cargasMaximas?: number | null;
   precoCompra: number;
   precoVenda: number | null;
   estoque: number;
@@ -1437,7 +1259,10 @@ export async function listarItensDaLoja(
           tipo,
           raridade,
           efeito,
-          imagem_url
+          imagem_url,
+          bonus_atributos,
+          efeito_mecanico,
+          cargas_maximas
         )
       )
     `)
@@ -1476,6 +1301,9 @@ export async function listarItensDaLoja(
             raridade: string | null;
             efeito: string | null;
             imagem_url: string | null;
+            bonus_atributos: Partial<Record<BaseAttributeKey, number>> | null;
+            efeito_mecanico: import("../types/character").ItemEffect | null;
+            cargas_maximas: number | null;
           }
         | null;
     }>;
@@ -1495,10 +1323,13 @@ export async function listarItensDaLoja(
       nome: lojaItem.itens!.nome,
       descricao: lojaItem.itens!.descricao,
       tipo: lojaItem.itens!.tipo,
-      raridade: lojaItem.itens!.raridade,
-      efeito: lojaItem.itens!.efeito,
-      imagemUrl: lojaItem.itens!.imagem_url,
-      precoCompra: Number(lojaItem.preco_compra),
+        raridade: lojaItem.itens!.raridade,
+        efeito: lojaItem.itens!.efeito,
+        imagemUrl: lojaItem.itens!.imagem_url,
+        bonusAtributos: lojaItem.itens!.bonus_atributos ?? {},
+        efeitoMecanico: lojaItem.itens!.efeito_mecanico ?? null,
+        cargasMaximas: lojaItem.itens!.cargas_maximas ?? null,
+        precoCompra: Number(lojaItem.preco_compra),
       precoVenda:
         lojaItem.preco_venda === null
           ? null
@@ -1516,9 +1347,12 @@ export async function listarItensDaLoja(
     descricao: string;
     tipo: string;
     raridade: string;
-    efeito: string;
-    imagemUrl: string | null;
-    precoCompra: number;
+  efeito: string;
+  imagemUrl: string | null;
+  bonusAtributos?: Partial<Record<BaseAttributeKey, number>>;
+  efeitoMecanico?: import("../types/character").ItemEffect | null;
+  cargasMaximas?: number | null;
+  precoCompra: number;
     estoque: number;
     ativo: boolean;
   }
@@ -1533,9 +1367,12 @@ export async function listarItensDaLoja(
       p_descricao: item.descricao,
       p_tipo: item.tipo,
       p_raridade: item.raridade,
-      p_efeito: item.efeito,
-      p_imagem_url: item.imagemUrl,
-      p_preco_compra: item.precoCompra,
+       p_efeito: item.efeito,
+       p_imagem_url: item.imagemUrl,
+       p_bonus_atributos: item.bonusAtributos ?? {},
+       p_efeito_mecanico: item.efeitoMecanico ?? { tipo: "NENHUM" },
+       p_cargas_maximas: item.cargasMaximas ?? null,
+       p_preco_compra: item.precoCompra,
       p_estoque: item.estoque,
       p_ativo: item.ativo,
     });
@@ -1565,6 +1402,9 @@ export async function listarItensDaLoja(
       raridade: item.raridade,
       efeito: item.efeito,
       imagemUrl: item.imagemUrl,
+      bonusAtributos: item.bonusAtributos ?? {},
+      efeitoMecanico: item.efeitoMecanico ?? null,
+      cargasMaximas: item.cargasMaximas ?? null,
       precoCompra: item.precoCompra,
       precoVenda: null,
       estoque: item.estoque,
@@ -1575,13 +1415,14 @@ export async function listarItensDaLoja(
 
   export type CatalogItem = Pick<
     ShopItem,
-    "itemId" | "nome" | "descricao" | "tipo" | "raridade" | "efeito" | "imagemUrl"
-  >;
+  "itemId" | "nome" | "descricao" | "tipo" | "raridade" | "efeito" | "imagemUrl" |
+  "bonusAtributos" | "efeitoMecanico" | "cargasMaximas"
+>;
 
   export async function listarCatalogoItens(): Promise<CatalogItem[]> {
     const { data, error } = await supabase
       .from("itens")
-      .select("id, nome, descricao, tipo, raridade, efeito, imagem_url")
+      .select("id, nome, descricao, tipo, raridade, efeito, imagem_url, bonus_atributos, efeito_mecanico, cargas_maximas")
       .order("nome", { ascending: true });
 
     if (error) {
@@ -1596,6 +1437,9 @@ export async function listarItensDaLoja(
       raridade: item.raridade,
       efeito: item.efeito,
       imagemUrl: item.imagem_url,
+      bonusAtributos: item.bonus_atributos ?? {},
+      efeitoMecanico: item.efeito_mecanico ?? null,
+      cargasMaximas: item.cargas_maximas ?? null,
     }));
   }
 
@@ -1669,6 +1513,7 @@ export interface PurchaseReceipt {
 export async function comprarCarrinho(
   personagemId: string,
   itens: CartPurchaseLine[],
+  requestId = criarIdempotencyKey(),
 ): Promise<PurchaseReceipt> {
   if (!personagemId) {
     throw new Error("Personagem não informado.");
@@ -1694,6 +1539,7 @@ export async function comprarCarrinho(
         loja_item_id: item.lojaItemId,
         quantidade: item.quantidade,
       })),
+      p_request_id: requestId,
     },
   );
 
@@ -1712,6 +1558,221 @@ export async function comprarCarrinho(
    INVENTÁRIO
 ========================================================= */
 
+export async function creditarOuroCampanha(
+  campanhaId: string,
+  quantidade: number,
+  personagemId?: string,
+  requestId = criarIdempotencyKey(),
+): Promise<number> {
+  if (!campanhaId || !Number.isSafeInteger(quantidade) || quantidade <= 0 || quantidade > 100000) {
+    throw new Error("A quantia deve estar entre 1 e 100000 PO.");
+  }
+  const { data, error } = await supabase.rpc("creditar_ouro_campanha", {
+    p_campanha_id: campanhaId,
+    p_quantia: quantidade,
+    p_personagem_id: personagemId ?? null,
+    p_request_id: requestId,
+  });
+  if (error) throw new Error(error.message || "Não foi possível creditar o ouro.");
+  if (typeof data !== "number") throw new Error("O Supabase não confirmou o crédito.");
+  return data;
+}
+
+function criarIdempotencyKey(): string {
+  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (token) => {
+    const value = Math.floor(Math.random() * 16);
+    return (token === "x" ? value : (value & 0x3) | 0x8).toString(16);
+  });
+}
+
+export async function creditarExperienciaCampanha(
+  campanhaId: string,
+  quantidade: number,
+  personagemId?: string,
+  requestId = criarIdempotencyKey(),
+): Promise<number> {
+  if (!campanhaId || !Number.isSafeInteger(quantidade) || quantidade <= 0 || quantidade > 2147483647) {
+    throw new Error("A quantidade de XP deve ser um inteiro entre 1 e 2147483647.");
+  }
+  const { data, error } = await supabase.rpc("creditar_experiencia_campanha", {
+    p_campanha_id: campanhaId,
+    p_quantia: quantidade,
+    p_personagem_id: personagemId ?? null,
+    p_request_id: requestId,
+  });
+  if (error) throw new Error(error.message || "Não foi possível creditar XP.");
+  if (typeof data !== "number") throw new Error("O Supabase não confirmou o crédito de XP.");
+  return data;
+}
+
+export async function entregarItemCampanha(
+  campanhaId: string,
+  itemId: string,
+  quantidade: number,
+  personagemId?: string,
+  requestId = criarIdempotencyKey(),
+): Promise<number> {
+  if (!campanhaId || !itemId || !Number.isSafeInteger(quantidade) || quantidade <= 0 || quantidade > 9999) {
+    throw new Error("Item e quantidade de entrega inválidos.");
+  }
+  const { data, error } = await supabase.rpc("entregar_item_campanha", {
+    p_campanha_id: campanhaId,
+    p_item_id: itemId,
+    p_quantidade: quantidade,
+    p_personagem_id: personagemId ?? null,
+    p_request_id: requestId,
+  });
+  if (error) throw new Error(error.message || "Não foi possível entregar o item.");
+  if (typeof data !== "number") throw new Error("O Supabase não confirmou a entrega do item.");
+  return data;
+}
+
+export interface CampaignRewardHistoryItem {
+  id: number;
+  campanha_id: string;
+  personagem_id: string | null;
+  item_id: string | null;
+  tipo: "OURO" | "XP" | "ITEM";
+  quantidade: number;
+  quantidade_item: number | null;
+  total_destinatarios: number;
+  created_at: string;
+}
+
+export async function listarRecompensasCampanha(campaignId: string): Promise<CampaignRewardHistoryItem[]> {
+  const { data, error } = await supabase
+    .from("campanha_recompensas")
+    .select("id, campanha_id, personagem_id, item_id, tipo, quantidade, quantidade_item, total_destinatarios, created_at")
+    .eq("campanha_id", campaignId)
+    .order("created_at", { ascending: false })
+    .limit(20);
+  if (error) throw new Error(error.message || "Não foi possível carregar o histórico de recompensas.");
+  return (data ?? []) as CampaignRewardHistoryItem[];
+}
+
+export async function listarCatalogoItensDaCampanha(): Promise<CatalogItem[]> {
+  return listarCatalogoItens();
+}
+
+export interface ItemUseReceipt {
+  personagem_id: string;
+  hp: { atual: number; temp?: number } | null;
+  mp: { atual: number; temp?: number } | null;
+  quantidade: number;
+  hp_max: number;
+  mp_max: number;
+}
+
+export async function usarItemPersonagem(
+  personagemId: string,
+  itemId: string,
+): Promise<ItemUseReceipt> {
+  const { data, error } = await supabase.rpc("usar_item_personagem", {
+    p_personagem_id: personagemId,
+    p_item_id: itemId,
+  });
+  if (error) throw new Error(error.message || "Não foi possível usar o item.");
+  if (!data || typeof data !== "object") throw new Error("O Supabase não confirmou o uso do item.");
+  return data as ItemUseReceipt;
+}
+
+export interface CampaignResourceMaximum {
+  personagem_id: string;
+  hp_atual: number;
+  hp_max: number;
+  mp_atual: number;
+  mp_max: number;
+}
+
+export async function getCampaignResourceMaximums(campaignId: string): Promise<CampaignResourceMaximum[]> {
+  const { data, error } = await supabase.rpc("listar_maximos_recursos_campanha", {
+    p_campanha_id: campaignId,
+  });
+  if (error) throw new Error(error.message || "Não foi possível carregar os máximos da campanha.");
+  return (data ?? []) as CampaignResourceMaximum[];
+}
+
+export async function getEquippedAttributeBonusesByCharacter(
+  characterIds: string[],
+): Promise<Record<string, Partial<Record<BaseAttributeKey, number>>>> {
+  const ids = [...new Set(characterIds.filter(Boolean))];
+  if (ids.length === 0) return {};
+
+  const { data, error } = await supabase
+    .from("inventarios")
+    .select("personagem_id, itens ( bonus_atributos )")
+    .in("personagem_id", ids)
+    .eq("equipado", true)
+    .gt("quantidade", 0);
+
+  if (error) {
+    throw new Error(error.message || "Não foi possível carregar os bônus de equipamento.");
+  }
+
+  const totals: Record<string, Partial<Record<BaseAttributeKey, number>>> = {};
+  for (const row of data ?? []) {
+    const item = Array.isArray(row.itens) ? row.itens[0] : row.itens;
+    const bonuses = item?.bonus_atributos as Partial<Record<BaseAttributeKey, number>> | null | undefined;
+    if (!bonuses) continue;
+    const characterBonuses = totals[row.personagem_id] ?? (totals[row.personagem_id] = {});
+    for (const attribute of ["forca", "destreza", "constituicao", "inteligencia", "carisma"] as const) {
+      const amount = bonuses[attribute];
+      if (typeof amount === "number" && Number.isFinite(amount)) {
+        characterBonuses[attribute] = (characterBonuses[attribute] ?? 0) + Math.trunc(amount);
+      }
+    }
+  }
+
+  return totals;
+}
+
+export interface AuthoritativeCharacterResources {
+  dados_version: number;
+  hp_atual: number;
+  mp_atual: number;
+  hp_max: number;
+  mp_max: number;
+}
+
+export async function getCharacterResourceMaximums(personagemId: string): Promise<AuthoritativeCharacterResources> {
+  const { data, error } = await supabase.rpc("get_character_resource_maximums", {
+    p_personagem_id: personagemId,
+  });
+  if (error) throw new Error(error.message || "Não foi possível carregar os máximos do servidor.");
+  if (!data || typeof data !== "object") throw new Error("O Supabase não retornou os máximos do personagem.");
+  return validateAuthoritativeCharacterResources(data);
+}
+
+function validateAuthoritativeCharacterResources(data: unknown): AuthoritativeCharacterResources {
+  const result = data as Record<string, unknown>;
+  if (
+    typeof result.dados_version !== "number" ||
+    typeof result.hp_atual !== "number" ||
+    typeof result.mp_atual !== "number" ||
+    typeof result.hp_max !== "number" ||
+    typeof result.mp_max !== "number"
+  ) throw new Error("A resposta de sincronização dos recursos é inválida.");
+  return {
+    dados_version: result.dados_version,
+    hp_atual: result.hp_atual,
+    mp_atual: result.mp_atual,
+    hp_max: result.hp_max,
+    mp_max: result.mp_max,
+  };
+}
+
+export async function reconciliarLimitesRecursosPersonagem(personagemId: string): Promise<AuthoritativeCharacterResources> {
+  const { data, error } = await supabase.rpc("reconciliar_limites_recursos_personagem", {
+    p_personagem_id: personagemId,
+  });
+  if (error) throw new Error(error.message || "Não foi possível sincronizar os recursos.");
+  if (!data || typeof data !== "object") {
+    throw new Error("O Supabase não confirmou a sincronização dos recursos.");
+  }
+  return validateAuthoritativeCharacterResources(data);
+}
+
 export async function getInventory(
   personagemId: string,
 ) {
@@ -1724,8 +1785,9 @@ export async function getInventory(
       personagem_id,
       item_id,
       quantidade,
-      equipado,
-      updated_at,
+       equipado,
+       cargas_atuais,
+       updated_at,
       itens (
         id,
         nome,
@@ -1733,7 +1795,10 @@ export async function getInventory(
         tipo,
         raridade,
         efeito,
-        imagem_url
+        imagem_url,
+        bonus_atributos,
+        efeito_mecanico,
+        cargas_maximas
       )
     `)
     .eq(

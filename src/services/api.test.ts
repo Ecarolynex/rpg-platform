@@ -1,12 +1,21 @@
 import { beforeEach, expect, it, vi } from "vitest";
 import {
   adicionarItemExistenteNaLoja,
+  canManageGlobalClassCatalog,
   comprarCarrinho,
+  creditarOuroCampanha,
+  creditarExperienciaCampanha,
+  criarCampanha,
+  entregarItemCampanha,
+  getEquippedAttributeBonusesByCharacter,
+  getCharacterResourceMaximums,
+  reconciliarLimitesRecursosPersonagem,
   excluirCampanha,
   atualizarPersonagem,
   removerItemDaLoja,
   salvarBonusClassesCampanha,
   salvarItemDaLoja,
+  usarItemPersonagem,
   vincularPersonagem,
 } from "./api";
 import { normalizarBonusClassesCampanha } from "../data/personaRules";
@@ -25,45 +34,33 @@ vi.mock("./supabase", () => ({
   },
 }));
 
-const zeroWallet = { pc: 0, pp: 0, pe: 0, po: 0, pl: 0 };
 
 describe("atualizarPersonagem", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it("limita vida e mana a 200 ao persistir a ficha", async () => {
-    const query = {
-      update: vi.fn(),
-      eq: vi.fn(),
-      select: vi.fn(),
-      maybeSingle: vi.fn(),
-    };
-    query.update.mockReturnValue(query);
-    query.eq.mockReturnValue(query);
-    query.select.mockReturnValue(query);
-    query.maybeSingle.mockImplementation(async () => {
-      const update = query.update.mock.calls[0][0];
-      return {
-        data: {
-          id: "character-1",
-          campanha_id: null,
-          nome: "Aventureiro",
-          nivel: 1,
-          dados: update.dados,
-        },
-        error: null,
-      };
-    });
-    from.mockReturnValue(query);
+  it("persists versioned current resources but never their derived maxima", async () => {
+    rpc.mockImplementation(async (_name, payload) => ({
+      data: {
+        id: "character-1",
+        campanha_id: null,
+        nome: "Aventureiro",
+        nivel: 1,
+        dados: payload.p_dados,
+        dados_version: 2,
+      },
+      error: null,
+    }));
 
     await atualizarPersonagem("character-1", {
       id: "character-1",
+      dataVersion: 1,
       nome: "Aventureiro",
       raca: "Humano",
       classe: "Guerreiro",
       nivel: 1,
-      hp: { atual: 250, max: 250 },
+      hp: { atual: 250, max: 250, temp: 7 },
       mp: { atual: 240, max: 240 },
       attributes: {
         forca: 10,
@@ -78,9 +75,194 @@ describe("atualizarPersonagem", () => {
       notas: "",
     });
 
-    const savedData = query.update.mock.calls[0][0].dados;
-    expect(savedData.hp).toEqual({ atual: 200, max: 200 });
-    expect(savedData.mp).toEqual({ atual: 200, max: 200 });
+    const payload = rpc.mock.calls[0][1];
+    expect(payload.p_versao_esperada).toBe(1);
+    expect(payload.p_dados.schemaVersion).toBe(1);
+    expect(payload.p_dados.hp).toEqual({ atual: 200, temp: 7 });
+    expect(payload.p_dados.mp).toEqual({ atual: 200 });
+    expect(payload.p_dados.hp).not.toHaveProperty("max");
+  });
+});
+
+describe("canManageGlobalClassCatalog", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("uses only the trusted app-metadata claim", async () => {
+    getUser.mockResolvedValue({
+      data: { user: { app_metadata: { global_rules_admin: true } } },
+      error: null,
+    });
+    await expect(canManageGlobalClassCatalog()).resolves.toBe(true);
+
+    getUser.mockResolvedValue({
+      data: { user: { app_metadata: { global_rules_admin: "true" } } },
+      error: null,
+    });
+    await expect(canManageGlobalClassCatalog()).resolves.toBe(false);
+  });
+});
+
+describe("usarItemPersonagem", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("does not send client-provided resource maxima", async () => {
+    rpc.mockResolvedValue({
+      data: {
+        personagem_id: "character-1",
+        hp: { atual: 12 },
+        mp: null,
+        quantidade: 1,
+        hp_max: 18,
+        mp_max: 18,
+      },
+      error: null,
+    });
+
+    await usarItemPersonagem("character-1", "potion-1");
+
+    expect(rpc).toHaveBeenCalledWith("usar_item_personagem", {
+      p_personagem_id: "character-1",
+      p_item_id: "potion-1",
+    });
+  });
+});
+
+describe("creditarOuroCampanha", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("envia o crédito para a RPC de campanha, sem snapshot da personagem", async () => {
+    rpc.mockResolvedValue({ data: 3, error: null });
+    await expect(creditarOuroCampanha("campaign-1", 50, undefined, "req-1")).resolves.toBe(3);
+    expect(rpc).toHaveBeenCalledWith("creditar_ouro_campanha", {
+      p_campanha_id: "campaign-1",
+      p_quantia: 50,
+      p_personagem_id: null,
+      p_request_id: "req-1",
+    });
+  });
+});
+
+describe("recompensas e sincronização", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("envia XP e itens para RPCs com destinatário e chave de idempotência", async () => {
+    rpc
+      .mockResolvedValueOnce({ data: 1, error: null })
+      .mockResolvedValueOnce({ data: 1, error: null });
+
+    await creditarExperienciaCampanha("campaign-1", 125, "character-1", "xp-request");
+    await entregarItemCampanha("campaign-1", "item-1", 2, "character-1", "item-request");
+
+    expect(rpc).toHaveBeenNthCalledWith(1, "creditar_experiencia_campanha", {
+      p_campanha_id: "campaign-1",
+      p_quantia: 125,
+      p_personagem_id: "character-1",
+      p_request_id: "xp-request",
+    });
+    expect(rpc).toHaveBeenNthCalledWith(2, "entregar_item_campanha", {
+      p_campanha_id: "campaign-1",
+      p_item_id: "item-1",
+      p_quantidade: 2,
+      p_personagem_id: "character-1",
+      p_request_id: "item-request",
+    });
+  });
+
+  it("carrega máximos autoritativos sem escrever a ficha em modo de leitura", async () => {
+    rpc.mockResolvedValue({
+      data: { dados_version: 4, hp_atual: 12, mp_atual: 8, hp_max: 22, mp_max: 16 },
+      error: null,
+    });
+    await expect(getCharacterResourceMaximums("character-1")).resolves.toMatchObject({
+      hp_atual: 12, mp_atual: 8, hp_max: 22, mp_max: 16,
+    });
+    expect(rpc).toHaveBeenCalledWith("get_character_resource_maximums", {
+      p_personagem_id: "character-1",
+    });
+  });
+
+  it("consulta máximos autoritativos para fichas de leitura sem modificar dados", async () => {
+    rpc.mockResolvedValue({
+      data: { dados_version: 4, hp_atual: 12, mp_atual: 8, hp_max: 22, mp_max: 16 },
+      error: null,
+    });
+    await expect(getCharacterResourceMaximums("character-1")).resolves.toMatchObject({
+      hp_atual: 12, mp_atual: 8, hp_max: 22, mp_max: 16,
+    });
+    expect(rpc).toHaveBeenCalledWith("get_character_resource_maximums", {
+      p_personagem_id: "character-1",
+    });
+  });
+
+  it("retorna máximos calculados pelo servidor", async () => {
+    rpc.mockResolvedValue({
+      data: { dados_version: 5, hp_atual: 16, mp_atual: 7, hp_max: 24, mp_max: 18 },
+      error: null,
+    });
+    await expect(reconciliarLimitesRecursosPersonagem("character-1")).resolves.toEqual({
+      dados_version: 5, hp_atual: 16, mp_atual: 7, hp_max: 24, mp_max: 18,
+    });
+    expect(rpc).toHaveBeenCalledWith("reconciliar_limites_recursos_personagem", {
+      p_personagem_id: "character-1",
+    });
+  });
+
+  it("agrega bônus de itens equipados por personagem", async () => {
+    const query = {
+      select: vi.fn(),
+      in: vi.fn(),
+      eq: vi.fn(),
+      gt: vi.fn(),
+    };
+    query.select.mockReturnValue(query);
+    query.in.mockReturnValue(query);
+    query.eq.mockReturnValue(query);
+    query.gt.mockResolvedValue({
+      data: [
+        { personagem_id: "character-1", itens: { bonus_atributos: { constituicao: 2, forca: 1 } } },
+        { personagem_id: "character-1", itens: [{ bonus_atributos: { constituicao: 1 } }] },
+        { personagem_id: "character-2", itens: { bonus_atributos: { inteligencia: 3 } } },
+      ],
+      error: null,
+    });
+    from.mockReturnValue(query);
+
+    await expect(getEquippedAttributeBonusesByCharacter(["character-1", "character-2", "character-1"])).resolves.toEqual({
+      "character-1": { constituicao: 3, forca: 1 },
+      "character-2": { inteligencia: 3 },
+    });
+    expect(query.in).toHaveBeenCalledWith("personagem_id", ["character-1", "character-2"]);
+    expect(query.eq).toHaveBeenCalledWith("equipado", true);
+    expect(query.gt).toHaveBeenCalledWith("quantidade", 0);
+  });
+});
+
+
+describe("criarCampanha", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("usa uma única RPC atômica e preserva a chave entre tentativas de código duplicado", async () => {
+    getUser.mockResolvedValue({ data: { user: { id: "master-1" } }, error: null });
+    rpc
+      .mockResolvedValueOnce({ data: null, error: { code: "23505", message: "Código duplicado" } })
+      .mockResolvedValueOnce({ data: { id: "campaign-1", codigo_convite: "ABC123" }, error: null });
+
+    await expect(criarCampanha({
+      nome: "Aventura",
+      descricao: "",
+      sistema: "",
+      moeda_principal: "PO",
+      ouro_inicial: 1250,
+    })).resolves.toMatchObject({ id: "campaign-1" });
+
+    expect(rpc).toHaveBeenCalledTimes(2);
+    const firstCall = rpc.mock.calls[0][1];
+    const secondCall = rpc.mock.calls[1][1];
+    expect(firstCall.p_request_id).toBe(secondCall.p_request_id);
+    expect(rpc).toHaveBeenNthCalledWith(1, "criar_campanha_atomica", expect.objectContaining({
+      p_nome: "Aventura",
+      p_request_id: expect.any(String),
+    }));
   });
 });
 
@@ -101,11 +283,12 @@ describe("comprarCarrinho", () => {
 
     await comprarCarrinho("character-1", [
       { lojaItemId: "store-item-1", quantidade: 2 },
-    ]);
+    ], "purchase-request-1");
 
     expect(rpc).toHaveBeenCalledWith("registrar_compra_carrinho", {
       p_personagem_id: "character-1",
       p_itens: [{ loja_item_id: "store-item-1", quantidade: 2 }],
+      p_request_id: "purchase-request-1",
     });
   });
 });
@@ -170,21 +353,13 @@ describe("vincularPersonagem", () => {
     vi.clearAllMocks();
   });
 
-  it("zera todas as moedas ao vincular o personagem à campanha", async () => {
-    const membershipQuery = {
-      select: vi.fn(),
-      eq: vi.fn(),
-      maybeSingle: vi.fn().mockResolvedValue({ data: { id: "membership-1" }, error: null }),
-    };
-    membershipQuery.select.mockReturnValue(membershipQuery);
-    membershipQuery.eq.mockReturnValue(membershipQuery);
-
+  it("links through one RPC and preserves the existing wallet", async () => {
     const characterRow = {
       id: "character-1",
-      user_id: "user-1",
       campanha_id: null,
       nome: "Aventureiro",
       nivel: 1,
+      dados_version: 4,
       dados: {
         nome: "Aventureiro",
         raca: "Humano",
@@ -206,7 +381,6 @@ describe("vincularPersonagem", () => {
         notas: "",
       },
     };
-
     const characterQuery = {
       select: vi.fn(),
       eq: vi.fn(),
@@ -214,37 +388,21 @@ describe("vincularPersonagem", () => {
     };
     characterQuery.select.mockReturnValue(characterQuery);
     characterQuery.eq.mockReturnValue(characterQuery);
-
-    const updateQuery = {
-      update: vi.fn(),
-      eq: vi.fn(),
-      select: vi.fn(),
-      maybeSingle: vi.fn().mockResolvedValue({
-        data: {
-          ...characterRow,
-          campanha_id: "campaign-1",
-          dados: { ...characterRow.dados, carteira: zeroWallet },
-        },
-        error: null,
-      }),
-    };
-    updateQuery.update.mockReturnValue(updateQuery);
-    updateQuery.eq.mockReturnValue(updateQuery);
-    updateQuery.select.mockReturnValue(updateQuery);
-
-    getUser.mockResolvedValue({ data: { user: { id: "user-1" } }, error: null });
-    from
-      .mockReturnValueOnce(membershipQuery)
-      .mockReturnValueOnce(characterQuery)
-      .mockReturnValueOnce(updateQuery);
+    from.mockReturnValueOnce(characterQuery);
+    rpc.mockResolvedValueOnce({
+      data: { ...characterRow, campanha_id: "campaign-1", dados_version: 5 },
+      error: null,
+    });
 
     const result = await vincularPersonagem("character-1", "campaign-1");
 
-    expect(updateQuery.update).toHaveBeenCalledWith({
-      campanha_id: "campaign-1",
-      dados: expect.objectContaining({ carteira: zeroWallet }),
+    expect(rpc).toHaveBeenCalledWith("vincular_personagem_campanha", {
+      p_personagem_id: "character-1",
+      p_campanha_id: "campaign-1",
+      p_versao_esperada: 4,
     });
-    expect(result.carteira).toEqual(zeroWallet);
+    expect(result.carteira).toEqual(characterRow.dados.carteira);
+    expect(result.dataVersion).toBe(5);
   });
 });
 

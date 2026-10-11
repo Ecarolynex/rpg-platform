@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -18,11 +18,13 @@ import {
   parseModifier,
 } from "./diceLogic";
 import { sessionRollHistoryStore } from "./rollHistoryStorage";
-import { Dice3DStage } from "./Dice3DStage";
 import { DieIcon } from "./DiceIcons";
-import { DICE_COLOR_THEMES, type DiceColorTheme } from "./diceMaterials";
+import { DICE_COLOR_THEMES, type DiceColorTheme } from "./diceThemes";
 import "./DiceRoller.css";
 
+const Dice3DStage = lazy(() =>
+  import("./Dice3DStage").then((module) => ({ default: module.Dice3DStage })),
+);
 const DEFAULT_ANIMATION_DURATION_MS = 1150;
 const historyStoreKeys = new WeakMap<RollHistoryStore, number>();
 let nextHistoryStoreKey = 0;
@@ -174,14 +176,20 @@ function DiceRollerSession({
           </header>
 
           {/* 3D Wooden Dice Stage Arena */}
-          <Dice3DStage
-            die={selectedDie}
-            colorTheme={diceColor}
-            isRolling={isRolling}
-            latestRoll={latestRoll}
-            onTriggerRoll={executeRoll}
-            animationDurationMs={animationDurationMs}
-          />
+          <Suspense fallback={
+            <div className="dice-3d-stage is-loading" role="status">
+              Carregando mesa de dados...
+            </div>
+          }>
+            <Dice3DStage
+              die={selectedDie}
+              colorTheme={diceColor}
+              isRolling={isRolling}
+              latestRoll={latestRoll}
+              onTriggerRoll={executeRoll}
+              animationDurationMs={animationDurationMs}
+            />
+          </Suspense>
 
           {/* Dice Material / Color Customizer */}
           <div className="dice-theme-selector" role="radiogroup" aria-label="Escolha a cor do dado">
