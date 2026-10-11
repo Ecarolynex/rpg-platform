@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import type { Attributes, Character, Skill } from "../../types/character";
 import {
@@ -10,6 +10,9 @@ import {
   excluirPersonagem,
   getCharacters,
   listarConteudosClasseCampanha,
+  getCampaignClassBonuses,
+  getEquippedAttributeBonusesByCharacter,
+  getCampaignResourceMaximums,
   listarMinhasCampanhas,
   vincularPersonagem,
   type Campaign,
@@ -30,8 +33,10 @@ import {
   ATTRIBUTE_CONFIG,
   DEFAULT_CLASS_CATALOG,
   FIXED_SKILLS,
+  type CampaignClassBonuses,
   type ClassDefinition,
 } from "../../data/personaRules";
+import { calculateDerivedCharacterStats, type CharacterRulesContext } from "../../domain/characterRules";
 import "./Dashboard.css";
 import "./DashboardActions.css";
 
@@ -62,8 +67,11 @@ type TextField =
   | "aparencia"
   | "defeito";
 
-// Vida e Mana totais de todo personagem
-const VIDA_MANA_TOTAL = 200;
+type CampaignRulesState = {
+  campaignId: string;
+  status: "idle" | "loading" | "ready" | "error";
+  message?: string;
+};
 
 function rotuloAtributo(valor: string): string {
   const porChave = ATTRIBUTE_CONFIG.find((item) => String(item.key) === valor);
@@ -108,7 +116,15 @@ export default function Dashboard() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [classCatalog, setClassCatalog] = useState<ClassDefinition[]>(DEFAULT_CLASS_CATALOG);
   const [campaignClassContents, setCampaignClassContents] = useState<CampaignClassContent[]>([]);
+  const [campaignBonuses, setCampaignBonuses] = useState<CampaignClassBonuses>({});
+  const [campaignRuleContexts, setCampaignRuleContexts] = useState<Record<string, CharacterRulesContext>>({});
   const [selectedCampaignId, setSelectedCampaignId] = useState("");
+  const [campaignRulesState, setCampaignRulesState] = useState<CampaignRulesState>({
+    campaignId: "",
+    status: "idle",
+  });
+  const [campaignRulesRetry, setCampaignRulesRetry] = useState(0);
+  const campaignRulesRequest = useRef(0);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
@@ -143,6 +159,32 @@ export default function Dashboard() {
         setCharacters(charactersData);
         setCampaigns(campaignsData);
         setClassCatalog(classesData);
+
+        const linkedCampaignIds = [...new Set(
+          charactersData.map((character) => character.campanhaId).filter((campaignId): campaignId is string => Boolean(campaignId)),
+        )];
+        const ruleEntries = await Promise.all(linkedCampaignIds.map(async (campaignId) => {
+          const campaignCharacters = charactersData.filter((character) => character.campanhaId === campaignId);
+          const [bonuses, contents] = await Promise.all([
+            getCampaignClassBonuses(campaignId).catch(() => ({})),
+            listarConteudosClasseCampanha(campaignId).catch(() => []),
+          ]);
+          const [equipped, serverMaximums] = await Promise.all([
+            getEquippedAttributeBonusesByCharacter(campaignCharacters.map((character) => character.id)).catch(() => ({} as Record<string, Partial<Record<keyof Attributes, number>>>)),
+            getCampaignResourceMaximums(campaignId).catch(() => []),
+          ]);
+          const maximumsByCharacter = Object.fromEntries(serverMaximums.map((row) => [row.personagem_id, row]));
+          return campaignCharacters.map((character) => [character.id, {
+            classCatalog: classesData,
+            campaignClassBonuses: bonuses,
+            campaignClassContents: contents,
+            equippedItemBonuses: equipped[character.id] ? [equipped[character.id]] : [],
+            serverResourceMaximums: maximumsByCharacter[character.id]
+              ? { hpMax: maximumsByCharacter[character.id].hp_max, mpMax: maximumsByCharacter[character.id].mp_max }
+              : undefined,
+          }] as const);
+        }));
+        setCampaignRuleContexts(Object.fromEntries(ruleEntries.flat()));
       } catch (error) {
         setErrorMessage(
           error instanceof Error
@@ -158,19 +200,40 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
-    if (!selectedCampaignId) return;
+    const campaignId = selectedCampaignId;
+    if (!campaignId) return;
 
-    listarConteudosClasseCampanha(selectedCampaignId)
-      .then(setCampaignClassContents)
+    const requestId = ++campaignRulesRequest.current;
+    void Promise.all([
+      listarConteudosClasseCampanha(campaignId),
+      getCampaignClassBonuses(campaignId),
+    ])
+      .then(([contents, bonuses]) => {
+        if (campaignRulesRequest.current !== requestId) return;
+        setCampaignClassContents(contents);
+        setCampaignBonuses(bonuses);
+        setCampaignRulesState({ campaignId, status: "ready" });
+      })
       .catch((error: unknown) => {
+        if (campaignRulesRequest.current !== requestId) return;
+        const message = error instanceof Error
+          ? error.message
+          : "Não foi possível carregar as regras da campanha.";
         setCampaignClassContents([]);
-        setErrorMessage(
-          error instanceof Error
-            ? error.message
-            : "Não foi possível carregar as regras da campanha.",
-        );
+        setCampaignBonuses({});
+        setCampaignRulesState({ campaignId, status: "error", message });
       });
-  }, [selectedCampaignId]);
+
+    return () => {
+      if (campaignRulesRequest.current === requestId) {
+        campaignRulesRequest.current += 1;
+      }
+    };
+  }, [selectedCampaignId, campaignRulesRetry]);
+
+  const campaignRulesReady = !selectedCampaignId || (
+    campaignRulesState.campaignId === selectedCampaignId && campaignRulesState.status === "ready"
+  );
 
   const campaignCustomClasses: ClassDefinition[] = campaignClassContents
     .filter((item) => item.tipo === "CLASSE")
@@ -201,9 +264,10 @@ export default function Dashboard() {
 
   const infoClasse = montarInfoClasse(
     draft.classe,
-    undefined,
+    classesParaCriacao.find((item) => item.nome === draft.classe)?.id,
     classesParaCriacao,
     campaignClassContents,
+    selectedCampaignId ? campaignBonuses : {},
   );
 
   function selecionarClasse(nome: string) {
@@ -252,6 +316,12 @@ export default function Dashboard() {
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (!campaignRulesReady) {
+      setErrorMessage(campaignRulesState.status === "error"
+        ? "Não foi possível carregar as regras da campanha. Tente novamente antes de criar o personagem."
+        : "Aguarde o carregamento das regras da campanha antes de criar o personagem.");
+      return;
+    }
 
     setSaving(true);
     setErrorMessage("");
@@ -266,6 +336,13 @@ export default function Dashboard() {
       const definicaoClasse = classesParaCriacao.find(
         (item) => item.nome === classe,
       );
+      const attributes: Attributes = {
+        forca: Number(draft.forca),
+        destreza: Number(draft.destreza),
+        constituicao: Number(draft.constituicao),
+        inteligencia: Number(draft.inteligencia),
+        carisma: Number(draft.carisma),
+      };
       const createdCharacter: Character = {
         id: "",
         nome: draft.nome || "Novo personagem",
@@ -280,15 +357,9 @@ export default function Dashboard() {
         historia: draft.historia,
         aparencia: draft.aparencia,
         defeito: draft.defeito,
-        hp: { atual: VIDA_MANA_TOTAL, max: VIDA_MANA_TOTAL },
-        mp: { atual: VIDA_MANA_TOTAL, max: VIDA_MANA_TOTAL },
-        attributes: {
-          forca: Number(draft.forca),
-          destreza: Number(draft.destreza),
-          constituicao: Number(draft.constituicao),
-          inteligencia: Number(draft.inteligencia),
-          carisma: Number(draft.carisma),
-        },
+        hp: { atual: 0, max: 1 },
+        mp: { atual: 0, max: 0 },
+        attributes,
         skills: skillsDraft.map((skill) => ({
           ...skill,
           bonus: skill.treinada ? bonusProficiencia(nivel) : 0,
@@ -298,6 +369,13 @@ export default function Dashboard() {
         carteira: carteiraInicial(0),
         notas: "",
       };
+      const creationStats = calculateDerivedCharacterStats(createdCharacter, {
+        classCatalog: classesParaCriacao,
+        campaignClassBonuses: selectedCampaignId ? campaignBonuses : undefined,
+        campaignClassContents: selectedCampaignId ? campaignClassContents : [],
+      });
+      createdCharacter.hp = { atual: creationStats.hpMax, max: creationStats.hpMax };
+      createdCharacter.mp = { atual: creationStats.mpMax, max: creationStats.mpMax };
 
       const savedCharacter = await criarPersonagem(
         selectedCampaignId || null,
@@ -460,7 +538,12 @@ export default function Dashboard() {
                   value={selectedCampaignId}
                   onChange={(event) => {
                     setSelectedCampaignId(event.target.value);
-                    if (!event.target.value) setCampaignClassContents([]);
+                    setCampaignClassContents([]);
+                    setCampaignBonuses({});
+                    setCampaignRulesState(event.target.value
+                      ? { campaignId: event.target.value, status: "loading" }
+                      : { campaignId: "", status: "idle" });
+                    setErrorMessage("");
                     updateDraft("classe", "");
                     setSkillsDraft(createUntrainedSkills(undefined, []));
                   }}
@@ -475,6 +558,25 @@ export default function Dashboard() {
                     </option>
                   ))}
                 </select>
+                {selectedCampaignId && campaignRulesState.campaignId === selectedCampaignId && campaignRulesState.status === "loading" && (
+                  <span role="status">Carregando regras da campanha...</span>
+                )}
+                {selectedCampaignId && campaignRulesState.campaignId === selectedCampaignId && campaignRulesState.status === "error" && (
+                  <span className="dashboard-status" role="alert">
+                    {campaignRulesState.message}{" "}
+                    <button
+                      type="button"
+                      className="btn-ghost"
+                      onClick={() => {
+                        setErrorMessage("");
+                        setCampaignRulesState({ campaignId: selectedCampaignId, status: "loading" });
+                        setCampaignRulesRetry((attempt) => attempt + 1);
+                      }}
+                    >
+                      Tentar carregar novamente
+                    </button>
+                  </span>
+                )}
               </label>
             </section>
 
@@ -690,9 +792,13 @@ export default function Dashboard() {
             <button
               type="submit"
               className="btn-primary"
-              disabled={saving}
+              disabled={saving || !campaignRulesReady}
             >
-              {saving ? "Salvando..." : "Salvar personagem"}
+              {saving
+                ? "Salvando..."
+                : selectedCampaignId && campaignRulesState.status === "loading"
+                  ? "Carregando regras..."
+                  : "Salvar personagem"}
             </button>
           </div>
         </form>
@@ -793,7 +899,12 @@ export default function Dashboard() {
 
             return (
               <div key={character.id} className="dashboard-card-wrap">
-                <CharacterCard character={character} />
+                <CharacterCard
+                  character={character}
+                  rulesContext={character.campanhaId
+                    ? campaignRuleContexts[character.id]
+                    : { classCatalog }}
+                />
 
                 <div className="card-actions">
                   {character.campanhaId ? (

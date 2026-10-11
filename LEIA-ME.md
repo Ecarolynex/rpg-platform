@@ -47,23 +47,18 @@ Vida, Mana e peças de ouro mantêm controles de ajuste rápido e salvamento. **
 A ficha usa a paleta global verde/teal escura e dourada do site. Fundo, painéis, texto e realces reutilizam os tokens `--ink`, `--ink-panel`, `--ink-panel-raised`, `--parchment`, `--parchment-dim`, `--gold` e `--gold-bright`, definidos em `src/index.css`. O retrato tem presença reduzida; o contorno dourado e a composição em zonas dão destaque à ficha.
 
 ## 5. Configurar o Supabase
-A camada de dados e a rota do mapa usam as mesmas variáveis em `src/services/supabase.ts` e `src/lib/supabase.ts`. Copie `.env.example` para `.env` e configure a URL do projeto e a chave pública `anon` (nunca use `service_role` no frontend):
+
+`src/services/supabase.ts` é o cliente único usado pela API e pelo mapa (`src/lib/supabase.ts` o reexporta). Configure explicitamente apenas um ambiente local/isolado de QA copiando `.env.example` para `.env` e preenchendo:
 
 ```dotenv
-VITE_SUPABASE_URL=https://seu-projeto.supabase.co
-VITE_SUPABASE_ANON_KEY=sua-chave-publica-anon
+VITE_SUPABASE_URL=http://127.0.0.1:54321
+VITE_SUPABASE_ANON_KEY=sua-chave-publica-anon-do-ambiente-isolado
 ```
 
-Reinicie o servidor Vite após alterar o `.env` para carregar as variáveis.
-A camada de dados em `src/services/api.ts` usa `src/services/supabase.ts`, que lê `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY`. O mapa usa `src/lib/supabase.ts`, que lê `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY`. Copie `.env.example` para `.env` e configure essas três variáveis com os dados do seu projeto Supabase:
+O app falha com uma mensagem clara se qualquer variável estiver ausente. Não existe fallback para projeto ou chave embutidos; portanto, criar/copiar `.env` não pode selecionar silenciosamente staging/produção. Não coloque uma chave `service_role` no frontend e nunca registre chaves em commits, logs ou relatórios. Mantenha `.env` ignorado pelo Git. Após alterar o arquivo, reinicie o servidor Vite.
 
-```dotenv
-VITE_SUPABASE_URL=https://seu-projeto.supabase.co
-VITE_SUPABASE_ANON_KEY=sua-chave-publicavel
-VITE_SUPABASE_PUBLISHABLE_KEY=sua-chave-publicavel
-```
+Enquanto o histórico de `202610010001` e o schema não tiverem sido reconciliados e aprovados, não configure staging/produção para essa build. A integração remota deverá usar um projeto de QA dedicado, com URL e chave verificadas explicitamente.
 
-Os dois clientes do frontend usam a mesma chave pública; mantenha `VITE_SUPABASE_ANON_KEY` e `VITE_SUPABASE_PUBLISHABLE_KEY` com o mesmo valor. Use uma chave publicável/anon, nunca uma `service_role` ou outra chave secreta no frontend. Após criar ou alterar `.env`, reinicie o servidor Vite para carregar as variáveis.
 
 ## 6. Identidade visual do site
 - Fontes: **Cinzel** para títulos, **Cormorant Garamond** para destaques e **EB Garamond** para texto. São carregadas em `src/index.css`.

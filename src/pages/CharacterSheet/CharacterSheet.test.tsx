@@ -11,6 +11,10 @@ const api = vi.hoisted(() => ({
   getCharacterAccess: vi.fn(),
   getCharacterById: vi.fn(),
   listarConteudosClasseCampanha: vi.fn(),
+  getCampaignClassBonuses: vi.fn(),
+  getInventory: vi.fn(),
+  reconciliarLimitesRecursosPersonagem: vi.fn(),
+  getCharacterResourceMaximums: vi.fn(),
 }));
 
 vi.mock("../../services/api", () => api);
@@ -73,6 +77,18 @@ describe("CharacterSheet", () => {
     api.getCharacterAccess.mockResolvedValue({ canEdit: true, isMaster: false });
     api.getCatalogoGlobalClasses.mockResolvedValue([]);
     api.listarConteudosClasseCampanha.mockResolvedValue([]);
+    api.getCampaignClassBonuses.mockResolvedValue({});
+    api.getInventory.mockResolvedValue([]);
+    api.reconciliarLimitesRecursosPersonagem.mockResolvedValue({
+      dados_version: 1,
+      hp_atual: 10,
+      mp_atual: 10,
+      hp_max: 20,
+      mp_max: 18,
+    });
+    api.getCharacterResourceMaximums.mockResolvedValue({
+      dados_version: 1, hp_atual: 10, mp_atual: 10, hp_max: 20, mp_max: 18,
+    });
     api.atualizarPersonagem.mockImplementation(async (_id, character) => character);
   });
 
@@ -103,12 +119,12 @@ describe("CharacterSheet", () => {
     await screen.findByText("Não encontramos os detalhes desta classe no catálogo.");
 
     const vitalInputs = container.querySelectorAll<HTMLInputElement>(".cs-vital-input");
-    expect(vitalInputs).toHaveLength(2);
+    expect(vitalInputs).toHaveLength(4);
 
     vi.useFakeTimers();
     try {
       fireEvent.change(vitalInputs[0], { target: { value: "250" } });
-      expect(vitalInputs[0]).toHaveValue(200);
+      expect(vitalInputs[0]).toHaveValue(20);
       await act(async () => {
         await vi.advanceTimersByTimeAsync(600);
       });
@@ -153,6 +169,7 @@ describe("CharacterSheet", () => {
 
     expect(await screen.findByText("+5 Força")).toBeInTheDocument();
     expect(screen.getByText("+10 Vida")).toBeInTheDocument();
+    expect(screen.getByText("Classe +5")).toBeInTheDocument();
   });
 
   it("exibe habilidades cadastradas no catálogo da classe", async () => {
@@ -193,6 +210,100 @@ describe("CharacterSheet", () => {
         expect.objectContaining({ notas: "A chave da torre está com a curandeira." }),
       );
     }, { timeout: 2000 });
+  });
+
+  it("interrompe o autosave após uma falha e não repete snapshots obsoletos", async () => {
+    api.atualizarPersonagem.mockRejectedValue(new Error("A ficha foi alterada por outra operação."));
+    renderSheet();
+    await screen.findByRole("heading", { name: "Bram Ferroz" });
+    fireEvent.click(screen.getByRole("tab", { name: "Notas" }));
+
+    vi.useFakeTimers();
+    try {
+      fireEvent.change(screen.getByRole("textbox", { name: "Notas" }), {
+        target: { value: "Alteração local" },
+      });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(600);
+        await Promise.resolve();
+      });
+      expect(api.atualizarPersonagem).toHaveBeenCalledTimes(1);
+      expect(screen.getByRole("button", { name: "Recarregar (descartar alterações pendentes)" })).toBeInTheDocument();
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1800);
+      });
+      expect(api.atualizarPersonagem).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("permite retry explícito após falha transitória sem descartar o snapshot", async () => {
+    api.atualizarPersonagem
+      .mockRejectedValueOnce(new Error("Falha temporária de rede"))
+      .mockImplementationOnce(async (_id, character) => ({ ...character, dataVersion: 2 }));
+    renderSheet();
+    await screen.findByRole("heading", { name: "Bram Ferroz" });
+    fireEvent.click(screen.getByRole("tab", { name: "Notas" }));
+
+    vi.useFakeTimers();
+    try {
+      fireEvent.change(screen.getByRole("textbox", { name: "Notas" }), {
+        target: { value: "Nota preservada durante retry" },
+      });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(600);
+        await Promise.resolve();
+      });
+
+      expect(api.atualizarPersonagem).toHaveBeenCalledTimes(1);
+      expect(screen.getByRole("button", { name: "Tentar salvar novamente" })).toBeEnabled();
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: "Tentar salvar novamente" }));
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+
+      expect(api.atualizarPersonagem).toHaveBeenCalledTimes(2);
+      expect(api.atualizarPersonagem).toHaveBeenLastCalledWith(
+        characterId,
+        expect.objectContaining({ notas: "Nota preservada durante retry" }),
+      );
+      expect(screen.getByText("Alterações salvas com sucesso.")).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Tentar salvar novamente" })).not.toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("não oferece retry do mesmo snapshot após conflito de versão", async () => {
+    api.atualizarPersonagem.mockRejectedValue(
+      new Error("A ficha foi alterada por outra operação. Recarregue antes de salvar."),
+    );
+    renderSheet();
+    await screen.findByRole("heading", { name: "Bram Ferroz" });
+    fireEvent.click(screen.getByRole("tab", { name: "Notas" }));
+
+    vi.useFakeTimers();
+    try {
+      fireEvent.change(screen.getByRole("textbox", { name: "Notas" }), {
+        target: { value: "Snapshot conflitante" },
+      });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(600);
+        await Promise.resolve();
+      });
+      expect(api.atualizarPersonagem).toHaveBeenCalledTimes(1);
+      expect(screen.getByRole("button", { name: "Recarregar (descartar alterações pendentes)" })).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Tentar salvar novamente" })).not.toBeInTheDocument();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1800);
+      });
+      expect(api.atualizarPersonagem).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("não permite editar a ficha sem permissão", async () => {
