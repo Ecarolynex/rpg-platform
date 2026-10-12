@@ -161,15 +161,20 @@ export default function Campaign() {
           console.error("Não foi possível carregar máximos autoritativos da campanha:", error);
           setMaximosServidor({});
         }
-        try {
-          const [catalogoItensAtual, historicoAtual] = await Promise.all([
-            listarCatalogoItens(),
-            listarRecompensasCampanha(campanhaId),
-          ]);
-          setCatalogoItens(catalogoItensAtual);
-          setHistoricoRecompensas(historicoAtual);
-        } catch (error) {
-          console.error("Não foi possível carregar o histórico ou catálogo de recompensas:", error);
+        // Catálogo e histórico são independentes: se um falhar, o outro ainda carrega.
+        const [catalogoResultado, historicoResultado] = await Promise.allSettled([
+          listarCatalogoItens(),
+          listarRecompensasCampanha(campanhaId),
+        ]);
+        if (catalogoResultado.status === "fulfilled") {
+          setCatalogoItens(catalogoResultado.value);
+        } else {
+          console.error("Não foi possível carregar o catálogo de itens:", catalogoResultado.reason);
+        }
+        if (historicoResultado.status === "fulfilled") {
+          setHistoricoRecompensas(historicoResultado.value);
+        } else {
+          console.error("Não foi possível carregar o histórico de recompensas:", historicoResultado.reason);
         }
 
         const campanhaAtual =
@@ -574,6 +579,9 @@ export default function Campaign() {
           <span className="campaign-context-current" aria-current="page">Visão geral</span>
           <Link className="btn-ghost" to={"/campanha/" + campaign.id + "/mapa"}>
             Mapa
+          </Link>
+          <Link className="btn-ghost" to={"/campanha/" + campaign.id + "/bestiario"}>
+            Bestiário
           </Link>
           <Link className="btn-ghost" to={"/campanha/" + campaign.id + "/loja"}>
             Loja

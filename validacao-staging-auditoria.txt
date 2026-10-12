@@ -1,0 +1,37 @@
+﻿# ReconciliaÃ§Ã£o e validaÃ§Ã£o de migrations antes de integraÃ§Ã£o
+
+## Estado desta revisÃ£o
+
+A revisÃ£o e as correÃ§Ãµes do frontend sÃ£o locais. Nenhuma consulta, autenticaÃ§Ã£o, migration, reparo ou escrita foi executada em Supabase. NÃ£o hÃ¡ confirmaÃ§Ã£o do estado remoto, e este documento **nÃ£o autoriza** aplicar migrations.
+
+Existe uma colisÃ£o histÃ³rica no repositÃ³rio: `202610010001_fix_shop_item_creator.sql` e `202610010001_shared_class_catalog.sql` tiveram o mesmo prefixo. A Ã¡rvore de trabalho atual nomeia o catÃ¡logo `202610010002_shared_class_catalog.sql` e contÃ©m `202610100004_reconcile_shop_item_creator.sql`, mas isso nÃ£o prova qual SQL estÃ¡ gravado na tabela de migrations de nenhum projeto remoto. NÃ£o renumerar nem reparar a histÃ³ria remota por inferÃªncia.
+
+## Preflight obrigatÃ³rio (sem writes)
+
+1. Obter aprovaÃ§Ã£o explÃ­cita para o projeto Supabase **dedicado a QA** e confirmar project ref/URL fora da produÃ§Ã£o. NÃ£o usar a URL/chave de outro `.env` ou um fallback.
+2. Obter o resultado do histÃ³rico remoto de migrations e um dump `schema-only` desse projeto. NÃ£o executar `db push`, `migration repair`, SQL mutÃ¡vel, restauraÃ§Ã£o nem seed nesta fase.
+3. Identificar o conteÃºdo SQL efetivamente aplicado sob `202610010001` comparando funÃ§Ã£o/tabelas/estado do schema. Registrar se corresponde ao fix da loja, catÃ¡logo de classe, ambos parcialmente ou a outro estado.
+4. Comparar o schema com todas as migrations locais, em ordem cronolÃ³gica, incluindo objetos preexistentes. O conjunto atualizado para validaÃ§Ã£o vai atÃ© **`202610100007_idempotent_shop_purchases.sql`**:
+   - `202610100001`: contrato V1, `dados_version`, item tipado e cargas;
+   - `202610100002`: mÃ¡ximos autoritativos e consumo de item;
+   - `202610100003`: ledger de recompensas, XP e RPCs de recursos;
+   - `202610100004`: reconciliaÃ§Ã£o da RPC de loja apÃ³s a colisÃ£o antiga;
+   - `202610100005`: criaÃ§Ã£o atÃ´mica/idempotente de campanha;
+   - `202610100006`: RLS de marcadores do mapa;
+   - `202610100007`: checkout idempotente com `campanha_compras` e argumento `p_request_id`.
+5. Conferir especificamente as assinaturas chamadas pela versÃ£o local do frontend. O checkout atual envia `p_request_id`; portanto, a RPC local de dois argumentos nÃ£o satisfaz o contrato atual. Conferir tambÃ©m prÃ©-requisitos e permissÃµes para tabelas-base (`personagens`, `campanhas`, `campanha_membros`, `itens`, `inventarios`, `lojas`, `loja_itens`, `mapas` e `mapa_marcadores`), colunas, triggers e policies.
+6. Produzir uma proposta de reconciliaÃ§Ã£o versionada e revisÃ¡vel para o ambiente de QA. A proposta deve deixar claro como preservar a histÃ³ria remota e alinhar o schema com a migraÃ§Ã£o `202610010002` sem reescrever o significado jÃ¡ aplicado de `202610010001`. Aguardar aprovaÃ§Ã£o separada antes de qualquer operaÃ§Ã£o que grave.
+
+## ValidaÃ§Ã£o pÃ³s-aprovaÃ§Ã£o (etapa futura)
+
+Somente apÃ³s o preflight, projeto isolado confirmado, backup e aprovaÃ§Ã£o explÃ­cita:
+
+1. Aplicar a proposta aprovada **apenas** no projeto de QA, nunca em produÃ§Ã£o.
+2. Exercitar funÃ§Ãµes/RLS como proprietÃ¡rio, Mestre ativo, jogador ativo e usuÃ¡rio sem vÃ­nculo.
+3. Verificar `request_id` repetido apÃ³s resposta perdida para criaÃ§Ã£o de campanha, checkout e recompensas; confirmar uma aplicaÃ§Ã£o e comparar histÃ³rico/saldo/estoque/inventÃ¡rio.
+4. Comparar mÃ¡ximos do servidor com `calculateDerivedCharacterStats` para raÃ§a, filiaÃ§Ã£o, catÃ¡logo, override, classe de campanha, equipamento e limites; verificar ficha, resumo e uso de item.
+5. Testar consumo/cargas, rollback em erro e RLS de marcadores invisÃ­veis, alteraÃ§Ãµes de posiÃ§Ã£o e exclusÃ£o.
+6. Registrar diferenÃ§as encontradas e resultados antes de considerar qualquer promoÃ§Ã£o.
+
+**NÃ£o aplicar migrations com base apenas nesta revisÃ£o estÃ¡tica ou na numeraÃ§Ã£o local.** O projeto de staging atual permanece desconhecido atÃ© a reconciliaÃ§Ã£o documentada.
+

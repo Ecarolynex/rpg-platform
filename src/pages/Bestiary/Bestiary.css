@@ -1,0 +1,165 @@
+.bestiary-page {
+  width: 100%;
+  min-width: 0;
+  padding: 8px 0 32px;
+  color: var(--parchment);
+}
+.bestiary-header h1 {
+  margin: 12px 0 2px;
+  font-family: var(--font-title);
+  letter-spacing: 0.04em;
+}
+.bestiary-header p {
+  margin: 0 0 18px;
+  color: var(--muted);
+}
+.bestiary-nav {
+  display: flex;
+  gap: 8px;
+}
+.bestiary-nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 7px 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-control);
+  color: var(--gold-bright);
+  text-decoration: none;
+}
+
+.bestiary-error {
+  margin-bottom: 14px;
+  padding: 10px 14px;
+  border: 1px solid var(--status-error-border);
+  border-radius: var(--radius-control);
+  background: var(--status-error-bg);
+  color: var(--status-error-text);
+}
+
+.bestiary-form,
+.bestiary-card {
+  padding: clamp(14px, 2.4vw, 22px);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-panel);
+  background: var(--surface-panel);
+  box-shadow: var(--shadow-panel);
+}
+.bestiary-form {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.bestiary-form h2 {
+  margin: 0;
+  font-family: var(--font-title);
+  font-size: 1.1rem;
+}
+.bestiary-form label {
+  display: grid;
+  gap: 4px;
+  font-size: 0.88rem;
+  color: var(--parchment-dim);
+}
+.bestiary-form input,
+.bestiary-form select,
+.bestiary-form textarea {
+  padding: 8px 10px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-control);
+  background: var(--surface-inset);
+  color: var(--parchment);
+  font: inherit;
+}
+.bestiary-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 2fr 1fr 1fr 1fr;
+}
+.bestiary-grid.two {
+  grid-template-columns: 1fr 1fr;
+}
+@media (max-width: 720px) {
+  .bestiary-grid,
+  .bestiary-grid.two {
+    grid-template-columns: 1fr;
+  }
+}
+.bestiary-form .bestiary-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.bestiary-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+.bestiary-button {
+  min-height: 40px;
+  padding: 8px 16px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-control);
+  background: linear-gradient(180deg, #1d4a44, #123631);
+  color: var(--gold-bright);
+  font-family: var(--font-title);
+  font-size: 0.8rem;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+}
+.bestiary-button.ghost {
+  background: transparent;
+}
+.bestiary-button.danger {
+  background: transparent;
+  border-color: var(--status-error-border);
+  color: var(--status-error-text);
+}
+
+.bestiary-list {
+  display: grid;
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+}
+.bestiary-card {
+  border-left: 4px solid #2a2f2d;
+}
+.bestiary-card.tipo-boss {
+  border-left-color: var(--bordo-bright, #8a3a40);
+}
+.bestiary-card.tipo-inimigo {
+  border-left-color: #6a2f33;
+}
+.bestiary-card.tipo-npc {
+  border-left-color: var(--moss, #6f8452);
+}
+.bestiary-card h3 {
+  margin: 0;
+  font-family: var(--font-title);
+}
+.bestiary-card header span {
+  display: block;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+.bestiary-card header em {
+  font-size: 0.78rem;
+  font-style: normal;
+}
+.bestiary-card header em.revealed {
+  color: var(--status-success-text);
+}
+.bestiary-card header em.secret {
+  color: var(--parchment-dim);
+}
+.bestiary-card p {
+  margin: 8px 0 0;
+}
+.bestiary-empty {
+  color: var(--muted);
+}

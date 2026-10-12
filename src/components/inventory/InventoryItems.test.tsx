@@ -7,12 +7,16 @@ const api = vi.hoisted(() => ({
   getInventory: vi.fn(),
   usarItemPersonagem: vi.fn(),
   alterarItemEquipado: vi.fn(),
+  salvarComentarioInventario: vi.fn(),
+  excluirItemInventario: vi.fn(),
 }));
 
 vi.mock("../../services/api", () => ({
   getInventory: api.getInventory,
   usarItemPersonagem: api.usarItemPersonagem,
   alterarItemEquipado: api.alterarItemEquipado,
+  salvarComentarioInventario: api.salvarComentarioInventario,
+  excluirItemInventario: api.excluirItemInventario,
 }));
 
 const characterId = "persisted-character-1";
@@ -64,6 +68,8 @@ describe("InventoryItems", () => {
     api.getInventory.mockResolvedValue([]);
     api.usarItemPersonagem.mockResolvedValue({ personagem_id: characterId, hp: null, mp: null, quantidade: 1, hp_max: 10, mp_max: 10 });
     api.alterarItemEquipado.mockResolvedValue(undefined);
+    api.salvarComentarioInventario.mockResolvedValue(undefined);
+    api.excluirItemInventario.mockResolvedValue(undefined);
   });
 
   it("mostra o estado de carregamento enquanto busca o inventário", () => {
@@ -158,6 +164,7 @@ describe("InventoryItems", () => {
       expect(onItemUsed).toHaveBeenCalledWith(expect.objectContaining({ hp: { atual: 14 } }));
     });
   });
+
 
   it("mostra estado vazio e link da loja quando pertence a uma campanha", async () => {
     api.getInventory.mockResolvedValue([]);

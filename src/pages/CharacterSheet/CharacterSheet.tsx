@@ -131,6 +131,15 @@ function ControleVital({
 
       <StatBar label={titulo} atual={atual} max={max} tone={tom} />
 
+      <StatBar
+        label={titulo + " temporário"}
+        atual={temporario}
+        max={Math.max(temporario, 1)}
+        tone={tom}
+      />
+
+
+
       <div className="cs-vital-direct">
         <div className="cs-vital-fields">
           <div className="cs-vital-field">
@@ -1851,3 +1860,7 @@ export default function CharacterSheet() {
     </div>
   );
 }
+
+
+
+

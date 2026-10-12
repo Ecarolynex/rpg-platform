@@ -91,4 +91,3 @@ describe("catálogo global de classes", () => {
     expect(screen.queryByRole("textbox", { name: "Nova classe" })).not.toBeInTheDocument();
   });
 });
-

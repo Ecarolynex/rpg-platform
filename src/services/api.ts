@@ -1787,6 +1787,7 @@ export async function getInventory(
       quantidade,
        equipado,
        cargas_atuais,
+       comentario_pessoal,
        updated_at,
       itens (
         id,
@@ -1841,5 +1842,41 @@ export async function alterarItemEquipado(
 
   if (!data) {
     throw new Error("O equipamento não foi atualizado.");
+  }
+}
+
+export async function salvarComentarioInventario(
+  personagemId: string,
+  itemId: string,
+  comentario: string,
+): Promise<void> {
+  const { data, error } = await supabase.rpc("salvar_comentario_inventario", {
+    p_personagem_id: personagemId,
+    p_item_id: itemId,
+    p_comentario: comentario,
+  });
+
+  if (error) {
+    throw new Error(error.message || "Não foi possível salvar o comentário.");
+  }
+  if (data !== true) {
+    throw new Error("O Supabase não confirmou o salvamento do comentário.");
+  }
+}
+
+export async function excluirItemInventario(
+  personagemId: string,
+  itemId: string,
+): Promise<void> {
+  const { data, error } = await supabase.rpc("excluir_item_inventario", {
+    p_personagem_id: personagemId,
+    p_item_id: itemId,
+  });
+
+  if (error) {
+    throw new Error(error.message || "Não foi possível excluir o item.");
+  }
+  if (data !== true) {
+    throw new Error("O Supabase não confirmou a exclusão do item.");
   }
 }

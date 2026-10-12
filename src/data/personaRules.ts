@@ -1,4 +1,3 @@
-
 export const CLASSES = [
   "Bardo",
   "Artífice",

@@ -2,6 +2,10 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Character } from "../../types/character";
+import {
+  makeAuthoritativeResourcesFixture,
+  makeCampaignCharacter,
+} from "../../test/fixtures/rewards";
 import CharacterSheet from "./CharacterSheet";
 
 const api = vi.hoisted(() => ({
@@ -39,28 +43,16 @@ const characterId = "character-sheet-inventory-test";
 const legacyItemName = "Item legado não exibido";
 
 function makeCharacter(): Character {
-  return {
+  return makeCampaignCharacter({
     id: characterId,
-    campanhaId: "campaign-1",
+    xp: undefined,
     nome: "Bram Ferroz",
-    raca: "Humano",
-    classe: "Guerreiro",
     nivel: 1,
     hp: { atual: 10, max: 10 },
     mp: { atual: 10, max: 10 },
-    attributes: {
-      forca: 10,
-      destreza: 10,
-      constituicao: 10,
-      inteligencia: 10,
-      carisma: 10,
-    },
-    skills: [],
     inventory: [{ id: "legacy-item", nome: legacyItemName, quantidade: 3 }],
-    spells: [],
     carteira: { pc: 0, pp: 0, pe: 0, po: 0, pl: 0 },
-    notas: "",
-  };
+  });
 }
 
 function renderSheet() {
@@ -82,12 +74,15 @@ describe("CharacterSheet inventory integration", () => {
     api.listarConteudosClasseCampanha.mockResolvedValue([]);
     api.getCampaignClassBonuses.mockResolvedValue({});
     api.getInventory.mockResolvedValue([]);
-    api.reconciliarLimitesRecursosPersonagem.mockResolvedValue({
-      dados_version: 1, hp_atual: 10, mp_atual: 10, hp_max: 20, mp_max: 18,
+    const resourceResponse = makeAuthoritativeResourcesFixture({
+      dados_version: 1,
+      hp_atual: 10,
+      mp_atual: 10,
+      hp_max: 20,
+      mp_max: 18,
     });
-    api.getCharacterResourceMaximums.mockResolvedValue({
-      dados_version: 1, hp_atual: 10, mp_atual: 10, hp_max: 20, mp_max: 18,
-    });
+    api.reconciliarLimitesRecursosPersonagem.mockResolvedValue(resourceResponse);
+    api.getCharacterResourceMaximums.mockResolvedValue(resourceResponse);
     api.atualizarPersonagem.mockImplementation(async (_id, character) => character);
   });
 

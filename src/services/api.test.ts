@@ -8,7 +8,9 @@ import {
   criarCampanha,
   entregarItemCampanha,
   getEquippedAttributeBonusesByCharacter,
+  getCampaignResourceMaximums,
   getCharacterResourceMaximums,
+  listarRecompensasCampanha,
   reconciliarLimitesRecursosPersonagem,
   excluirCampanha,
   atualizarPersonagem,
@@ -18,6 +20,12 @@ import {
   usarItemPersonagem,
   vincularPersonagem,
 } from "./api";
+import {
+  makeAuthoritativeResourcesFixture,
+  makeCampaignResourceFixture,
+  makeRewardHistoryFixture,
+  rewardFixtureIds,
+} from "../test/fixtures/rewards";
 import { normalizarBonusClassesCampanha } from "../data/personaRules";
 
 const { getUser, from, rpc } = vi.hoisted(() => ({
@@ -145,6 +153,37 @@ describe("creditarOuroCampanha", () => {
 describe("recompensas e sincronização", () => {
   beforeEach(() => vi.clearAllMocks());
 
+  it("carrega máximos por campanha usando a assinatura pública da RPC", async () => {
+    const maximum = makeCampaignResourceFixture();
+    rpc.mockResolvedValue({ data: [maximum], error: null });
+
+    await expect(getCampaignResourceMaximums(rewardFixtureIds.campaign)).resolves.toEqual([maximum]);
+    expect(rpc).toHaveBeenCalledWith("listar_maximos_recursos_campanha", {
+      p_campanha_id: rewardFixtureIds.campaign,
+    });
+  });
+
+  it("carrega histórico direto da tabela com campos e ordenação esperados", async () => {
+    const reward = makeRewardHistoryFixture();
+    const query = {
+      select: vi.fn(),
+      eq: vi.fn(),
+      order: vi.fn(),
+      limit: vi.fn(),
+    };
+    query.select.mockReturnValue(query);
+    query.eq.mockReturnValue(query);
+    query.order.mockReturnValue(query);
+    query.limit.mockResolvedValue({ data: [reward], error: null });
+    from.mockReturnValueOnce(query);
+
+    await expect(listarRecompensasCampanha(rewardFixtureIds.campaign)).resolves.toEqual([reward]);
+    expect(from).toHaveBeenCalledWith("campanha_recompensas");
+    expect(query.eq).toHaveBeenCalledWith("campanha_id", rewardFixtureIds.campaign);
+    expect(query.order).toHaveBeenCalledWith("created_at", { ascending: false });
+    expect(query.limit).toHaveBeenCalledWith(20);
+  });
+
   it("envia XP e itens para RPCs com destinatário e chave de idempotência", async () => {
     rpc
       .mockResolvedValueOnce({ data: 1, error: null })
@@ -170,7 +209,7 @@ describe("recompensas e sincronização", () => {
 
   it("carrega máximos autoritativos sem escrever a ficha em modo de leitura", async () => {
     rpc.mockResolvedValue({
-      data: { dados_version: 4, hp_atual: 12, mp_atual: 8, hp_max: 22, mp_max: 16 },
+      data: makeAuthoritativeResourcesFixture({ hp_atual: 12, mp_atual: 8, hp_max: 22 }),
       error: null,
     });
     await expect(getCharacterResourceMaximums("character-1")).resolves.toMatchObject({
@@ -183,7 +222,7 @@ describe("recompensas e sincronização", () => {
 
   it("consulta máximos autoritativos para fichas de leitura sem modificar dados", async () => {
     rpc.mockResolvedValue({
-      data: { dados_version: 4, hp_atual: 12, mp_atual: 8, hp_max: 22, mp_max: 16 },
+      data: makeAuthoritativeResourcesFixture({ hp_atual: 12, mp_atual: 8, hp_max: 22 }),
       error: null,
     });
     await expect(getCharacterResourceMaximums("character-1")).resolves.toMatchObject({
@@ -195,13 +234,15 @@ describe("recompensas e sincronização", () => {
   });
 
   it("retorna máximos calculados pelo servidor", async () => {
-    rpc.mockResolvedValue({
-      data: { dados_version: 5, hp_atual: 16, mp_atual: 7, hp_max: 24, mp_max: 18 },
-      error: null,
+    const resources = makeAuthoritativeResourcesFixture({
+      dados_version: 5,
+      hp_atual: 16,
+      mp_atual: 7,
+      hp_max: 24,
+      mp_max: 18,
     });
-    await expect(reconciliarLimitesRecursosPersonagem("character-1")).resolves.toEqual({
-      dados_version: 5, hp_atual: 16, mp_atual: 7, hp_max: 24, mp_max: 18,
-    });
+    rpc.mockResolvedValue({ data: resources, error: null });
+    await expect(reconciliarLimitesRecursosPersonagem("character-1")).resolves.toEqual(resources);
     expect(rpc).toHaveBeenCalledWith("reconciliar_limites_recursos_personagem", {
       p_personagem_id: "character-1",
     });
