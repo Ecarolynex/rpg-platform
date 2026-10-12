@@ -2,7 +2,9 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   alterarItemEquipado,
+  excluirItemInventario,
   getInventory,
+  salvarComentarioInventario,
   usarItemPersonagem,
   type ItemUseReceipt,
 } from "../../services/api";
@@ -26,6 +28,7 @@ type InventoryRow = {
   item_id: string;
   quantidade: number;
   cargas_atuais?: number | null;
+  comentario_pessoal?: string | null;
   equipado?: boolean;
   itens: InventoryItemData | InventoryItemData[] | null;
 };
@@ -34,6 +37,7 @@ type PersistedInventoryItem = {
   itemId: string;
   quantidade: number;
   cargasAtuais: number | null;
+  comentarioPessoal: string;
   equipado: boolean;
   item: InventoryItemData | null;
 };
@@ -55,6 +59,7 @@ function normalizeInventoryRows(
       itemId: row.item_id,
       quantidade,
       cargasAtuais: row.cargas_atuais ?? (item?.cargas_maximas ? item.cargas_maximas * quantidade : null),
+      comentarioPessoal: row.comentario_pessoal ?? "",
       equipado: row.equipado === true,
       item,
     };
@@ -81,6 +86,7 @@ export default function InventoryItems({
   const [alterandoItem, setAlterandoItem] = useState<string | null>(
     null,
   );
+  const [comentarios, setComentarios] = useState<Record<string, string>>({});
 
   useEffect(() => {
     let active = true;
@@ -170,6 +176,59 @@ export default function InventoryItems({
         err instanceof Error
           ? err.message
           : "Não foi possível alterar o equipamento.",
+      );
+    } finally {
+      setAlterandoItem(null);
+    }
+  }
+
+  async function salvarComentario(item: PersistedInventoryItem) {
+    const comentario = comentarios[item.itemId] ?? item.comentarioPessoal;
+    setAlterandoItem(item.itemId);
+    setActionError("");
+
+    try {
+      await salvarComentarioInventario(characterId, item.itemId, comentario);
+      setItems((current) => current.map((entry) =>
+        entry.itemId === item.itemId
+          ? { ...entry, comentarioPessoal: comentario.trim() }
+          : entry
+      ));
+      setComentarios((current) => {
+        const next = { ...current };
+        delete next[item.itemId];
+        return next;
+      });
+    } catch (err: unknown) {
+      setActionError(
+        err instanceof Error ? err.message : "Não foi possível salvar o comentário."
+      );
+    } finally {
+      setAlterandoItem(null);
+    }
+  }
+
+  async function excluirItem(item: PersistedInventoryItem) {
+    const nome = item.item?.nome ?? "este item";
+    if (!window.confirm(
+      `Excluir "${nome}" do inventário deste personagem? O item continuará no catálogo global.`
+    )) return;
+
+    setAlterandoItem(item.itemId);
+    setActionError("");
+
+    try {
+      await excluirItemInventario(characterId, item.itemId);
+      setItems((current) => current.filter((entry) => entry.itemId !== item.itemId));
+      setComentarios((current) => {
+        const next = { ...current };
+        delete next[item.itemId];
+        return next;
+      });
+      if (item.equipado) onEquipmentChanged?.();
+    } catch (err: unknown) {
+      setActionError(
+        err instanceof Error ? err.message : "Não foi possível excluir o item."
       );
     } finally {
       setAlterandoItem(null);
@@ -342,6 +401,34 @@ export default function InventoryItems({
                 </p>
               )}
 
+              <div className="inventory-personal-note">
+                <label htmlFor={`inventory-note-${inventoryItem.itemId}`}>
+                  Comentário pessoal
+                </label>
+                <textarea
+                  id={`inventory-note-${inventoryItem.itemId}`}
+                  value={comentarios[inventoryItem.itemId] ?? inventoryItem.comentarioPessoal}
+                  maxLength={2000}
+                  rows={3}
+                  placeholder="Anotações para este personagem..."
+                  onChange={(event) => setComentarios((current) => ({
+                    ...current,
+                    [inventoryItem.itemId]: event.target.value,
+                  }))}
+                />
+                <button
+                  type="button"
+                  className="btn-ghost"
+                  disabled={alterando || (
+                    (comentarios[inventoryItem.itemId] ?? inventoryItem.comentarioPessoal) ===
+                    inventoryItem.comentarioPessoal
+                  )}
+                  onClick={() => void salvarComentario(inventoryItem)}
+                >
+                  {alterando ? "Salvando..." : "Salvar comentário"}
+                </button>
+              </div>
+
               <div className="inventory-item-actions">
                 <button
                   type="button"
@@ -369,6 +456,14 @@ export default function InventoryItems({
                     {alterando ? "Usando..." : "Usar"}
                   </button>
                 )}
+                <button
+                  type="button"
+                  className="btn-ghost inventory-delete-button"
+                  disabled={alterando}
+                  onClick={() => void excluirItem(inventoryItem)}
+                >
+                  {alterando ? "Aguarde..." : "Excluir do inventário"}
+                </button>
               </div>
             </article>
           );

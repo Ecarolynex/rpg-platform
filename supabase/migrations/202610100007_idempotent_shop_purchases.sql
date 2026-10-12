@@ -30,7 +30,8 @@ create policy "campanha_compras_select_membro"
 -- Replace the old two-argument function; its third argument below has a default
 -- so existing app versions continue calling the RPC, while new clients send a key.
 drop function if exists public.registrar_compra_carrinho(uuid, jsonb);
-create function public.registrar_compra_carrinho(
+drop function if exists public.registrar_compra_carrinho(uuid, jsonb, uuid);
+create or replace function public.registrar_compra_carrinho(
   p_personagem_id uuid,
   p_itens jsonb,
   p_request_id uuid default gen_random_uuid()

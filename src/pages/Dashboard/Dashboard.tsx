@@ -78,6 +78,10 @@ function rotuloAtributo(valor: string): string {
   return porChave ? porChave.label : valor;
 }
 
+function chaveNomePericia(nome: string): string {
+  return nome.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLocaleLowerCase();
+}
+
 function createUntrainedSkills(
   classe: ClassDefinition | undefined,
   campaignSkills: CampaignClassContent[],
@@ -98,9 +102,15 @@ function createUntrainedSkills(
         descricao: skill.descricao,
       })),
   ];
-  const definitions = [...FIXED_SKILLS, ...classSkills].filter(
-    (skill, index, skills) => skills.findIndex((item) => item.id === skill.id) === index,
-  );
+  const nomesVistos = new Set<string>();
+  const definitions = [...FIXED_SKILLS, ...classSkills].filter((skill, index, skills) => {
+    if (skills.findIndex((item) => item.id === skill.id) !== index) return false;
+    // Uma perícia da classe com o mesmo nome de uma fixa (ex.: Atletismo) não entra duas vezes.
+    const chave = chaveNomePericia(skill.nome);
+    if (nomesVistos.has(chave)) return false;
+    nomesVistos.add(chave);
+    return true;
+  });
   return definitions.map((skill) => ({
     id: skill.id,
     nome: skill.nome,

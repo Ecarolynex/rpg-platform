@@ -4,12 +4,23 @@ import { beforeEach, expect, it, vi } from "vitest";
 import {
   adicionarConteudoClasseCampanha,
   creditarExperienciaCampanha,
+  creditarOuroCampanha,
   entregarItemCampanha,
   listarPersonagensDaCampanha,
+  listarMinhasCampanhas,
+  listarRecompensasCampanha,
   excluirCampanha,
   getCampaignAccess,
   salvarBonusClassesCampanha,
 } from "../../services/api";
+import {
+  makeCampaignAccessFixture,
+  makeCampaignCharacter,
+  makeCampaignFixture,
+  makeCatalogItemFixture,
+  makeRewardHistoryFixture,
+  rewardFixtureIds,
+} from "../../test/fixtures/rewards";
 import Campaign from "./Campaign";
 
 vi.mock("../../services/api", () => ({
@@ -74,13 +85,15 @@ function renderCampaign() {
 describe("exclusão da campanha", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(getCampaignAccess).mockResolvedValue({ isMaster: true, startingGold: 0 });
+    vi.mocked(getCampaignAccess).mockResolvedValue(makeCampaignAccessFixture());
+    vi.mocked(listarMinhasCampanhas).mockResolvedValue([makeCampaignFixture()]);
+    vi.mocked(listarPersonagensDaCampanha).mockResolvedValue([]);
   });
 
   describe("conteúdos personalizados da campanha", () => {
     beforeEach(() => {
       vi.clearAllMocks();
-      vi.mocked(getCampaignAccess).mockResolvedValue({ isMaster: true, startingGold: 0 });
+      vi.mocked(getCampaignAccess).mockResolvedValue(makeCampaignAccessFixture());
     });
 
     it("permite ao Mestre adicionar habilidades exclusivas a uma classe da campanha", async () => {
@@ -115,7 +128,7 @@ describe("exclusão da campanha", () => {
   describe("bônus de classe da campanha", () => {
     beforeEach(() => {
       vi.clearAllMocks();
-      vi.mocked(getCampaignAccess).mockResolvedValue({ isMaster: true, startingGold: 0 });
+      vi.mocked(getCampaignAccess).mockResolvedValue(makeCampaignAccessFixture());
       vi.mocked(salvarBonusClassesCampanha).mockImplementation(async (_id, bonuses) => bonuses);
     });
 
@@ -146,7 +159,7 @@ describe("exclusão da campanha", () => {
     });
 
     it("não mostra a configuração para jogadores", async () => {
-      vi.mocked(getCampaignAccess).mockResolvedValueOnce({ isMaster: false, startingGold: 0 });
+      vi.mocked(getCampaignAccess).mockResolvedValueOnce(makeCampaignAccessFixture({ isMaster: false }));
       renderCampaign();
 
       expect(await screen.findByRole("heading", { name: "Meu personagem nesta aventura" })).toBeInTheDocument();
@@ -154,20 +167,30 @@ describe("exclusão da campanha", () => {
     });
   });
 
+  it("distribui ouro ao personagem selecionado com a fixture de campanha", async () => {
+    vi.mocked(listarPersonagensDaCampanha).mockResolvedValueOnce([makeCampaignCharacter()]);
+    renderCampaign();
+
+    fireEvent.change(await screen.findByLabelText("Tipo de recompensa"), { target: { value: "OURO" } });
+    fireEvent.change(screen.getByLabelText("Quantidade"), { target: { value: "50" } });
+    fireEvent.change(screen.getByLabelText("Destinatário"), {
+      target: { value: rewardFixtureIds.character },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Entregar Recompensa" }));
+
+    await waitFor(() => {
+      expect(creditarOuroCampanha).toHaveBeenCalledWith(
+        rewardFixtureIds.campaign,
+        50,
+        rewardFixtureIds.character,
+        expect.any(String),
+      );
+    });
+    expect(await screen.findByText("Concluído! 50 PO foram entregues para Lira.")).toBeInTheDocument();
+  });
+
   it("aplica XP ao personagem selecionado e confirma a operação", async () => {
-    vi.mocked(listarPersonagensDaCampanha).mockResolvedValueOnce([{
-      id: "character-1",
-      campanhaId: "campaign-1",
-      nome: "Lira",
-      raca: "Humano",
-      classe: "Guerreiro",
-      nivel: 2,
-      xp: 100,
-      hp: { atual: 10, max: 10 },
-      mp: { atual: 10, max: 10 },
-      attributes: { forca: 10, destreza: 10, constituicao: 10, inteligencia: 10, carisma: 10 },
-      skills: [], inventory: [], spells: [], notas: "",
-    }]);
+    vi.mocked(listarPersonagensDaCampanha).mockResolvedValueOnce([makeCampaignCharacter()]);
     renderCampaign();
 
     fireEvent.change(await screen.findByLabelText("Tipo de recompensa"), { target: { value: "XP" } });
@@ -184,21 +207,11 @@ describe("exclusão da campanha", () => {
   });
 
   it("entrega um item ao personagem ou ao grupo selecionado", async () => {
-    vi.mocked(listarPersonagensDaCampanha).mockResolvedValueOnce([{
-      id: "character-1",
-      campanhaId: "campaign-1",
-      nome: "Lira",
-      raca: "Humano",
-      classe: "Guerreiro",
-      nivel: 2,
-      xp: 100,
-      hp: { atual: 10, max: 10 },
-      mp: { atual: 10, max: 10 },
-      attributes: { forca: 10, destreza: 10, constituicao: 10, inteligencia: 10, carisma: 10 },
-      skills: [], inventory: [], spells: [], notas: "",
-    }]);
+    vi.mocked(listarPersonagensDaCampanha).mockResolvedValueOnce([makeCampaignCharacter()]);
     const { listarCatalogoItens } = await import("../../services/api");
-    vi.mocked(listarCatalogoItens).mockResolvedValueOnce([{ itemId: "potion-1", nome: "Poção" } as never]);
+    vi.mocked(listarCatalogoItens).mockResolvedValueOnce([
+      makeCatalogItemFixture({ nome: "Poção" }),
+    ]);
     renderCampaign();
 
     fireEvent.change(await screen.findByLabelText("Tipo de recompensa"), { target: { value: "ITEM" } });
@@ -216,24 +229,12 @@ describe("exclusão da campanha", () => {
   });
 
   it("gera uma nova chave de recompensa quando muda o item e preserva a chave em retries idênticos", async () => {
-    vi.mocked(listarPersonagensDaCampanha).mockResolvedValueOnce([{
-      id: "character-1",
-      campanhaId: "campaign-1",
-      nome: "Lira",
-      raca: "Humano",
-      classe: "Guerreiro",
-      nivel: 2,
-      xp: 100,
-      hp: { atual: 10, max: 10 },
-      mp: { atual: 10, max: 10 },
-      attributes: { forca: 10, destreza: 10, constituicao: 10, inteligencia: 10, carisma: 10 },
-      skills: [], inventory: [], spells: [], notas: "",
-    }]);
+    vi.mocked(listarPersonagensDaCampanha).mockResolvedValueOnce([makeCampaignCharacter()]);
     const { listarCatalogoItens } = await import("../../services/api");
     vi.mocked(listarCatalogoItens).mockResolvedValueOnce([
-      { itemId: "item-a", nome: "Poção rubra" },
-      { itemId: "item-b", nome: "Poção azul" },
-    ] as never);
+      makeCatalogItemFixture({ itemId: "item-a", nome: "Poção rubra" }),
+      makeCatalogItemFixture({ itemId: "item-b", nome: "Poção azul" }),
+    ]);
     vi.mocked(entregarItemCampanha)
       .mockRejectedValueOnce(new Error("Falha temporária"))
       .mockRejectedValueOnce(new Error("Falha temporária"))
@@ -270,6 +271,18 @@ describe("exclusão da campanha", () => {
     await waitFor(() => expect(entregarItemCampanha).toHaveBeenCalledTimes(4));
     expect(vi.mocked(entregarItemCampanha).mock.calls[3][4]).toBe(firstRequestId);
     expect(await screen.findByText("Concluído! 50 Poção rubra foram entregues para 1 personagens do grupo.")).toBeInTheDocument();
+  });
+
+  it("renderiza o histórico da campanha a partir da fixture de recompensa", async () => {
+    vi.mocked(listarPersonagensDaCampanha).mockResolvedValueOnce([makeCampaignCharacter()]);
+    vi.mocked(listarRecompensasCampanha).mockResolvedValueOnce([
+      makeRewardHistoryFixture({ quantidade: 25 }),
+    ]);
+    renderCampaign();
+
+    const history = await screen.findByRole("region", { name: "Histórico de recompensas" });
+    expect(history).toHaveTextContent("25 PO");
+    expect(history).toHaveTextContent("para Lira");
   });
 
   it("confirma a cópia do convite apenas após sucesso e oferece cópia manual na falha", async () => {
@@ -369,7 +382,7 @@ describe("exclusão da campanha", () => {
   });
 
   it("não mostra a opção para jogadores", async () => {
-    vi.mocked(getCampaignAccess).mockResolvedValueOnce({ isMaster: false, startingGold: 0 });
+    vi.mocked(getCampaignAccess).mockResolvedValueOnce(makeCampaignAccessFixture({ isMaster: false }));
     renderCampaign();
 
     expect(await screen.findByRole("heading", { name: "Meu personagem nesta aventura" })).toBeInTheDocument();

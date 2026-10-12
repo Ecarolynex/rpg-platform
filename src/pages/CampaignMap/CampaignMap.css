@@ -5,60 +5,62 @@
   color: var(--parchment);
 }
 
-.campaign-map-header {
-  display: flex;
-  justify-content: space-between;
-  gap: 20px;
-  margin-bottom: 24px;
+.campaign-map-header h1 {
+  margin: 12px 0 2px;
+  font-family: var(--font-title);
+  letter-spacing: 0.04em;
+}
+.campaign-map-header p {
+  margin: 0 0 18px;
+  color: var(--muted);
 }
 
 .map-breadcrumbs {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
   gap: 8px;
-  margin-bottom: 12px;
 }
-
+.map-back-link,
 .map-current-page {
   display: inline-flex;
   align-items: center;
   min-height: 40px;
-  padding: 7px 10px;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-control);
-  background: rgba(199, 166, 108, 0.1);
-  color: var(--gold-bright);
-}
-
-.campaign-map-header h1 {
-  margin: 12px 0 4px;
-}
-
-.campaign-map-header p {
-  margin: 0;
-  color: var(--muted, #9ca3af);
-}
-
-.map-back-link {
-  display: inline-flex;
-  align-items: center;
-  min-height: 40px;
-  padding: 7px 10px;
+  padding: 7px 12px;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-control);
   color: var(--gold-bright);
   text-decoration: none;
 }
+.map-current-page {
+  border-color: var(--border-strong);
+  background: rgba(199, 166, 108, 0.1);
+}
+
+.map-message {
+  margin: 0 0 14px;
+  padding: 10px 14px;
+  border: 1px solid;
+  border-radius: var(--radius-control);
+}
+.map-error {
+  background: var(--status-error-bg);
+  border-color: var(--status-error-border);
+  color: var(--status-error-text);
+}
+.map-success {
+  background: var(--status-success-bg);
+  border-color: var(--status-success-border);
+  color: var(--status-success-text);
+}
 
 .map-card {
   min-width: 0;
-  background: rgba(16, 43, 40, 0.82);
+  padding: clamp(14px, 2.4vw, 22px);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-panel);
-  padding: clamp(14px, 3vw, 24px);
+  background: var(--surface-panel);
+  box-shadow: var(--shadow-panel);
 }
-
 .map-create-card {
   display: flex;
   align-items: center;
@@ -66,12 +68,19 @@
   gap: 24px;
 }
 
-.map-create-card h2 {
-  margin-top: 0;
+.map-layout {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: minmax(0, 1fr);
 }
-
-.map-create-card p {
-  color: var(--muted, #9ca3af);
+.map-layout.has-sidebar {
+  grid-template-columns: minmax(0, 1fr) 320px;
+  align-items: start;
+}
+@media (max-width: 960px) {
+  .map-layout.has-sidebar {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .map-upload-button,
@@ -80,312 +89,280 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  min-height: 42px;
-  max-width: 100%;
+  min-height: 40px;
+  padding: 8px 16px;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-control);
-  padding: 10px 16px;
-  background: var(--surface-panel);
-  color: var(--parchment);
+  background: linear-gradient(180deg, #1d4a44, #123631);
+  color: var(--gold-bright);
+  font-family: var(--font-title);
+  font-size: 0.82rem;
+  letter-spacing: 0.05em;
   cursor: pointer;
   text-decoration: none;
-  font-family: var(--font-display);
-  font-weight: 600;
-  text-align: center;
-  overflow-wrap: anywhere;
 }
-
-.map-button:hover,
+.map-button:hover:not(:disabled),
 .map-upload-button:hover {
   border-color: var(--gold-bright);
 }
-
 .map-button.active {
-  background: linear-gradient(180deg, var(--gold-bright), var(--gold));
-  color: var(--ink);
+  background: rgba(199, 166, 108, 0.22);
 }
-
 .map-button.secondary {
   background: transparent;
 }
-
-.map-message {
-  margin-bottom: 16px;
-  padding: 12px 16px;
-  border-radius: 10px;
-}
-
-.map-error {
-  background: rgba(180, 40, 40, 0.18);
-  border: 1px solid rgba(255, 80, 80, 0.35);
-}
-
-.map-success {
-  background: rgba(80, 150, 80, 0.15);
-  border: 1px solid rgba(120, 220, 120, 0.25);
+.map-button.danger {
+  border-color: var(--status-error-border);
+  color: var(--status-error-text);
+  background: transparent;
 }
 
 .map-toolbar {
   display: flex;
-  justify-content: space-between;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 20px;
-  margin-bottom: 16px;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
 }
-
-.map-toolbar > div:first-child {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+.map-toolbar strong {
+  display: block;
+  font-family: var(--font-title);
 }
-
 .map-toolbar span {
-  color: var(--muted, #9ca3af);
+  color: var(--muted);
   font-size: 0.85rem;
 }
-
 .map-toolbar-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
 }
-
-.map-marker-form {
-  margin-bottom: 16px;
-  padding: clamp(14px, 3vw, 20px);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-panel);
-  background: rgba(16, 43, 40, 0.72);
+.map-hint {
+  margin: 0 0 10px;
+  color: var(--gold-bright);
+  font-size: 0.92rem;
 }
 
-.map-marker-form > div {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
-}
-
-.map-marker-form label {
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-  font-weight: 700;
-}
-
-.map-marker-form input,
-.map-marker-form select,
-.map-marker-form textarea {
-  width: 100%;
-  min-width: 0;
-  box-sizing: border-box;
-  padding: 10px 12px;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-control);
-  background: var(--surface-inset);
-  color: var(--parchment);
-}
-
-.map-marker-form textarea {
-  resize: vertical;
-}
-
-.map-marker-form label:nth-child(3),
-.map-marker-form p {
-  grid-column: 1 / -1;
-}
-
-.map-checkbox {
-  flex-direction: row !important;
-  align-items: center;
-}
-
-.map-checkbox input {
-  width: auto;
-}
-
-.map-marker-form p {
-  margin: 0;
-  color: var(--muted, #9ca3af);
-}
-
-.map-viewer-card {
-  padding: 10px;
-  overflow: hidden;
-}
-
+/* Superfície do mapa */
 .campaign-map {
   position: relative;
-  width: 100%;
-  min-width: 0;
-  line-height: 0;
   overflow: hidden;
-  border: 1px solid var(--border-subtle);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-control);
-  background: var(--surface-page);
+  background: #050d0b;
+  touch-action: none;
+  user-select: none;
 }
-
 .campaign-map.active-placement {
   cursor: crosshair;
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
 }
-
 .campaign-map img {
   display: block;
   width: 100%;
   height: auto;
-  user-select: none;
+  pointer-events: none;
 }
 
+/* Peças: aro de ferro com inicial gravada */
 .map-marker {
   position: absolute;
   display: flex;
   flex-direction: column;
   align-items: center;
-  cursor: pointer;
+  gap: 2px;
+  transform: translate(-50%, -50%);
+  z-index: 2;
+}
+.map-marker.movable {
+  cursor: grab;
+}
+.map-marker.movable:active {
+  cursor: grabbing;
   z-index: 5;
-  line-height: normal;
-  max-width: min(140px, 32vw);
-  padding: 4px;
-  touch-action: manipulation;
+}
+.map-marker.selected {
+  z-index: 4;
+}
+.map-marker.selected .map-marker-token {
+  box-shadow: 0 0 0 3px rgba(240, 219, 162, 0.55), 0 3px 8px rgba(0, 0, 0, 0.7);
+}
+.map-marker.hidden-from-players {
+  opacity: 0.55;
+  border-radius: 999px;
 }
 
-.map-marker-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.map-marker-token {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 3px solid #2a2f2d;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #3a4742, #121a18 70%);
+  color: var(--parchment);
+  font-family: var(--font-title);
+  font-size: 0.95rem;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.7), inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+.map-marker-token.small {
+  width: 28px;
+  height: 28px;
+  font-size: 0.8rem;
+  flex: none;
+}
+.marker-personagem .map-marker-token {
+  border-color: var(--gold);
+}
+.marker-boss .map-marker-token,
+.map-marker-token.tipo-boss {
   width: 42px;
   height: 42px;
-  border-radius: 50%;
-  background: #111;
-  border: 2px solid var(--gold-bright, #d4ff00);
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.6);
-  font-size: 22px;
+  border-color: var(--bordo-bright, #8a3a40);
 }
-
-.marker-personagem .map-marker-icon {
-  border-color: #5eead4;
+.marker-inimigo .map-marker-token,
+.map-marker-token.tipo-inimigo {
+  border-color: #6a2f33;
 }
-
-.marker-boss .map-marker-icon {
-  border-color: #ef4444;
+.map-marker-token.tipo-npc {
+  border-color: var(--moss, #6f8452);
 }
-
-.marker-inimigo .map-marker-icon {
-  border-color: #f97316;
+.marker-local .map-marker-token,
+.marker-portal .map-marker-token {
+  border-color: var(--moss, #6f8452);
+  border-radius: 8px;
 }
-
-.marker-tesouro .map-marker-icon {
-  border-color: #facc15;
+.marker-tesouro .map-marker-token {
+  border-color: var(--gold-bright);
+  border-radius: 8px;
 }
-
-.marker-portal .map-marker-icon {
-  border-color: #a78bfa;
-}
-
-.marker-secreto .map-marker-icon {
-  border-color: #94a3b8;
+.marker-secreto .map-marker-token {
+  border-style: dashed;
+  border-color: var(--parchment-dim);
 }
 
 .map-marker-name {
-  max-width: 100%;
-  margin-top: 4px;
-  padding: 3px 6px;
-  border: 1px solid rgba(199, 166, 108, 0.42);
-  border-radius: var(--radius-control);
-  background: rgba(9, 23, 19, 0.94);
+  max-width: 140px;
+  padding: 1px 7px;
+  border-radius: 3px;
+  background: rgba(5, 12, 10, 0.82);
   color: var(--parchment);
-  font-size: 12px;
-  line-height: 1.15;
-  text-align: center;
-  white-space: normal;
-  overflow-wrap: anywhere;
+  font-size: 0.72rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.map-legend {
-  margin-top: 20px;
+.map-selected {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-control);
+  background: var(--surface-inset);
+}
+.map-selected small {
+  display: block;
+  color: var(--muted);
+}
+.map-selected p {
+  margin: 6px 0 0;
+}
+.map-selected-actions {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
 }
 
-.map-legend h2 {
+/* Painel do Mestre */
+.map-sidebar {
+  position: sticky;
+  top: 12px;
+  max-height: calc(100vh - 24px);
+  overflow-y: auto;
+}
+.map-tabs {
+  display: flex;
+  gap: 4px;
   margin-bottom: 12px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.map-tab {
+  flex: 1;
+  padding: 8px 4px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--font-title);
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+.map-tab.active {
+  border-bottom-color: var(--gold);
+  color: var(--gold-bright);
 }
 
-.map-legend-grid {
+.map-list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 10px;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
-
-.map-legend-item {
+.map-list-item {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px;
-  border-radius: 10px;
-  background: rgba(20, 20, 20, 0.8);
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-control);
+  background: var(--surface-inset);
+  color: var(--parchment);
+  text-align: left;
+  cursor: pointer;
+}
+.map-list-item:hover,
+.map-list-item.armed {
+  border-color: var(--gold);
+}
+.map-list-item.armed {
+  background: rgba(199, 166, 108, 0.14);
+}
+.map-list-item small {
+  display: block;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+.map-empty {
+  color: var(--muted);
+  font-size: 0.9rem;
 }
 
-.map-legend-item > span {
-  font-size: 24px;
+.map-marker-form {
+  display: grid;
+  gap: 10px;
 }
-
-.map-legend-item div {
-  display: flex;
-  flex-direction: column;
+.map-marker-form label {
+  display: grid;
+  gap: 4px;
+  font-size: 0.85rem;
+  color: var(--parchment-dim);
 }
-
-.map-legend-item small {
-  color: var(--muted, #9ca3af);
-}
-
-@media (max-width: 700px) {
-  .campaign-map-page {
-    padding: 8px 0 24px;
-  }
-
-  .map-create-card,
-  .map-toolbar {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .map-marker-form > div {
-    grid-template-columns: 1fr;
-  }
-
-  .map-marker-form label:nth-child(3),
-  .map-marker-form p {
-    grid-column: auto;
-  }
-
-  .map-toolbar-actions {
-    flex-direction: column;
-  }
-
-  .map-button,
-  .map-upload-button {
-    width: 100%;
-    box-sizing: border-box;
-  }
-
-  .map-marker-icon {
-    width: 34px;
-    height: 34px;
-    font-size: 18px;
-  }
-
-  .map-marker-name {
-    font-size: 10px;
-  }
-
-  .map-marker-icon {
-    width: 40px;
-    height: 40px;
-    font-size: 19px;
-  }
-
-  .map-breadcrumbs .map-back-link,
-  .map-current-page {
-    flex: 1 1 calc(50% - 8px);
-    min-width: 0;
-    justify-content: center;
-    text-align: center;
-  }
+.map-marker-form input,
+.map-marker-form select,
+.map-marker-form textarea {
+  padding: 8px 10px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-control);
+  background: var(--surface-inset);
+  color: var(--parchment);
+  font: inherit;
 }
