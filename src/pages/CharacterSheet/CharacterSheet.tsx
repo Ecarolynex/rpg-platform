@@ -23,7 +23,13 @@ import {
 } from "../../components/character/classInfoUtils";
 import type { CampaignClassBonuses, ClassDefinition } from "../../data/personaRules";
 import { calculateDerivedCharacterStats } from "../../domain/characterRules";
-import { applyResourceDelta, setResourceCurrent } from "../../domain/characterResources";
+import {
+  applyResourceDelta,
+  applyTemporaryDelta,
+  setResourceCurrent,
+  setResourceMaximum,
+  setTemporaryResource,
+} from "../../domain/characterResources";
 import type { CampaignClassContent } from "../../services/api";
 import { OptionField } from "../../components/ui/OptionField";
 import {
@@ -94,11 +100,15 @@ function ControleVital({
   tom,
   passos,
   desabilitado,
+  isMaster = false,
   onAtualizarAtual,
+  onAtualizarMax,
   onRestaurar,
   textoRestaurar,
   temporario,
   onAtualizarTemporario,
+  onPassoTemporario,
+  onZerarTemporario,
   onPasso,
 }: {
   titulo: string;
@@ -107,12 +117,16 @@ function ControleVital({
   tom: "wine" | "forest";
   passos: number[];
   desabilitado: boolean;
+  isMaster?: boolean;
   onAtualizarAtual: (val: number) => void;
-  onAtualizarTemporario: (val: number) => void;
+  onAtualizarMax?: (val: number) => void;
   onPasso: (delta: number) => void;
   onRestaurar: () => void;
   textoRestaurar: string;
   temporario: number;
+  onAtualizarTemporario: (val: number) => void;
+  onPassoTemporario: (delta: number) => void;
+  onZerarTemporario: () => void;
 }) {
   return (
     <div className={"cs-vital-card cs-vital-card--" + tom}>
@@ -131,15 +145,6 @@ function ControleVital({
 
       <StatBar label={titulo} atual={atual} max={max} tone={tom} />
 
-      <StatBar
-        label={titulo + " temporário"}
-        atual={temporario}
-        max={Math.max(temporario, 1)}
-        tone={tom}
-      />
-
-
-
       <div className="cs-vital-direct">
         <div className="cs-vital-fields">
           <div className="cs-vital-field">
@@ -152,9 +157,9 @@ function ControleVital({
               max={max}
               value={atual}
               disabled={desabilitado}
+              aria-label={`${titulo} atual`}
               onChange={(e) => {
                 const val = parseInt(e.target.value, 10);
-
                 onAtualizarAtual(
                   isNaN(val) ? 0 : Math.max(0, Math.min(max, val)),
                 );
@@ -162,20 +167,30 @@ function ControleVital({
             />
           </div>
 
-          <span className="cs-vital-total">de {max}{temporario > 0 ? ` · +${temporario} temp.` : ""}</span>
-        </div>
-
-        <div className="cs-vital-field">
-          <label>{titulo} temporário</label>
-          <input
-            type="number"
-            className="cs-vital-input"
-            min={0}
-            max={200}
-            value={temporario}
-            disabled={desabilitado}
-            onChange={(event) => onAtualizarTemporario(Math.max(0, Math.min(200, Number(event.target.value) || 0)))}
-          />
+          {isMaster && onAtualizarMax ? (
+            <div className="cs-vital-field">
+              <label>{titulo} máximo</label>
+              <input
+                type="number"
+                className="cs-vital-input cs-vital-input--max"
+                min={titulo === "Vida" ? 1 : 0}
+                max={200}
+                value={max}
+                disabled={desabilitado}
+                aria-label={`${titulo} máximo`}
+                title="Definir valor máximo (Mestre)"
+                onChange={(e) => {
+                  const val = parseInt(e.target.value, 10);
+                  const minVal = titulo === "Vida" ? 1 : 0;
+                  onAtualizarMax(
+                    isNaN(val) ? minVal : Math.max(minVal, Math.min(200, val)),
+                  );
+                }}
+              />
+            </div>
+          ) : (
+            <span className="cs-vital-total">de {max}</span>
+          )}
         </div>
 
         <div className="cs-vital-quick-btns">
@@ -192,6 +207,56 @@ function ControleVital({
               {p > 0 ? "+" + p : p}
             </button>
           ))}
+        </div>
+      </div>
+
+      <div className="cs-vital-temp-section">
+        <div className="cs-vital-temp-head">
+          <span className="cs-vital-temp-label">{titulo} temporário</span>
+          <span className="cs-vital-temp-badge" aria-label={`${titulo} temporário atual`}>
+            {temporario > 0 ? `+${temporario}` : "0"}
+          </span>
+          <button
+            type="button"
+            className="cs-btn-temp-zero"
+            disabled={desabilitado || temporario === 0}
+            onClick={onZerarTemporario}
+            title={`Zerar ${titulo.toLowerCase()} temporário`}
+          >
+            Zerar
+          </button>
+        </div>
+
+        <div className="cs-vital-temp-row">
+          <div className="cs-vital-field">
+            <input
+              type="number"
+              className="cs-vital-input cs-vital-input--temp"
+              min={0}
+              max={200}
+              value={temporario}
+              disabled={desabilitado}
+              aria-label={`${titulo} temporário`}
+              onChange={(event) =>
+                onAtualizarTemporario(Math.max(0, Math.min(200, Number(event.target.value) || 0)))
+              }
+            />
+          </div>
+
+          <div className="cs-vital-quick-btns cs-vital-quick-btns--temp">
+            {[-10, -5, -1, 1, 5, 10].map((p) => (
+              <button
+                key={`temp-${p}`}
+                type="button"
+                className="cs-btn-stepper cs-btn-stepper--temp"
+                disabled={desabilitado}
+                onClick={() => onPassoTemporario(p)}
+                title={`${p > 0 ? "+" + p : p} temporário`}
+              >
+                {p > 0 ? "+" + p : p}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
     </div>
@@ -794,10 +859,40 @@ export default function CharacterSheet() {
     });
   };
 
+  const alterarMaxHp = (novoMax: number) => {
+    if (!acesso.isMaster) return;
+    agendarSalvamento({
+      ...character,
+      hp: setResourceMaximum(character, "hp", novoMax),
+    });
+  };
+
+  const alterarMaxMp = (novoMax: number) => {
+    if (!acesso.isMaster) return;
+    agendarSalvamento({
+      ...character,
+      mp: setResourceMaximum(character, "mp", novoMax),
+    });
+  };
+
   const alterarTemporario = (key: "hp" | "mp", atual: number) => {
     agendarSalvamento({
       ...character,
-      [key]: { ...character[key], temp: atual },
+      [key]: setTemporaryResource(character, key, atual),
+    });
+  };
+
+  const aplicarPassoTemporario = (key: "hp" | "mp", delta: number) => {
+    agendarSalvamento({
+      ...character,
+      [key]: applyTemporaryDelta(character, key, delta),
+    });
+  };
+
+  const zerarTemporario = (key: "hp" | "mp") => {
+    agendarSalvamento({
+      ...character,
+      [key]: setTemporaryResource(character, key, 0),
     });
   };
 
@@ -1212,11 +1307,38 @@ export default function CharacterSheet() {
               rotulo="Vida atual"
               tipo="number"
               valor={rascunho.hp.atual}
+              onChange={(v) => {
+                const max = rascunho.hp.max ?? maxHpAtual;
+                atualizarRascunho("hp", {
+                  ...rascunho.hp,
+                  atual: Math.max(0, Math.min(max, Number(v) || 0)),
+                });
+              }}
+            />
+
+            <Campo
+              rotulo="Vida máxima"
+              tipo="number"
+              valor={rascunho.hp.max ?? maxHpAtual}
+              onChange={(v) => {
+                const novoMax = Math.max(1, Math.min(200, Number(v) || 1));
+                atualizarRascunho("hp", {
+                  ...rascunho.hp,
+                  max: novoMax,
+                  atual: Math.min(rascunho.hp.atual, novoMax),
+                });
+              }}
+            />
+
+            <Campo
+              rotulo="Vida temporária"
+              tipo="number"
+              valor={rascunho.hp.temp ?? 0}
               onChange={(v) =>
-                  atualizarRascunho("hp", {
-                    ...rascunho.hp,
-                    atual: Math.max(0, Math.min(rascunhoStats?.hpMax ?? maxHpAtual, Number(v) || 0)),
-                  })
+                atualizarRascunho("hp", {
+                  ...rascunho.hp,
+                  temp: Math.max(0, Math.min(200, Number(v) || 0)),
+                })
               }
             />
 
@@ -1224,11 +1346,38 @@ export default function CharacterSheet() {
               rotulo="Mana atual"
               tipo="number"
               valor={rascunho.mp.atual}
+              onChange={(v) => {
+                const max = rascunho.mp.max ?? maxMpAtual;
+                atualizarRascunho("mp", {
+                  ...rascunho.mp,
+                  atual: Math.max(0, Math.min(max, Number(v) || 0)),
+                });
+              }}
+            />
+
+            <Campo
+              rotulo="Mana máxima"
+              tipo="number"
+              valor={rascunho.mp.max ?? maxMpAtual}
+              onChange={(v) => {
+                const novoMax = Math.max(0, Math.min(200, Number(v) || 0));
+                atualizarRascunho("mp", {
+                  ...rascunho.mp,
+                  max: novoMax,
+                  atual: Math.min(rascunho.mp.atual, novoMax),
+                });
+              }}
+            />
+
+            <Campo
+              rotulo="Mana temporária"
+              tipo="number"
+              valor={rascunho.mp.temp ?? 0}
               onChange={(v) =>
-                  atualizarRascunho("mp", {
-                    ...rascunho.mp,
-                    atual: Math.max(0, Math.min(rascunhoStats?.mpMax ?? maxMpAtual, Number(v) || 0)),
-                  })
+                atualizarRascunho("mp", {
+                  ...rascunho.mp,
+                  temp: Math.max(0, Math.min(200, Number(v) || 0)),
+                })
               }
             />
 
@@ -1500,9 +1649,13 @@ export default function CharacterSheet() {
                 tom="wine"
                 passos={[-10, -5, -1, 1, 5, 10]}
                 desabilitado={!podeEditar || !resourceSyncReady || editando}
+                isMaster={acesso.isMaster}
                 onAtualizarAtual={alterarHp}
+                onAtualizarMax={alterarMaxHp}
                 temporario={character.hp.temp ?? 0}
                 onAtualizarTemporario={(value) => alterarTemporario("hp", value)}
+                onPassoTemporario={(delta) => aplicarPassoTemporario("hp", delta)}
+                onZerarTemporario={() => zerarTemporario("hp")}
                 onPasso={(delta) => aplicarPassoRecurso("hp", delta)}
                 onRestaurar={curarTudo}
                 textoRestaurar="Curar tudo"
@@ -1515,9 +1668,13 @@ export default function CharacterSheet() {
                 tom="forest"
                 passos={[-5, -1, 1, 5]}
                 desabilitado={!podeEditar || !resourceSyncReady || editando}
+                isMaster={acesso.isMaster}
                 onAtualizarAtual={alterarMp}
+                onAtualizarMax={alterarMaxMp}
                 temporario={character.mp.temp ?? 0}
                 onAtualizarTemporario={(value) => alterarTemporario("mp", value)}
+                onPassoTemporario={(delta) => aplicarPassoTemporario("mp", delta)}
+                onZerarTemporario={() => zerarTemporario("mp")}
                 onPasso={(delta) => aplicarPassoRecurso("mp", delta)}
                 onRestaurar={restaurarMana}
                 textoRestaurar="Recuperar mana"

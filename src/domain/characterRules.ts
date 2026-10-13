@@ -137,7 +137,10 @@ function getEquipmentBonuses(
 
 /** Calcula os totais sem modificar nem persistir atributos-base ou máximos derivados. */
 export function calculateDerivedCharacterStats(
-  character: Pick<Character, "raca" | "classe" | "classeId" | "filiacao" | "nivel" | "attributes" | "inventory">,
+  character: Pick<Character, "raca" | "classe" | "classeId" | "filiacao" | "nivel" | "attributes" | "inventory"> & {
+    hp?: { atual?: number; max?: number; temp?: number };
+    mp?: { atual?: number; max?: number; temp?: number };
+  },
   context: CharacterRulesContext = {},
 ): DerivedCharacterStats {
   const catalog = context.classCatalog ?? DEFAULT_CLASS_CATALOG;
@@ -198,23 +201,36 @@ export function calculateDerivedCharacterStats(
   }
 
   const level = Math.max(1, Math.trunc(character.nivel || 1));
-  const hpMax = Math.max(1, Math.min(
+  const fallbackHpMax = Math.max(1, Math.min(
     LIMITE_RECURSO,
     calcularVidaMaxima(character.classe, level, attributesFinal.constituicao) +
       breakdown.hp.raca + breakdown.hp.classe + breakdown.hp.filiacao,
   ));
-  const mpMax = Math.max(0, Math.min(
+  const fallbackMpMax = Math.max(0, Math.min(
     LIMITE_RECURSO,
     calcularManaMaxima(attributesFinal.inteligencia) +
       breakdown.mp.raca + breakdown.mp.classe + breakdown.mp.filiacao,
   ));
+
+  // No Elementum, os limites máximos de Vida e Mana são manuais (definidos pelo Mestre).
+  // Se o personagem já possui hp.max / mp.max definidos, esses valores prevalecem
+  // e NÃO mudam automaticamente com alteração de nível, classe ou atributos.
+  const hasManualHpMax = typeof character.hp?.max === "number" && Number.isFinite(character.hp.max);
+  const hasManualMpMax = typeof character.mp?.max === "number" && Number.isFinite(character.mp.max);
+
+  const resolvedHpMax = hasManualHpMax
+    ? Math.max(1, Math.min(LIMITE_RECURSO, Math.trunc(character.hp!.max!)))
+    : fallbackHpMax;
+  const resolvedMpMax = hasManualMpMax
+    ? Math.max(0, Math.min(LIMITE_RECURSO, Math.trunc(character.mp!.max!)))
+    : fallbackMpMax;
 
   return {
     attributesBase: { ...character.attributes },
     attributeBonuses,
     attributesFinal,
     breakdown,
-    hpMax: context.serverResourceMaximums?.hpMax ?? hpMax,
-    mpMax: context.serverResourceMaximums?.mpMax ?? mpMax,
+    hpMax: context.serverResourceMaximums?.hpMax ?? resolvedHpMax,
+    mpMax: context.serverResourceMaximums?.mpMax ?? resolvedMpMax,
   };
 }

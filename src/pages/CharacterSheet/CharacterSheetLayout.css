@@ -638,6 +638,96 @@
   transform: translateY(1px);
 }
 
+.sheet .cs-vital-input--max {
+  border-color: color-mix(in srgb, var(--gold) 45%, var(--border-bronze));
+  color: var(--gold-bright);
+}
+
+.sheet .cs-vital-temp-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed color-mix(in srgb, var(--gold) 22%, transparent);
+}
+
+.sheet .cs-vital-temp-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.sheet .cs-vital-temp-label {
+  color: var(--muted);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.sheet .cs-vital-temp-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--gold) 14%, var(--ink));
+  border: 1px solid color-mix(in srgb, var(--gold) 35%, transparent);
+  color: var(--gold-bright);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.sheet .cs-btn-temp-zero {
+  padding: 2px 7px;
+  border: 1px solid color-mix(in srgb, var(--gold) 25%, var(--border-bronze));
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--sheet-copy-muted);
+  font-size: 0.68rem;
+  font-family: inherit;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.sheet .cs-btn-temp-zero:hover:not(:disabled) {
+  border-color: var(--wine-bright);
+  background: color-mix(in srgb, var(--wine-bright) 16%, transparent);
+  color: #fff;
+}
+
+.sheet .cs-btn-temp-zero:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.sheet .cs-vital-temp-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sheet .cs-vital-input--temp {
+  width: 58px;
+  min-height: 28px;
+  padding: 2px 4px;
+  font-size: 0.88rem;
+}
+
+.sheet .cs-vital-quick-btns--temp {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 3px;
+}
+
+.sheet .cs-btn-stepper--temp {
+  min-height: 28px;
+  padding: 2px 3px;
+  font-size: 0.7rem;
+}
+
 .sheet .cs-btn-stepper:disabled,
 .sheet .cs-btn-action:disabled {
   cursor: not-allowed;

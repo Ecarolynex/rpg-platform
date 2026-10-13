@@ -44,11 +44,24 @@ function parseAttributes(value: unknown): Attributes | null {
   };
 }
 
-function parseResource(value: unknown): { atual: number; temp?: number } {
+function parseResource(
+  value: unknown,
+  defaultMax = 10,
+  minMax = 0,
+): { atual: number; max: number; temp?: number } {
   const record = asRecord(value) ?? {};
   const temp = record.temp;
+  const parsedMax = typeof record.max === "number" && Number.isFinite(record.max)
+    ? integer(record.max, defaultMax, minMax, LIMITE_RECURSO)
+    : typeof record.atual === "number" && Number.isFinite(record.atual) && record.atual > 0
+      ? integer(record.atual, defaultMax, minMax, LIMITE_RECURSO)
+      : defaultMax;
+  const safeMax = Math.max(minMax, Math.min(LIMITE_RECURSO, parsedMax));
+  const atual = integer(record.atual, safeMax, 0, safeMax);
+
   return {
-    atual: integer(record.atual, 0, 0, LIMITE_RECURSO),
+    atual,
+    max: safeMax,
     ...(typeof temp === "number" && Number.isFinite(temp)
       ? { temp: integer(temp, 0, 0, LIMITE_RECURSO) }
       : {}),
@@ -194,8 +207,8 @@ export function parseCharacterData(value: unknown): CharacterDataV1 | null {
     ...(typeof record.altura === "number" && Number.isFinite(record.altura) ? { altura: record.altura } : {}),
     ...(typeof record.tracos === "string" ? { tracos: record.tracos } : {}),
     ...(typeof record.defeitos === "string" ? { defeitos: record.defeitos } : {}),
-    hp: parseResource(record.hp),
-    mp: parseResource(record.mp),
+    hp: parseResource(record.hp, 10, 1),
+    mp: parseResource(record.mp, 10, 0),
     attributes,
     skills: parseSkills(record.skills),
     inventory: parseInventory(record.inventory),
@@ -209,7 +222,7 @@ export function parseCharacterData(value: unknown): CharacterDataV1 | null {
   return character;
 }
 
-/** Serializa apenas o contrato persistido, nunca metadados relacionais ou máximos derivados. */
+/** Serializa o contrato persistido V1 preservando recursos atuais, máximos e temporários. */
 export function serializeCharacterData(character: Character): CharacterDataV1 {
   const persistedFields: Record<string, unknown> = { ...character };
   delete persistedFields.id;
@@ -220,16 +233,20 @@ export function serializeCharacterData(character: Character): CharacterDataV1 {
   delete persistedFields.mp;
   const hp = character.hp;
   const mp = character.mp;
+  const hpMax = integer(hp.max, 10, 1, LIMITE_RECURSO);
+  const mpMax = integer(mp.max, 10, 0, LIMITE_RECURSO);
 
   return {
     ...persistedFields,
     schemaVersion: 1,
     hp: {
-      atual: integer(hp.atual, 0, 0, LIMITE_RECURSO),
+      atual: integer(hp.atual, 0, 0, hpMax),
+      max: hpMax,
       ...(hp.temp !== undefined ? { temp: integer(hp.temp, 0, 0, LIMITE_RECURSO) } : {}),
     },
     mp: {
-      atual: integer(mp.atual, 0, 0, LIMITE_RECURSO),
+      atual: integer(mp.atual, 0, 0, mpMax),
+      max: mpMax,
       ...(mp.temp !== undefined ? { temp: integer(mp.temp, 0, 0, LIMITE_RECURSO) } : {}),
     },
   } as CharacterDataV1;
