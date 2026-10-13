@@ -7,8 +7,6 @@ import {
   getCatalogoGlobalClasses,
   getCampaignClassBonuses,
   getInventory,
-  getCharacterResourceMaximums,
-  reconciliarLimitesRecursosPersonagem,
   getCharacterAccess,
   getCharacterById,
   listarConteudosClasseCampanha,
@@ -143,7 +141,7 @@ function ControleVital({
         </button>
       </div>
 
-      <StatBar label={titulo} atual={atual} max={max} tone={tom} />
+      <StatBar label={titulo} atual={atual} max={max} tone={tom} temporario={temporario} />
 
       <div className="cs-vital-direct">
         <div className="cs-vital-fields">
@@ -178,7 +176,7 @@ function ControleVital({
                 value={max}
                 disabled={desabilitado}
                 aria-label={`${titulo} máximo`}
-                title="Definir valor máximo (Mestre)"
+                title="Definir valor máximo (Mestre ou Criador)"
                 onChange={(e) => {
                   const val = parseInt(e.target.value, 10);
                   const minVal = titulo === "Vida" ? 1 : 0;
@@ -215,6 +213,9 @@ function ControleVital({
           <span className="cs-vital-temp-label">{titulo} temporário</span>
           <span className="cs-vital-temp-badge" aria-label={`${titulo} temporário atual`}>
             {temporario > 0 ? `+${temporario}` : "0"}
+          </span>
+          <span className="cs-vital-temp-disp" aria-label={`Total de ${titulo.toLowerCase()} disponível`}>
+            Disponível: {atual + temporario}
           </span>
           <button
             type="button"
@@ -499,7 +500,7 @@ export default function CharacterSheet() {
   const [conteudosCampanha, setConteudosCampanha] = useState<CampaignClassContent[]>([]);
   const [inventoryBonuses, setInventoryBonuses] = useState<Partial<Record<keyof Attributes, number>>[]>([]);
   const [inventoryRevision, setInventoryRevision] = useState(0);
-  const [loadedRulesKey, setLoadedRulesKey] = useState("");
+
   const [infoClasse, setInfoClasse] = useState<ClassInfo | null>(null);
 
   const timer = useRef<number | null>(null);
@@ -509,14 +510,6 @@ export default function CharacterSheet() {
   const [salvandoAutosave, setSalvandoAutosave] = useState(false);
   const [saveFailed, setSaveFailed] = useState(false);
   const [saveFailureKind, setSaveFailureKind] = useState<"transient" | "conflict" | null>(null);
-  const [resourceMaxima, setResourceMaxima] = useState<{
-    key: string;
-    hpMax: number;
-    mpMax: number;
-  } | null>(null);
-  const [resourceSyncError, setResourceSyncError] = useState<{ key: string; message: string } | null>(null);
-  const [resourceSyncRetry, setResourceSyncRetry] = useState(0);
-  const syncingRulesKey = useRef<string | null>(null);
   const inputFoto = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -559,8 +552,7 @@ export default function CharacterSheet() {
   const classeNome = character?.classe;
   const classeId = character?.classeId;
   const campanhaDoPersonagem = character?.campanhaId;
-  const ruleContextKey = `${id ?? ""}:${campanhaDoPersonagem ?? "solo"}:${classeId ?? classeNome ?? ""}:${inventoryRevision}`;
-  const currentRulesKey = ruleContextKey;
+
 
   useEffect(() => {
     if (!classeNome) {
@@ -594,7 +586,7 @@ export default function CharacterSheet() {
         }[])
           .filter((row) => row.equipado === true)
           .map((row) => Array.isArray(row.itens) ? row.itens[0]?.bonus_atributos ?? {} : row.itens?.bonus_atributos ?? {}));
-        setLoadedRulesKey(`${id}:${campanhaDoPersonagem ?? "solo"}:${classeId ?? classeNome}:${inventoryRevision}`);
+
 
         setInfoClasse(
           montarInfoClasse(
@@ -686,11 +678,9 @@ export default function CharacterSheet() {
       if (!latest) throw new Error("Personagem não encontrado.");
       cancelarPendente();
       savePausedRef.current = false;
-      syncingRulesKey.current = null;
       setSaveFailed(false);
       setSaveFailureKind(null);
       setCharacter(latest);
-      setResourceMaxima(null);
       setStatus("Ficha recarregada. As alterações locais não salvas foram descartadas.");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Não foi possível recarregar a ficha.");
@@ -732,61 +722,6 @@ export default function CharacterSheet() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const statsForReconciliation = calculateDerivedCharacterStats(character ?? {
-    raca: "Humano",
-    classe: "Aventureiro",
-    nivel: 1,
-    attributes: { forca: 10, destreza: 10, constituicao: 10, inteligencia: 10, carisma: 10 },
-    inventory: [],
-  }, {
-    classCatalog: catalogoClasses,
-    campaignClassBonuses: bonusClassesCampanha,
-    campaignClassContents: conteudosCampanha,
-    equippedItemBonuses: inventoryBonuses,
-  });
-  const resourceSyncKey = `${currentRulesKey}:${statsForReconciliation.hpMax}:${statsForReconciliation.mpMax}`;
-  const resourceSyncReady = !acesso.canEdit || resourceMaxima?.key === resourceSyncKey;
-
-  useEffect(() => {
-    if (!character || loadedRulesKey !== currentRulesKey) return;
-    const context = {
-      classCatalog: catalogoClasses,
-      campaignClassBonuses: bonusClassesCampanha,
-      campaignClassContents: conteudosCampanha,
-      equippedItemBonuses: inventoryBonuses,
-    };
-    const derived = calculateDerivedCharacterStats(character, context);
-    const requestKey = `${currentRulesKey}:${derived.hpMax}:${derived.mpMax}`;
-    if (syncingRulesKey.current === requestKey) return;
-    syncingRulesKey.current = requestKey;
-    setResourceSyncError(null);
-
-    const synchronize = acesso.canEdit
-      ? reconciliarLimitesRecursosPersonagem(character.id)
-      : getCharacterResourceMaximums(character.id);
-    void synchronize
-      .then((result) => {
-        if (syncingRulesKey.current !== requestKey) return;
-        setResourceMaxima({ key: requestKey, hpMax: result.hp_max, mpMax: result.mp_max });
-        setCharacter((current) => current?.id === character.id
-          ? {
-              ...current,
-              dataVersion: result.dados_version,
-              hp: { ...current.hp, atual: result.hp_atual, max: result.hp_max },
-              mp: { ...current.mp, atual: result.mp_atual, max: result.mp_max },
-            }
-          : current);
-      })
-      .catch((error: unknown) => {
-        if (syncingRulesKey.current !== requestKey) return;
-        syncingRulesKey.current = null;
-        setResourceSyncError({
-          key: requestKey,
-          message: error instanceof Error ? error.message : "Não foi possível sincronizar PV/PM com o servidor.",
-        });
-      });
-  }, [character, acesso.canEdit, currentRulesKey, loadedRulesKey, catalogoClasses, bonusClassesCampanha, conteudosCampanha, inventoryBonuses, resourceSyncRetry]);
-
   if (loading) {
     return <p className="sheet-status">Carregando ficha do personagem...</p>;
   }
@@ -820,26 +755,15 @@ export default function CharacterSheet() {
     ]),
   ).filter(Boolean);
 
-  const viewDerivedStats = calculateDerivedCharacterStats(view, {
+  const derivedStats = calculateDerivedCharacterStats(view, {
     classCatalog: catalogoClasses,
     campaignClassBonuses: bonusClassesCampanha,
     campaignClassContents: conteudosCampanha,
     equippedItemBonuses: inventoryBonuses,
   });
-  const viewResourceKey = `${currentRulesKey}:${viewDerivedStats.hpMax}:${viewDerivedStats.mpMax}`;
-  const derivedStats = resourceMaxima?.key === viewResourceKey
-    ? { ...viewDerivedStats, hpMax: resourceMaxima.hpMax, mpMax: resourceMaxima.mpMax }
-    : viewDerivedStats;
-  const maxHpAtual = derivedStats.hpMax;
-  const maxMpAtual = derivedStats.mpMax;
-  const rascunhoStats = rascunho
-    ? calculateDerivedCharacterStats(rascunho, {
-        classCatalog: catalogoClasses,
-        campaignClassBonuses: bonusClassesCampanha,
-        campaignClassContents: conteudosCampanha,
-        equippedItemBonuses: inventoryBonuses,
-      })
-    : null;
+  const maxHpAtual = view.hp?.max ?? derivedStats.hpMax;
+  const maxMpAtual = view.mp?.max ?? derivedStats.mpMax;
+
   const hpAtualVisivel = Math.min(character.hp.atual, maxHpAtual);
   const mpAtualVisivel = Math.min(character.mp.atual, maxMpAtual);
 
@@ -860,7 +784,7 @@ export default function CharacterSheet() {
   };
 
   const alterarMaxHp = (novoMax: number) => {
-    if (!acesso.isMaster) return;
+    if (!podeEditar) return;
     agendarSalvamento({
       ...character,
       hp: setResourceMaximum(character, "hp", novoMax),
@@ -868,7 +792,7 @@ export default function CharacterSheet() {
   };
 
   const alterarMaxMp = (novoMax: number) => {
-    if (!acesso.isMaster) return;
+    if (!podeEditar) return;
     agendarSalvamento({
       ...character,
       mp: setResourceMaximum(character, "mp", novoMax),
@@ -986,24 +910,24 @@ export default function CharacterSheet() {
   };
 
   const salvarEdicao = async () => {
-    if (!rascunho || !id || !resourceSyncReady) return;
+    if (!rascunho || !id) return;
 
-    const statsForEdit = calculateDerivedCharacterStats(rascunho, {
-      classCatalog: catalogoClasses,
-      campaignClassBonuses: bonusClassesCampanha,
-      campaignClassContents: conteudosCampanha,
-      equippedItemBonuses: inventoryBonuses,
-    });
+    const maxHp = Math.max(1, Math.min(200, rascunho.hp.max ?? maxHpAtual));
+    const maxMp = Math.max(0, Math.min(200, rascunho.mp.max ?? maxMpAtual));
     const ajustado: Character = {
       ...rascunho,
       nome: rascunho.nome.trim() || character.nome,
       hp: {
         ...rascunho.hp,
-        atual: Math.max(0, Math.min(rascunho.hp.atual, statsForEdit.hpMax)),
+        max: maxHp,
+        atual: Math.max(0, Math.min(rascunho.hp.atual, maxHp)),
+        temp: Math.max(0, Math.min(200, rascunho.hp.temp ?? 0)),
       },
       mp: {
         ...rascunho.mp,
-        atual: Math.max(0, Math.min(rascunho.mp.atual, statsForEdit.mpMax)),
+        max: maxMp,
+        atual: Math.max(0, Math.min(rascunho.mp.atual, maxMp)),
+        temp: Math.max(0, Math.min(200, rascunho.mp.temp ?? 0)),
       },
       carteira: {
         pc: sanitizarMoeda(rascunho.carteira?.pc),
@@ -1104,10 +1028,10 @@ export default function CharacterSheet() {
     const proximasSkills = character.skills.map((skill) =>
       skill.id === skillId
         ? {
-            ...skill,
-            bonus: valor,
-            treinada: valor > 0,
-          }
+          ...skill,
+          bonus: valor,
+          treinada: valor > 0,
+        }
         : skill,
     );
 
@@ -1211,7 +1135,7 @@ export default function CharacterSheet() {
                 type="button"
                 className="btn-primary"
                 onClick={salvarEdicao}
-                disabled={salvandoEdicao || !resourceSyncReady}
+                disabled={salvandoEdicao}
               >
                 {salvandoEdicao ? "Salvando..." : "Salvar ficha"}
               </button>
@@ -1633,14 +1557,6 @@ export default function CharacterSheet() {
               <h2 id="cs-vitals-heading">Vitalidade</h2>
             </div>
 
-            {resourceSyncError?.key === resourceSyncKey && (
-              <p className="sheet-status" role="alert">
-                {resourceSyncError.message}{" "}
-                <button type="button" className="btn-ghost" onClick={() => setResourceSyncRetry((retry) => retry + 1)}>
-                  Tentar sincronizar novamente
-                </button>
-              </p>
-            )}
             <div className="ep-vitais">
               <ControleVital
                 titulo="Vida"
@@ -1648,8 +1564,8 @@ export default function CharacterSheet() {
                 max={maxHpAtual}
                 tom="wine"
                 passos={[-10, -5, -1, 1, 5, 10]}
-                desabilitado={!podeEditar || !resourceSyncReady || editando}
-                isMaster={acesso.isMaster}
+                desabilitado={!podeEditar || editando}
+                isMaster={podeEditar}
                 onAtualizarAtual={alterarHp}
                 onAtualizarMax={alterarMaxHp}
                 temporario={character.hp.temp ?? 0}
@@ -1667,8 +1583,8 @@ export default function CharacterSheet() {
                 max={maxMpAtual}
                 tom="forest"
                 passos={[-5, -1, 1, 5]}
-                desabilitado={!podeEditar || !resourceSyncReady || editando}
-                isMaster={acesso.isMaster}
+                desabilitado={!podeEditar || editando}
+                isMaster={podeEditar}
                 onAtualizarAtual={alterarMp}
                 onAtualizarMax={alterarMaxMp}
                 temporario={character.mp.temp ?? 0}
@@ -1775,7 +1691,7 @@ export default function CharacterSheet() {
                     ?.querySelectorAll<HTMLButtonElement>(
                       "[role='tab']",
                     )
-                    [nextIndex]?.focus();
+                  [nextIndex]?.focus();
                 }}
               >
                 {t}
@@ -1964,10 +1880,10 @@ export default function CharacterSheet() {
                     {HISTORIA_CAMPOS.every(
                       ([chave]) => !view[chave],
                     ) && (
-                      <p className="sheet-empty">
-                        Nenhuma história registrada.
-                      </p>
-                    )}
+                        <p className="sheet-empty">
+                          Nenhuma história registrada.
+                        </p>
+                      )}
                   </>
                 )}
               </div>
