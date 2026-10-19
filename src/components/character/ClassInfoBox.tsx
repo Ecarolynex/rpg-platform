@@ -49,6 +49,19 @@ export function ClassInfoBox({
         </div>
       )}
 
+      {info.periciasCompatíveis && info.periciasCompatíveis.length > 0 && (
+        <div className="class-info-skills">
+          <h5>Perícias da classe</h5>
+          <div className="class-info-bonuses">
+            {info.periciasCompatíveis.map((p) => (
+              <span key={p.id} className="class-info-chip" title={p.descricao || undefined}>
+                {p.nome}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
       {info.habilidades.length > 0 && (
         <div className="class-info-abilities">
           <h5>Habilidades</h5>

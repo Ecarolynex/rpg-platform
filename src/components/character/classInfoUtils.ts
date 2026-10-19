@@ -13,10 +13,13 @@ export interface ClassInfo {
   bonusHp: number;
   bonusMp: number;
   habilidades: { nome: string; descricao: string; nivel?: number }[];
+  periciasCompatíveis?: { id: string; nome: string; atributo: string; descricao?: string }[];
+  habilidadesIniciais?: { nome: string; descricao: string; nivel?: number }[];
+  desbloqueiosFuturos?: { nome: string; descricao: string; nivel?: number }[];
 }
 
 type BonusAtributos = Partial<Record<keyof Attributes, number>>;
-type HabilidadeBruta = { nome?: unknown; descricao?: unknown; nivel?: unknown };
+type HabilidadeBruta = { id?: unknown; nome?: unknown; descricao?: unknown; nivel?: unknown };
 
 function texto(valor: unknown): string {
   return typeof valor === "string" ? valor.trim() : "";
@@ -105,6 +108,25 @@ export function montarInfoClasse(
       item.nome && lista.findIndex((outro) => outro.nome === item.nome) === index,
   );
 
+  const habilidadesIniciais = habilidades.filter((h) => !h.nivel || h.nivel <= 1);
+  const desbloqueiosFuturos = habilidades.filter((h) => typeof h.nivel === "number" && h.nivel > 1);
+
+  const periciasDefinicao = (definicao?.pericias ?? []).map((p) => ({
+    id: p.id,
+    nome: p.nome,
+    atributo: p.atributo,
+    descricao: p.descricao,
+  }));
+  const periciasCampanha = conteudos
+    .filter((item) => item.tipo === "PERICIA" && idClasse && item.classe_id === idClasse)
+    .map((p) => ({
+      id: p.id,
+      nome: p.nome,
+      atributo: p.atributo ?? "forca",
+      descricao: p.descricao,
+    }));
+  const periciasCompatíveis = [...periciasDefinicao, ...periciasCampanha];
+
   return {
     nome: definicao?.nome ?? conteudoClasse?.nome ?? nome,
     descricao,
@@ -112,5 +134,8 @@ export function montarInfoClasse(
     bonusHp: Number(override?.hpBonus ?? conteudoClasse?.bonus_hp ?? definicao?.hpBonus ?? 0) || 0,
     bonusMp: Number(override?.mpBonus ?? conteudoClasse?.bonus_mp ?? definicao?.mpBonus ?? 0) || 0,
     habilidades,
+    habilidadesIniciais,
+    desbloqueiosFuturos,
+    periciasCompatíveis,
   };
 }

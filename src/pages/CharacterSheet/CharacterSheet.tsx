@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import type { Attributes, Character, Spell, Wallet } from "../../types/character";
+import type { Attributes, Character, CharacterAbility, Spell, Wallet } from "../../types/character";
 import {
   atualizarPersonagem,
   enviarRetrato,
@@ -94,7 +94,9 @@ function ControleVital({
   tom,
   passos,
   desabilitado,
+  isMaster,
   onAtualizarAtual,
+  onAtualizarMax,
   onRestaurar,
   textoRestaurar,
   temporario,
@@ -107,7 +109,9 @@ function ControleVital({
   tom: "wine" | "forest";
   passos: number[];
   desabilitado: boolean;
+  isMaster?: boolean;
   onAtualizarAtual: (val: number) => void;
+  onAtualizarMax?: (val: number) => void;
   onAtualizarTemporario: (val: number) => void;
   onPasso: (delta: number) => void;
   onRestaurar: () => void;
@@ -138,8 +142,6 @@ function ControleVital({
         tone={tom}
       />
 
-
-
       <div className="cs-vital-direct">
         <div className="cs-vital-fields">
           <div className="cs-vital-field">
@@ -152,6 +154,7 @@ function ControleVital({
               max={max}
               value={atual}
               disabled={desabilitado}
+              aria-label={`${titulo} atual`}
               onChange={(e) => {
                 const val = parseInt(e.target.value, 10);
 
@@ -162,7 +165,27 @@ function ControleVital({
             />
           </div>
 
-          <span className="cs-vital-total">de {max}{temporario > 0 ? ` · +${temporario} temp.` : ""}</span>
+          {isMaster ? (
+            <div className="cs-vital-field">
+              <label>{titulo} máximo (Mestre)</label>
+              <input
+                type="number"
+                className="cs-vital-input"
+                min={1}
+                value={max}
+                disabled={desabilitado}
+                aria-label={`${titulo} máximo`}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value, 10);
+                  if (onAtualizarMax && !isNaN(val)) {
+                    onAtualizarMax(Math.max(1, val));
+                  }
+                }}
+              />
+            </div>
+          ) : (
+            <span className="cs-vital-total">de {max}{temporario > 0 ? ` · +${temporario} temp.` : ""}</span>
+          )}
         </div>
 
         <div className="cs-vital-field">
@@ -171,10 +194,10 @@ function ControleVital({
             type="number"
             className="cs-vital-input"
             min={0}
-            max={200}
             value={temporario}
             disabled={desabilitado}
-            onChange={(event) => onAtualizarTemporario(Math.max(0, Math.min(200, Number(event.target.value) || 0)))}
+            aria-label={`${titulo} temporário`}
+            onChange={(event) => onAtualizarTemporario(Math.max(0, Number(event.target.value) || 0))}
           />
         </div>
 
@@ -428,6 +451,11 @@ export default function CharacterSheet() {
   const [novaMagiaCusto, setNovaMagiaCusto] = useState(1);
   const [novaMagiaDesc, setNovaMagiaDesc] = useState("");
   const [mostrarFormMagia, setMostrarFormMagia] = useState(false);
+
+  const [mostrarFormHabilidade, setMostrarFormHabilidade] = useState(false);
+  const [novaHabilidadeNome, setNovaHabilidadeNome] = useState("");
+  const [novaHabilidadeNivel, setNovaHabilidadeNivel] = useState(1);
+  const [novaHabilidadeDesc, setNovaHabilidadeDesc] = useState("");
 
   const [catalogoClasses, setCatalogoClasses] = useState<ClassDefinition[]>([]);
   const [bonusClassesCampanha, setBonusClassesCampanha] = useState<CampaignClassBonuses>({});
@@ -765,16 +793,8 @@ export default function CharacterSheet() {
   const derivedStats = resourceMaxima?.key === viewResourceKey
     ? { ...viewDerivedStats, hpMax: resourceMaxima.hpMax, mpMax: resourceMaxima.mpMax }
     : viewDerivedStats;
-  const maxHpAtual = derivedStats.hpMax;
-  const maxMpAtual = derivedStats.mpMax;
-  const rascunhoStats = rascunho
-    ? calculateDerivedCharacterStats(rascunho, {
-        classCatalog: catalogoClasses,
-        campaignClassBonuses: bonusClassesCampanha,
-        campaignClassContents: conteudosCampanha,
-        equippedItemBonuses: inventoryBonuses,
-      })
-    : null;
+  const maxHpAtual = view.hp.max ?? derivedStats.hpMax ?? 200;
+  const maxMpAtual = view.mp.max ?? derivedStats.mpMax ?? 200;
   const hpAtualVisivel = Math.min(character.hp.atual, maxHpAtual);
   const mpAtualVisivel = Math.min(character.mp.atual, maxMpAtual);
 
@@ -791,6 +811,30 @@ export default function CharacterSheet() {
     agendarSalvamento({
       ...character,
       mp: setResourceCurrent(character, "mp", atual, maxMpAtual),
+    });
+  };
+
+  const alterarHpMax = (novoMax: number) => {
+    const safeMax = Math.max(1, novoMax);
+    agendarSalvamento({
+      ...character,
+      hp: {
+        ...character.hp,
+        max: safeMax,
+        atual: Math.min(character.hp.atual, safeMax),
+      },
+    });
+  };
+
+  const alterarMpMax = (novoMax: number) => {
+    const safeMax = Math.max(0, novoMax);
+    agendarSalvamento({
+      ...character,
+      mp: {
+        ...character.mp,
+        max: safeMax,
+        atual: Math.min(character.mp.atual, safeMax),
+      },
     });
   };
 
@@ -893,22 +937,20 @@ export default function CharacterSheet() {
   const salvarEdicao = async () => {
     if (!rascunho || !id || !resourceSyncReady) return;
 
-    const statsForEdit = calculateDerivedCharacterStats(rascunho, {
-      classCatalog: catalogoClasses,
-      campaignClassBonuses: bonusClassesCampanha,
-      campaignClassContents: conteudosCampanha,
-      equippedItemBonuses: inventoryBonuses,
-    });
+    const hpMaxSalvar = rascunho.hp?.max ?? maxHpAtual;
+    const mpMaxSalvar = rascunho.mp?.max ?? maxMpAtual;
     const ajustado: Character = {
       ...rascunho,
       nome: rascunho.nome.trim() || character.nome,
       hp: {
         ...rascunho.hp,
-        atual: Math.max(0, Math.min(rascunho.hp.atual, statsForEdit.hpMax)),
+        max: hpMaxSalvar,
+        atual: Math.max(0, Math.min(rascunho.hp.atual, hpMaxSalvar)),
       },
       mp: {
         ...rascunho.mp,
-        atual: Math.max(0, Math.min(rascunho.mp.atual, statsForEdit.mpMax)),
+        max: mpMaxSalvar,
+        atual: Math.max(0, Math.min(rascunho.mp.atual, mpMaxSalvar)),
       },
       carteira: {
         pc: sanitizarMoeda(rascunho.carteira?.pc),
@@ -1002,6 +1044,58 @@ export default function CharacterSheet() {
     });
   };
 
+  /* ---------- habilidades ---------- */
+
+  const handleAdicionarHabilidadeManual = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!novaHabilidadeNome.trim()) return;
+
+    const novaHab: CharacterAbility = {
+      id: "ability-manual-" + Date.now(),
+      nome: novaHabilidadeNome.trim(),
+      descricao: novaHabilidadeDesc.trim(),
+      nivel: Math.max(1, novaHabilidadeNivel),
+    };
+
+    const habilidadesAtuais = character.habilidades ?? [];
+    agendarSalvamento({
+      ...character,
+      habilidades: [...habilidadesAtuais, novaHab],
+    });
+
+    setNovaHabilidadeNome("");
+    setNovaHabilidadeNivel(character.nivel || 1);
+    setNovaHabilidadeDesc("");
+    setMostrarFormHabilidade(false);
+  };
+
+  const handleAprenderHabilidadeClasse = (habClasse: { nome: string; descricao: string; nivel?: number }) => {
+    const habilidadesAtuais = character.habilidades ?? [];
+    if (habilidadesAtuais.some((h) => h.nome.trim().toLowerCase() === habClasse.nome.trim().toLowerCase())) {
+      return;
+    }
+
+    const novaHab: CharacterAbility = {
+      id: "ability-class-" + Date.now(),
+      nome: habClasse.nome,
+      descricao: habClasse.descricao,
+      nivel: habClasse.nivel ?? 1,
+    };
+
+    agendarSalvamento({
+      ...character,
+      habilidades: [...habilidadesAtuais, novaHab],
+    });
+  };
+
+  const handleRemoverHabilidade = (habNome: string) => {
+    const habilidadesAtuais = character.habilidades ?? [];
+    agendarSalvamento({
+      ...character,
+      habilidades: habilidadesAtuais.filter((h) => h.nome !== habNome),
+    });
+  };
+
   const handleDefinirValorPericia = (
     skillId: string,
     valor: number,
@@ -1065,27 +1159,33 @@ export default function CharacterSheet() {
       )}
 
       <nav className="cs-nav" aria-label="Navegação do personagem">
-        {character.campanhaId ? (
+        <Link to="/" className="cs-back-link">
+          ← Meus personagens
+        </Link>
+        <Link to="/campanhas">Campanhas</Link>
+        <Link to="/regras/classes">Classes</Link>
+        <Link to={character.campanhaId ? `/campanha/${character.campanhaId}/bestiario` : "/bestiario"}>
+          Bestiário
+        </Link>
+        <Link to={character.campanhaId ? `/campanha/${character.campanhaId}/dados` : "/dados"}>
+          Dados
+        </Link>
+
+        {character.campanhaId && (
           <>
             <Link
               to={"/campanha/" + character.campanhaId}
-              className="cs-back-link"
+              className="cs-campaign-nav-link"
             >
-              ← Voltar para a campanha
+              Campanha
             </Link>
-
             <Link to={"/campanha/" + character.campanhaId + "/mapa"}>
               Mapa da campanha
             </Link>
-
             <Link to={"/campanha/" + character.campanhaId + "/loja"}>
               Loja da campanha
             </Link>
           </>
-        ) : (
-          <Link to="/" className="cs-back-link">
-            ← Meus personagens
-          </Link>
         )}
 
         <span className="cs-nav-current" aria-current="page">
@@ -1215,7 +1315,19 @@ export default function CharacterSheet() {
               onChange={(v) =>
                   atualizarRascunho("hp", {
                     ...rascunho.hp,
-                    atual: Math.max(0, Math.min(rascunhoStats?.hpMax ?? maxHpAtual, Number(v) || 0)),
+                    atual: Math.max(0, Math.min(rascunho.hp?.max ?? maxHpAtual, Number(v) || 0)),
+                  })
+              }
+            />
+
+            <Campo
+              rotulo="Vida máxima"
+              tipo="number"
+              valor={rascunho.hp?.max ?? maxHpAtual}
+              onChange={(v) =>
+                  atualizarRascunho("hp", {
+                    ...rascunho.hp,
+                    max: Math.max(1, Number(v) || 1),
                   })
               }
             />
@@ -1227,7 +1339,19 @@ export default function CharacterSheet() {
               onChange={(v) =>
                   atualizarRascunho("mp", {
                     ...rascunho.mp,
-                    atual: Math.max(0, Math.min(rascunhoStats?.mpMax ?? maxMpAtual, Number(v) || 0)),
+                    atual: Math.max(0, Math.min(rascunho.mp?.max ?? maxMpAtual, Number(v) || 0)),
+                  })
+              }
+            />
+
+            <Campo
+              rotulo="Mana máxima"
+              tipo="number"
+              valor={rascunho.mp?.max ?? maxMpAtual}
+              onChange={(v) =>
+                  atualizarRascunho("mp", {
+                    ...rascunho.mp,
+                    max: Math.max(0, Number(v) || 0),
                   })
               }
             />
@@ -1499,8 +1623,10 @@ export default function CharacterSheet() {
                 max={maxHpAtual}
                 tom="wine"
                 passos={[-10, -5, -1, 1, 5, 10]}
-                desabilitado={!podeEditar || !resourceSyncReady || editando}
+                desabilitado={!podeEditar || editando}
+                isMaster={acesso.isMaster}
                 onAtualizarAtual={alterarHp}
+                onAtualizarMax={alterarHpMax}
                 temporario={character.hp.temp ?? 0}
                 onAtualizarTemporario={(value) => alterarTemporario("hp", value)}
                 onPasso={(delta) => aplicarPassoRecurso("hp", delta)}
@@ -1514,8 +1640,10 @@ export default function CharacterSheet() {
                 max={maxMpAtual}
                 tom="forest"
                 passos={[-5, -1, 1, 5]}
-                desabilitado={!podeEditar || !resourceSyncReady || editando}
+                desabilitado={!podeEditar || editando}
+                isMaster={acesso.isMaster}
                 onAtualizarAtual={alterarMp}
+                onAtualizarMax={alterarMpMax}
                 temporario={character.mp.temp ?? 0}
                 onAtualizarTemporario={(value) => alterarTemporario("mp", value)}
                 onPasso={(delta) => aplicarPassoRecurso("mp", delta)}
@@ -1655,116 +1783,261 @@ export default function CharacterSheet() {
             )}
 
             {tab === "Magias" && (
-              <div>
-                {podeEditar && !editando && (
-                  <div className="cs-spell-actions">
-                    {!mostrarFormMagia ? (
+              <div className="cs-spells-and-abilities">
+                {/* ---------- HABILIDADES ---------- */}
+                <div className="cs-section-block">
+                  <div className="cs-section-head">
+                    <div className="cs-section-title">
+                      <h4>Habilidades</h4>
+                      <small>Habilidades da classe e poderes aprendidos</small>
+                    </div>
+
+                    {podeEditar && !editando && (
+                      <div className="cs-action-row">
+                        <button
+                          type="button"
+                          className="btn-ghost"
+                          onClick={() => setMostrarFormHabilidade((prev) => !prev)}
+                        >
+                          {mostrarFormHabilidade ? "Cancelar" : "+ Nova habilidade"}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {mostrarFormHabilidade && podeEditar && !editando && (
+                    <form onSubmit={handleAdicionarHabilidadeManual} className="cs-inline-form">
+                      <input
+                        placeholder="Nome da habilidade"
+                        aria-label="Nome da habilidade"
+                        value={novaHabilidadeNome}
+                        onChange={(e) => setNovaHabilidadeNome(e.target.value)}
+                        required
+                      />
+                      <input
+                        type="number"
+                        placeholder="Nível"
+                        aria-label="Nível da habilidade"
+                        min={1}
+                        max={20}
+                        value={novaHabilidadeNivel}
+                        onChange={(e) => setNovaHabilidadeNivel(Number(e.target.value) || 1)}
+                      />
+                      <input
+                        placeholder="Descrição / Efeito"
+                        aria-label="Descrição da habilidade"
+                        value={novaHabilidadeDesc}
+                        onChange={(e) => setNovaHabilidadeDesc(e.target.value)}
+                      />
+                      <button type="submit" className="btn-primary">
+                        Adicionar
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-ghost"
+                        onClick={() => setMostrarFormHabilidade(false)}
+                      >
+                        Cancelar
+                      </button>
+                    </form>
+                  )}
+
+                  <ul className="sheet-list sheet-list--abilities">
+                    {(view.habilidades ?? []).map((hab, idx) => (
+                      <li key={hab.id || `${hab.nome}-${idx}`}>
+                        <div className="sheet-spell-head">
+                          <strong>{hab.nome}</strong>
+                          {hab.nivel !== undefined && (
+                            <span className="sheet-list-tag">Nível {hab.nivel}</span>
+                          )}
+                          {podeEditar && !editando && (
+                            <button
+                              type="button"
+                              className="cs-btn-icon cs-btn-icon-del"
+                              onClick={() => handleRemoverHabilidade(hab.nome)}
+                              title={`Remover habilidade ${hab.nome}`}
+                              aria-label={`Remover habilidade ${hab.nome}`}
+                            >
+                              ×
+                            </button>
+                          )}
+                        </div>
+                        {hab.descricao && <p>{hab.descricao}</p>}
+                      </li>
+                    ))}
+                    {(view.habilidades ?? []).length === 0 && (
+                      <p className="sheet-empty">Nenhuma habilidade adicionada ainda.</p>
+                    )}
+                  </ul>
+
+                  {/* Habilidades definidas da classe: desbloqueios por nível */}
+                  {infoClasse?.habilidades && infoClasse.habilidades.length > 0 && (
+                    <div className="cs-class-abilities-available">
+                      <h5>Habilidades da classe ({view.classe})</h5>
+                      <div className="cs-class-abilities-grid">
+                        {infoClasse.habilidades.map((hab) => {
+                          const jaAdquirida = (view.habilidades ?? []).some(
+                            (h) => h.nome.trim().toLowerCase() === hab.nome.trim().toLowerCase(),
+                          );
+                          const nivelNecessario = hab.nivel ?? 1;
+                          const podeAprenderPorNivel = view.nivel >= nivelNecessario;
+
+                          return (
+                            <div
+                              key={hab.nome}
+                              className={`cs-class-ability-item ${jaAdquirida ? "cs-class-ability-item--owned" : ""}`}
+                            >
+                              <div className="cs-class-ability-header">
+                                <strong>{hab.nome}</strong>
+                                <span className="sheet-list-tag">Nível {nivelNecessario}</span>
+                              </div>
+                              {hab.descricao && <p>{hab.descricao}</p>}
+                              <div className="cs-class-ability-footer">
+                                {jaAdquirida ? (
+                                  <span className="cs-badge-acquired">✓ Adquirida</span>
+                                ) : podeAprenderPorNivel ? (
+                                  podeEditar && !editando ? (
+                                    <button
+                                      type="button"
+                                      className="btn-ghost btn-sm"
+                                      onClick={() => handleAprenderHabilidadeClasse(hab)}
+                                    >
+                                      + Aprender no nível {view.nivel}
+                                    </button>
+                                  ) : null
+                                ) : (
+                                  <span className="cs-badge-locked">Disponível no nível {nivelNecessario}</span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="cs-section-divider" />
+
+                {/* ---------- MAGIAS (mantida exatamente como estava) ---------- */}
+                <div className="cs-section-block">
+                  <div className="cs-section-head">
+                    <div className="cs-section-title">
+                      <h4>Magias</h4>
+                      <small>Feitiços conhecidos e custos em pontos de mana</small>
+                    </div>
+
+                    {podeEditar && !editando && (
+                      <div className="cs-spell-actions">
+                        {!mostrarFormMagia ? (
+                          <button
+                            type="button"
+                            className="btn-ghost"
+                            onClick={() => setMostrarFormMagia(true)}
+                          >
+                            + Conhecer nova magia
+                          </button>
+                        ) : null}
+                      </div>
+                    )}
+                  </div>
+
+                  {podeEditar && !editando && mostrarFormMagia && (
+                    <form
+                      onSubmit={handleAdicionarMagia}
+                      className="cs-inline-form"
+                    >
+                      <input
+                        placeholder="Nome da magia (ex.: Bola de Fogo)"
+                        aria-label="Nome da magia"
+                        value={novaMagiaNome}
+                        onChange={(e) =>
+                          setNovaMagiaNome(e.target.value)
+                        }
+                        required
+                      />
+
+                      <input
+                        type="number"
+                        placeholder="Custo PM"
+                        aria-label="Custo em pontos de mana"
+                        min={0}
+                        value={novaMagiaCusto}
+                        onChange={(e) =>
+                          setNovaMagiaCusto(
+                            Number(e.target.value) || 0,
+                          )
+                        }
+                      />
+
+                      <input
+                        placeholder="Descrição / Efeito"
+                        aria-label="Descrição da magia"
+                        value={novaMagiaDesc}
+                        onChange={(e) =>
+                          setNovaMagiaDesc(e.target.value)
+                        }
+                      />
+
+                      <button
+                        type="submit"
+                        className="btn-primary"
+                      >
+                        Aprender
+                      </button>
+
                       <button
                         type="button"
                         className="btn-ghost"
                         onClick={() =>
-                          setMostrarFormMagia(true)
+                          setMostrarFormMagia(false)
                         }
                       >
-                        + Conhecer nova magia
+                        Cancelar
                       </button>
-                    ) : (
-                      <form
-                        onSubmit={handleAdicionarMagia}
-                        className="cs-inline-form"
-                      >
-                        <input
-                          placeholder="Nome da magia (ex.: Bola de Fogo)"
-                          aria-label="Nome da magia"
-                          value={novaMagiaNome}
-                          onChange={(e) =>
-                            setNovaMagiaNome(e.target.value)
-                          }
-                          required
-                        />
-
-                        <input
-                          type="number"
-                          placeholder="Custo PM"
-                          aria-label="Custo em pontos de mana"
-                          min={0}
-                          value={novaMagiaCusto}
-                          onChange={(e) =>
-                            setNovaMagiaCusto(
-                              Number(e.target.value) || 0,
-                            )
-                          }
-                        />
-
-                        <input
-                          placeholder="Descrição / Efeito"
-                          aria-label="Descrição da magia"
-                          value={novaMagiaDesc}
-                          onChange={(e) =>
-                            setNovaMagiaDesc(e.target.value)
-                          }
-                        />
-
-                        <button
-                          type="submit"
-                          className="btn-primary"
-                        >
-                          Aprender
-                        </button>
-
-                        <button
-                          type="button"
-                          className="btn-ghost"
-                          onClick={() =>
-                            setMostrarFormMagia(false)
-                          }
-                        >
-                          Cancelar
-                        </button>
-                      </form>
-                    )}
-                  </div>
-                )}
-
-                <ul className="sheet-list sheet-list--spells">
-                  {view.spells.map((spell) => (
-                    <li key={spell.id}>
-                      <div className="sheet-spell-head">
-                        <span>{spell.nome}</span>
-
-                        <span className="sheet-list-tag">
-                          {spell.custo} PM
-                        </span>
-
-                        {podeEditar && !editando && (
-                          <button
-                            type="button"
-                            className="cs-btn-icon cs-btn-icon-del"
-                            onClick={() =>
-                              handleRemoverMagia(spell.id)
-                            }
-                            title="Esquecer magia"
-                            aria-label={
-                              `Esquecer magia ${spell.nome}`
-                            }
-                          >
-                            ×
-                          </button>
-                        )}
-                      </div>
-
-                      {spell.descricao && (
-                        <p>{spell.descricao}</p>
-                      )}
-                    </li>
-                  ))}
-
-                  {view.spells.length === 0 && (
-                    <p className="sheet-empty">
-                      Este personagem não conhece magias.
-                    </p>
+                    </form>
                   )}
-                </ul>
+
+                  <ul className="sheet-list sheet-list--spells">
+                    {view.spells.map((spell) => (
+                      <li key={spell.id}>
+                        <div className="sheet-spell-head">
+                          <span>{spell.nome}</span>
+
+                          <span className="sheet-list-tag">
+                            {spell.custo} PM
+                          </span>
+
+                          {podeEditar && !editando && (
+                            <button
+                              type="button"
+                              className="cs-btn-icon cs-btn-icon-del"
+                              onClick={() =>
+                                handleRemoverMagia(spell.id)
+                              }
+                              title="Esquecer magia"
+                              aria-label={
+                                `Esquecer magia ${spell.nome}`
+                              }
+                            >
+                              ×
+                            </button>
+                          )}
+                        </div>
+
+                        {spell.descricao && (
+                          <p>{spell.descricao}</p>
+                        )}
+                      </li>
+                    ))}
+
+                    {view.spells.length === 0 && (
+                      <p className="sheet-empty">
+                        Este personagem não conhece magias.
+                      </p>
+                    )}
+                  </ul>
+                </div>
               </div>
             )}
 

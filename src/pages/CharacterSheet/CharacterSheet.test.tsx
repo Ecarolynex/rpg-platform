@@ -115,7 +115,7 @@ describe("CharacterSheet", () => {
     vi.useFakeTimers();
     try {
       fireEvent.change(vitalInputs[0], { target: { value: "250" } });
-      expect(vitalInputs[0]).toHaveValue(20);
+      expect(vitalInputs[0]).toHaveValue(10);
       await act(async () => {
         await vi.advanceTimersByTimeAsync(600);
       });
@@ -306,5 +306,112 @@ describe("CharacterSheet", () => {
     fireEvent.click(screen.getByRole("tab", { name: "Notas" }));
     expect(screen.queryByRole("textbox", { name: "Notas" })).not.toBeInTheDocument();
     expect(screen.getByText("Nenhuma anotação ainda.")).toBeInTheDocument();
+  });
+
+  it("permite ao Mestre alterar manualmente a Vida máxima e a Mana máxima, persistindo a alteração", async () => {
+    api.getCharacterAccess.mockResolvedValue({ canEdit: true, isMaster: true });
+    renderSheet();
+    await screen.findByRole("heading", { name: "Bram Ferroz" });
+
+    const maxHpInput = screen.getByRole("spinbutton", { name: "Vida máximo" });
+    const maxMpInput = screen.getByRole("spinbutton", { name: "Mana máximo" });
+    expect(maxHpInput).toBeInTheDocument();
+    expect(maxMpInput).toBeInTheDocument();
+
+    vi.useFakeTimers();
+    try {
+      fireEvent.change(maxHpInput, { target: { value: "250" } });
+      fireEvent.change(maxMpInput, { target: { value: "180" } });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(600);
+      });
+      expect(api.atualizarPersonagem).toHaveBeenCalledWith(
+        characterId,
+        expect.objectContaining({
+          hp: expect.objectContaining({ max: 250 }),
+          mp: expect.objectContaining({ max: 180 }),
+        }),
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("permite ao jogador alterar os valores atuais de Vida e Mana sem alterar os limites máximos", async () => {
+    api.getCharacterAccess.mockResolvedValue({ canEdit: true, isMaster: false });
+    renderSheet();
+    await screen.findByRole("heading", { name: "Bram Ferroz" });
+
+    // Jogador não tem campo para alterar Vida Máxima
+    expect(screen.queryByRole("spinbutton", { name: "Vida máximo" })).not.toBeInTheDocument();
+
+    // Jogador altera Vida Atual (ex.: dano recebido)
+    const atualHpInput = screen.getByRole("spinbutton", { name: "Vida atual" });
+    vi.useFakeTimers();
+    try {
+      fireEvent.change(atualHpInput, { target: { value: "5" } });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(600);
+      });
+      expect(api.atualizarPersonagem).toHaveBeenCalledWith(
+        characterId,
+        expect.objectContaining({
+          hp: expect.objectContaining({ atual: 5, max: 10 }),
+        }),
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("a alteração de nível pelo jogador não sobrescreve os limites manuais de Vida e Mana", async () => {
+    api.getCharacterAccess.mockResolvedValue({ canEdit: true, isMaster: false });
+    renderSheet();
+    await screen.findByRole("heading", { name: "Bram Ferroz" });
+
+    const btnAumentarNivel = screen.getByRole("button", { name: "Aumentar nível" });
+    vi.useFakeTimers();
+    try {
+      fireEvent.click(btnAumentarNivel);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(600);
+      });
+      expect(api.atualizarPersonagem).toHaveBeenCalledWith(
+        characterId,
+        expect.objectContaining({
+          nivel: 2,
+          hp: expect.objectContaining({ max: 10 }),
+          mp: expect.objectContaining({ max: 10 }),
+        }),
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("permite editar Vida máxima e Mana máxima na edição completa da ficha", async () => {
+    api.getCharacterAccess.mockResolvedValue({ canEdit: true, isMaster: false });
+    api.atualizarPersonagem.mockImplementation(async (_id: string, char: Character) => char);
+
+    renderSheet();
+    await screen.findByRole("heading", { name: "Bram Ferroz" });
+
+    fireEvent.click(screen.getByRole("button", { name: "Editar ficha completa" }));
+    await screen.findByRole("heading", { name: "Editar ficha completa" });
+
+    const maxHpField = screen.getByLabelText("Vida máxima");
+    const maxMpField = screen.getByLabelText("Mana máxima");
+
+    fireEvent.change(maxHpField, { target: { value: "320" } });
+    fireEvent.change(maxMpField, { target: { value: "210" } });
+
+    fireEvent.click(screen.getByRole("button", { name: "Salvar ficha" }));
+    await waitFor(() => expect(api.atualizarPersonagem).toHaveBeenCalledWith(
+      characterId,
+      expect.objectContaining({
+        hp: expect.objectContaining({ max: 320 }),
+        mp: expect.objectContaining({ max: 210 }),
+      }),
+    ));
   });
 });

@@ -3,7 +3,6 @@ import {
   parseCharacterData,
   serializeCharacterData,
 } from "../domain/characterData";
-import { calculateDerivedCharacterStats } from "../domain/characterRules";
 import {
   DEFAULT_CLASS_CATALOG,
   normalizarCatalogoClasses,
@@ -170,11 +169,18 @@ function rowToCharacter(row: PersonagemRow): Character | null {
     nome: row.nome ?? personagem.nome,
     nivel: row.nivel ?? personagem.nivel,
   };
-  const derived = calculateDerivedCharacterStats(base);
   return {
     ...base,
-    hp: { ...personagem.hp, max: derived.hpMax },
-    mp: { ...personagem.mp, max: derived.mpMax },
+    hp: {
+      atual: personagem.hp.atual,
+      max: personagem.hp.max ?? 200,
+      ...(personagem.hp.temp !== undefined ? { temp: personagem.hp.temp } : {}),
+    },
+    mp: {
+      atual: personagem.mp.atual,
+      max: personagem.mp.max ?? 200,
+      ...(personagem.mp.temp !== undefined ? { temp: personagem.mp.temp } : {}),
+    },
   };
 }
 

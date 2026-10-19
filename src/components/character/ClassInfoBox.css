@@ -49,6 +49,7 @@
   letter-spacing: 0.03em;
 }
 
+.class-info-skills h5,
 .class-info-abilities h5 {
   margin: 0 0 8px;
   color: var(--muted, rgba(236, 223, 192, 0.75));

@@ -1,18 +1,17 @@
 import { Link } from "react-router-dom";
 import type { Character } from "../../types/character";
-import { calculateDerivedCharacterStats, type CharacterRulesContext } from "../../domain/characterRules";
+import type { CharacterRulesContext } from "../../domain/characterRules";
 import { StatBar } from "../ui/StatBar";
 import "./CharacterCard.css";
 
 export function CharacterCard({
   character,
-  rulesContext,
 }: {
   character: Character;
   rulesContext?: CharacterRulesContext;
 }) {
-  const stats = calculateDerivedCharacterStats(character, rulesContext);
-  const hpAtual = Math.min(character.hp.atual, stats.hpMax);
+  const hpMax = character.hp.max ?? 200;
+  const hpAtual = Math.min(character.hp.atual, hpMax);
 
   return (
     <Link to={"/personagem/" + character.id} className="character-card">
@@ -48,7 +47,7 @@ export function CharacterCard({
         <StatBar
           label="Vida"
           atual={hpAtual}
-          max={stats.hpMax}
+          max={hpMax}
           tone="wine"
         />
       </div>

@@ -153,17 +153,22 @@ function DiceRollerSession({
   return (
     <main className="dice-page">
       <header className="dice-page-header">
-        <span className="dice-eyebrow">Ferramenta da campanha</span>
+        <span className="dice-eyebrow">
+          {campaignId === "geral" ? "Ferramenta de mesa" : "Ferramenta da campanha"}
+        </span>
         <h1>Rolagem de Dados</h1>
         <p>Escolha um dado, aplique um modificador e acompanhe os resultados desta sessão.</p>
       </header>
 
-      <nav className="dice-breadcrumbs" aria-label="Navegação da campanha">
-        <Link to={`/campanha/${campaignId}`}>Visão geral</Link>
-        <Link to={`/campanha/${campaignId}/mapa`}>Mapa</Link>
-        <Link to={`/campanha/${campaignId}/loja`}>Loja</Link>
-        <span aria-current="page">Dados</span>
-      </nav>
+      {campaignId && campaignId !== "geral" && (
+        <nav className="dice-breadcrumbs" aria-label="Navegação da campanha">
+          <Link to={`/campanha/${campaignId}`}>Visão geral</Link>
+          <Link to={`/campanha/${campaignId}/mapa`}>Mapa</Link>
+          <Link to={`/campanha/${campaignId}/bestiario`}>Bestiário</Link>
+          <Link to={`/campanha/${campaignId}/loja`}>Loja</Link>
+          <span aria-current="page">Dados</span>
+        </nav>
+      )}
 
       <div className="dice-workspace">
         <section className="dice-panel dice-roll-panel" aria-labelledby="dice-roller-title">

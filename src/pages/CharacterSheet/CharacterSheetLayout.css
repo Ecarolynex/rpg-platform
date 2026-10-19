@@ -1179,3 +1179,138 @@
     transition: none;
   }
 }
+
+/* Seção combinada de Habilidades e Magias */
+.sheet .cs-spells-and-abilities {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.sheet .cs-section-block {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sheet .cs-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-bronze, rgba(201, 162, 39, 0.25));
+}
+
+.sheet .cs-section-title h4 {
+  margin: 0;
+  font-size: 1.15rem;
+  color: var(--gold-bright, #f0cf6e);
+  font-family: var(--font-display, serif);
+}
+
+.sheet .cs-section-title small {
+  color: var(--muted, #94a3b8);
+  font-size: 0.8rem;
+}
+
+.sheet .cs-section-divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(201, 162, 39, 0.35), transparent);
+  margin: 6px 0;
+}
+
+.sheet .sheet-list--abilities {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sheet .sheet-list--abilities > li {
+  padding: 9px;
+  border: 1px solid var(--border-subtle, rgba(201, 162, 39, 0.2));
+  border-radius: var(--radius-control, 8px);
+  background: color-mix(in srgb, var(--ink-panel-raised) 40%, var(--ink-panel));
+}
+
+.sheet .sheet-list--abilities > li p {
+  margin-top: 5px;
+  color: var(--sheet-copy-muted, #ccc);
+  font-size: 0.84rem;
+}
+
+.sheet .cs-class-abilities-available {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: var(--radius-control, 8px);
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px dashed var(--border-bronze, rgba(201, 162, 39, 0.3));
+}
+
+.sheet .cs-class-abilities-available h5 {
+  margin: 0 0 10px;
+  font-size: 0.9rem;
+  color: var(--gold-bright, #f0cf6e);
+}
+
+.sheet .cs-class-abilities-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 10px;
+}
+
+.sheet .cs-class-ability-item {
+  padding: 10px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--ink-panel-raised) 40%, var(--ink-panel));
+  border: 1px solid var(--border-subtle, rgba(201, 162, 39, 0.2));
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sheet .cs-class-ability-item--owned {
+  opacity: 0.75;
+  border-color: rgba(124, 227, 139, 0.35);
+}
+
+.sheet .cs-class-ability-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.sheet .cs-class-ability-header strong {
+  font-size: 0.9rem;
+  color: var(--sheet-copy, #fff);
+}
+
+.sheet .cs-class-ability-item p {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--sheet-copy-muted, #ccc);
+  line-height: 1.35;
+}
+
+.sheet .cs-class-ability-footer {
+  margin-top: auto;
+  padding-top: 6px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.sheet .cs-badge-acquired {
+  font-size: 0.75rem;
+  color: #7ce38b;
+  font-weight: 500;
+}
+
+.sheet .cs-badge-locked {
+  font-size: 0.75rem;
+  color: #a0aec0;
+  font-style: italic;
+}

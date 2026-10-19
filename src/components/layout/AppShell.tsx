@@ -1,25 +1,59 @@
 import { useEffect, useState } from "react";
-import { NavLink, Outlet, useMatch } from "react-router-dom";
+import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { Crest } from "../ui/Crest";
 import { useAuth } from "../../context/useAuth";
-import { listarMinhasCampanhas } from "../../services/api";
+import { getCharacterById, listarMinhasCampanhas } from "../../services/api";
 import "./AppShell.css";
 import "./AppShellCampaign.css";
 
 export function AppShell() {
   const { user, logout } = useAuth();
+  const location = useLocation();
 
-  // Dentro das rotas de campanha, o menu mostra os destinos daquela campanha.
-  const campanhaAtual = useMatch("/campanha/:id/*");
-  const campanhaId = campanhaAtual?.params.id;
-  const personagemFichaAtual = useMatch("/personagem/:id");
-  const personagemAtual = Boolean(personagemFichaAtual);
+  // Dentro das rotas de campanha ou de ficha, identifica o contexto
+  const matchCampanha = location.pathname.match(/^\/campanha\/([^/]+)/);
+  const matchPersonagem = location.pathname.match(/^\/personagem\/([^/]+)/);
+  const personagemAtual = Boolean(matchPersonagem);
+
+  const [personagemCampanhaId, setPersonagemCampanhaId] = useState("");
   const [nomeCampanha, setNomeCampanha] = useState("");
   const [menuAberto, setMenuAberto] = useState(false);
   const [erroLogout, setErroLogout] = useState("");
 
+  const rotaPersonagemId = matchPersonagem ? matchPersonagem[1] : undefined;
+
+  // Se estiver na ficha do personagem, tenta descobrir se ele pertence a uma campanha
   useEffect(() => {
-    if (!campanhaId) return;
+    if (!rotaPersonagemId) {
+      setPersonagemCampanhaId("");
+      return;
+    }
+
+    let ativo = true;
+    getCharacterById(rotaPersonagemId)
+      .then((char) => {
+        if (ativo && char?.campanhaId) {
+          setPersonagemCampanhaId(char.campanhaId);
+        } else if (ativo) {
+          setPersonagemCampanhaId("");
+        }
+      })
+      .catch(() => {
+        if (ativo) setPersonagemCampanhaId("");
+      });
+
+    return () => {
+      ativo = false;
+    };
+  }, [rotaPersonagemId]);
+
+  const campanhaId = matchCampanha ? matchCampanha[1] : personagemCampanhaId;
+
+  useEffect(() => {
+    if (!campanhaId) {
+      setNomeCampanha("");
+      return;
+    }
 
     let ativo = true;
 
@@ -79,6 +113,14 @@ export function AppShell() {
             Classes e habilidades
           </NavLink>
 
+          <NavLink to="/bestiario" onClick={() => setMenuAberto(false)}>
+            Bestiário
+          </NavLink>
+
+          <NavLink to="/dados" onClick={() => setMenuAberto(false)}>
+            Dados
+          </NavLink>
+
           {campanhaId && (
             <>
               <span className="app-sidebar-section">
@@ -90,6 +132,9 @@ export function AppShell() {
               </NavLink>
               <NavLink to={"/campanha/" + campanhaId + "/mapa"} onClick={() => setMenuAberto(false)}>
                 Mapa
+              </NavLink>
+              <NavLink to={"/campanha/" + campanhaId + "/bestiario"} onClick={() => setMenuAberto(false)}>
+                Bestiário
               </NavLink>
               <NavLink to={"/campanha/" + campanhaId + "/loja"} onClick={() => setMenuAberto(false)}>
                 Loja

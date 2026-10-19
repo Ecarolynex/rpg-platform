@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Character } from "../types/character";
-import { applyResourceDelta, setResourceCurrent } from "./characterResources";
+import { applyResourceDelta, setResourceCurrent, setResourceMaximum } from "./characterResources";
 
 const base: Character = {
   id: "resource-test",
@@ -30,5 +30,10 @@ describe("character temporary resources", () => {
 
   it("restores normal current resource without spending temporary reserve", () => {
     expect(applyResourceDelta(base, "mp", 20, 8)).toMatchObject({ atual: 8, temp: 2 });
+  });
+
+  it("sets new resource maximum and clamps current when exceeding", () => {
+    expect(setResourceMaximum(base, "hp", 200)).toMatchObject({ atual: 9, max: 200 });
+    expect(setResourceMaximum(base, "hp", 5)).toMatchObject({ atual: 5, max: 5 });
   });
 });

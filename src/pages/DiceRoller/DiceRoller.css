@@ -834,3 +834,33 @@
     animation-duration: 1ms;
   }
 }
+
+.dice-campaign-selector-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  max-width: 1100px;
+  margin-inline: auto;
+  margin-bottom: 14px;
+  padding: 10px 14px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-panel);
+  background: var(--surface-panel);
+}
+
+.dice-campaign-selector-bar label {
+  font-size: 0.9rem;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.dice-campaign-selector-bar select {
+  padding: 6px 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-control);
+  background: var(--surface-inset);
+  color: var(--parchment);
+  font: inherit;
+  font-size: 0.9rem;
+}

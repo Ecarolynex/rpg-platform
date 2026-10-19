@@ -5,9 +5,11 @@ import Bestiary from "./Bestiary";
 
 const getCampaignAccess = vi.fn();
 const listarBestiario = vi.fn();
+const listarMinhasCampanhas = vi.fn();
 
 vi.mock("../../services/api", () => ({
   getCampaignAccess: (...args: unknown[]) => getCampaignAccess(...args),
+  listarMinhasCampanhas: (...args: unknown[]) => listarMinhasCampanhas(...args),
 }));
 vi.mock("../../services/bestiario", () => ({
   listarBestiario: (...args: unknown[]) => listarBestiario(...args),
@@ -40,6 +42,16 @@ function abrir() {
   );
 }
 
+function abrirGeral() {
+  return render(
+    <MemoryRouter initialEntries={["/bestiario"]}>
+      <Routes>
+        <Route path="/bestiario" element={<Bestiary />} />
+      </Routes>
+    </MemoryRouter>,
+  );
+}
+
 describe("Bestiário", () => {
   beforeEach(() => vi.clearAllMocks());
 
@@ -60,5 +72,30 @@ describe("Bestiário", () => {
       expect(screen.queryByRole("button", { name: "Cadastrar criatura" })).toBeNull();
       expect(screen.queryByRole("button", { name: "Excluir" })).toBeNull();
     });
+  });
+
+  it("permite abrir pelo menu geral e seleciona a primeira campanha do usuário", async () => {
+    listarMinhasCampanhas.mockResolvedValue([
+      { id: "camp1", nome: "Crônicas de Arton", status: "ATIVA" },
+      { id: "camp2", nome: "Tormenta 20", status: "ATIVA" },
+    ]);
+    getCampaignAccess.mockResolvedValue({ isMaster: false, startingGold: 0 });
+    listarBestiario.mockResolvedValue([criatura]);
+
+    abrirGeral();
+
+    expect(await screen.findByText("Lobo Sombrio")).toBeInTheDocument();
+    expect(screen.getByLabelText("Selecionar campanha")).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Crônicas de Arton" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Tormenta 20" })).toBeInTheDocument();
+  });
+
+  it("mostra aviso explicativo quando o usuário não possui nenhuma campanha", async () => {
+    listarMinhasCampanhas.mockResolvedValue([]);
+
+    abrirGeral();
+
+    expect(await screen.findByText("Nenhuma campanha vinculada")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Ver minhas campanhas" })).toBeInTheDocument();
   });
 });

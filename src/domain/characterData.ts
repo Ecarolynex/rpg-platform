@@ -2,6 +2,7 @@ import { LIMITE_RECURSO } from "../data/dnd";
 import type {
   Attributes,
   Character,
+  CharacterAbility,
   CharacterDataV1,
   InventoryItem,
   Skill,
@@ -44,13 +45,20 @@ function parseAttributes(value: unknown): Attributes | null {
   };
 }
 
-function parseResource(value: unknown): { atual: number; temp?: number } {
+function parseResource(value: unknown, defaultMax = 200): { atual: number; max: number; temp?: number } {
   const record = asRecord(value) ?? {};
   const temp = record.temp;
+  const max = typeof record.max === "number" && Number.isFinite(record.max)
+    ? Math.max(1, integer(record.max, defaultMax, 1, 999999))
+    : defaultMax;
+  const atual = typeof record.atual === "number" && Number.isFinite(record.atual)
+    ? integer(record.atual, max, 0, max)
+    : max;
   return {
-    atual: integer(record.atual, 0, 0, LIMITE_RECURSO),
+    atual,
+    max,
     ...(typeof temp === "number" && Number.isFinite(temp)
-      ? { temp: integer(temp, 0, 0, LIMITE_RECURSO) }
+      ? { temp: Math.max(0, integer(temp, 0, 0, 999999)) }
       : {}),
   };
 }
@@ -141,6 +149,20 @@ function parseSpells(value: unknown): Spell[] {
   });
 }
 
+function parseAbilities(value: unknown): CharacterAbility[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item): CharacterAbility[] => {
+    const record = asRecord(item);
+    if (!record || typeof record.nome !== "string") return [];
+    return [{
+      ...(typeof record.id === "string" ? { id: record.id } : {}),
+      nome: record.nome,
+      ...(typeof record.descricao === "string" ? { descricao: record.descricao } : {}),
+      ...(typeof record.nivel === "number" ? { nivel: integer(record.nivel, 1, 1, 20) } : {}),
+    }];
+  });
+}
+
 function parseWallet(value: unknown): Wallet | undefined {
   const record = asRecord(value);
   if (!record) return undefined;
@@ -200,6 +222,7 @@ export function parseCharacterData(value: unknown): CharacterDataV1 | null {
     skills: parseSkills(record.skills),
     inventory: parseInventory(record.inventory),
     spells: parseSpells(record.spells),
+    ...(Array.isArray(record.habilidades) ? { habilidades: parseAbilities(record.habilidades) } : {}),
     ...(record.carteira && asRecord(record.carteira)
       ? { carteira: parseWallet(record.carteira) }
       : {}),
@@ -209,7 +232,7 @@ export function parseCharacterData(value: unknown): CharacterDataV1 | null {
   return character;
 }
 
-/** Serializa apenas o contrato persistido, nunca metadados relacionais ou máximos derivados. */
+/** Serializa o contrato da ficha persistido no JSONB dados. */
 export function serializeCharacterData(character: Character): CharacterDataV1 {
   const persistedFields: Record<string, unknown> = { ...character };
   delete persistedFields.id;
@@ -221,16 +244,21 @@ export function serializeCharacterData(character: Character): CharacterDataV1 {
   const hp = character.hp;
   const mp = character.mp;
 
+  const hpMax = Math.max(1, integer(hp.max, 200, 1, 999999));
+  const mpMax = Math.max(0, integer(mp.max, 200, 0, 999999));
+
   return {
     ...persistedFields,
     schemaVersion: 1,
     hp: {
-      atual: integer(hp.atual, 0, 0, LIMITE_RECURSO),
-      ...(hp.temp !== undefined ? { temp: integer(hp.temp, 0, 0, LIMITE_RECURSO) } : {}),
+      atual: Math.max(0, Math.min(hpMax, integer(hp.atual, hpMax, 0, 999999))),
+      max: hpMax,
+      ...(hp.temp !== undefined ? { temp: Math.max(0, integer(hp.temp, 0, 0, 999999)) } : {}),
     },
     mp: {
-      atual: integer(mp.atual, 0, 0, LIMITE_RECURSO),
-      ...(mp.temp !== undefined ? { temp: integer(mp.temp, 0, 0, LIMITE_RECURSO) } : {}),
+      atual: Math.max(0, Math.min(mpMax, integer(mp.atual, mpMax, 0, 999999))),
+      max: mpMax,
+      ...(mp.temp !== undefined ? { temp: Math.max(0, integer(mp.temp, 0, 0, 999999)) } : {}),
     },
   } as CharacterDataV1;
 }

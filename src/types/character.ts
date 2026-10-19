@@ -50,6 +50,13 @@ export interface Wallet {
   pl: number;
 }
 
+export interface CharacterAbility {
+  id?: string;
+  nome: string;
+  descricao?: string;
+  nivel?: number;
+}
+
 export interface Character {
   id: string;
   /** Versão otimista da linha em `personagens`, não persistida dentro de `dados`. */
@@ -82,14 +89,15 @@ export interface Character {
   skills: Skill[];
   inventory: InventoryItem[];
   spells: Spell[];
+  habilidades?: CharacterAbility[];
   carteira?: Wallet;
   notas: string;
 }
 
 export interface CharacterDataV1 extends Omit<Character, "id" | "campanhaId" | "dataVersion" | "xp" | "hp" | "mp"> {
   schemaVersion: 1;
-  hp: { atual: number; temp?: number };
-  mp: { atual: number; temp?: number };
+  hp: { atual: number; max: number; temp?: number };
+  mp: { atual: number; max: number; temp?: number };
   /** Campos futuros/legados fora do contrato conhecido são preservados. */
   [key: string]: unknown;
 }

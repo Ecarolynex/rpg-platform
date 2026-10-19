@@ -1,4 +1,4 @@
-﻿import type { Character } from "../types/character";
+import type { Character } from "../types/character";
 
 export type ResourceKey = "hp" | "mp";
 
@@ -70,5 +70,24 @@ export function setResourceCurrent(
     ...character[key],
     atual: Math.max(0, Math.min(safeMax, safeValue)),
     max: safeMax,
+  };
+}
+
+/**
+  * Sets the resource maximum and clamps current value if it exceeds the new maximum.
+  */
+export function setResourceMaximum(
+  character: Character,
+  key: ResourceKey,
+  newMax: number,
+): Character[ResourceKey] {
+  const safeMax = Math.max(1, Math.trunc(Number.isFinite(newMax) ? newMax : 1));
+  const resource = character[key];
+  const safeCurrent = Math.min(safeMax, Math.max(0, Math.trunc(resource.atual)));
+
+  return {
+    ...resource,
+    max: safeMax,
+    atual: safeCurrent,
   };
 }

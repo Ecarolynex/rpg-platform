@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { Link, useParams } from "react-router-dom";
-import { getCampaignAccess } from "../../services/api";
+import { getCampaignAccess, listarMinhasCampanhas } from "../../services/api";
+import type { Campaign } from "../../services/api";
 import {
   alternarVisibilidadeCriatura,
   excluirCriatura,
@@ -33,7 +34,13 @@ function msg(error: unknown, padrao: string) {
 }
 
 export default function Bestiary() {
-  const { id: campanhaId } = useParams<{ id: string }>();
+  const { id: rotaCampanhaId } = useParams<{ id: string }>();
+  const [campanhas, setCampanhas] = useState<Campaign[]>([]);
+  const [campanhaSelecionadaId, setCampanhaSelecionadaId] = useState<string>("");
+  const [carregandoCampanhas, setCarregandoCampanhas] = useState(!rotaCampanhaId);
+
+  const campanhaId = rotaCampanhaId || campanhaSelecionadaId;
+
   const [criaturas, setCriaturas] = useState<Criatura[]>([]);
   const [isMaster, setIsMaster] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -42,8 +49,37 @@ export default function Bestiary() {
   const [editandoId, setEditandoId] = useState<string | null>(null);
   const [salvando, setSalvando] = useState(false);
 
+  useEffect(() => {
+    if (rotaCampanhaId) return;
+
+    let ativo = true;
+    setCarregandoCampanhas(true);
+    listarMinhasCampanhas()
+      .then((lista) => {
+        if (!ativo) return;
+        setCampanhas(lista);
+        if (lista.length > 0) {
+          setCampanhaSelecionadaId((atual) => atual || lista[0].id);
+        }
+      })
+      .catch((error) => {
+        if (!ativo) return;
+        setErro(msg(error, "Não foi possível carregar suas campanhas."));
+      })
+      .finally(() => {
+        if (ativo) setCarregandoCampanhas(false);
+      });
+
+    return () => {
+      ativo = false;
+    };
+  }, [rotaCampanhaId]);
+
   const carregar = useCallback(async () => {
-    if (!campanhaId) return;
+    if (!campanhaId) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setErro("");
     try {
@@ -132,13 +168,68 @@ export default function Bestiary() {
     }
   }
 
+  if (carregandoCampanhas) {
+    return (
+      <main className="bestiary-page">
+        <header className="bestiary-header">
+          <h1>Bestiário</h1>
+          <p>Carregando campanhas...</p>
+        </header>
+        <p role="status">Folheando o Bestiário...</p>
+      </main>
+    );
+  }
+
+  if (!rotaCampanhaId && campanhas.length === 0) {
+    return (
+      <main className="bestiary-page">
+        <header className="bestiary-header">
+          <h1>Bestiário</h1>
+          <p>Catálogo de criaturas e ameaças</p>
+        </header>
+        <div className="bestiary-empty-box">
+          <h2>Nenhuma campanha vinculada</h2>
+          <p>Você ainda não participa de nenhuma campanha.</p>
+          <p>O Bestiário organiza monstros, chefes e NPCs de cada aventura.</p>
+          <Link to="/campanhas" className="bestiary-button ghost">
+            Ver minhas campanhas
+          </Link>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="bestiary-page">
       <header className="bestiary-header">
-        <nav className="bestiary-nav" aria-label="Navegação da campanha">
-          <Link to={`/campanha/${campanhaId}`}>Campanha</Link>
-          <Link to={`/campanha/${campanhaId}/mapa`}>Mapa</Link>
-        </nav>
+        {rotaCampanhaId ? (
+          <nav className="bestiary-nav" aria-label="Navegação da campanha">
+            <Link to={`/campanha/${rotaCampanhaId}`}>Campanha</Link>
+            <Link to={`/campanha/${rotaCampanhaId}/mapa`}>Mapa</Link>
+          </nav>
+        ) : (
+          <div className="bestiary-campaign-select-wrap">
+            <label htmlFor="bestiary-campaign-select">Campanha:</label>
+            <select
+              id="bestiary-campaign-select"
+              aria-label="Selecionar campanha"
+              value={campanhaSelecionadaId}
+              onChange={(e) => setCampanhaSelecionadaId(e.target.value)}
+              className="bestiary-campaign-select"
+            >
+              {campanhas.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.nome}
+                </option>
+              ))}
+            </select>
+            {campanhaId && (
+              <Link to={`/campanha/${campanhaId}`} className="bestiary-campaign-link">
+                Ver painel da campanha →
+              </Link>
+            )}
+          </div>
+        )}
         <h1>Bestiário</h1>
         <p>
           {isMaster

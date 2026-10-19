@@ -44,6 +44,8 @@ function App() {
           <Route path="/" element={<Dashboard />} />
           <Route path="/campanhas" element={<Campaigns />} />
           <Route path="/regras/classes" element={<ClassCatalog />} />
+          <Route path="/bestiario" element={<Bestiary />} />
+          <Route path="/dados" element={<DiceRollerPage />} />
 
           {/* Compatibilidade: loja sem campanha */}
           <Route path="/loja" element={<Navigate to="/campanhas" replace />} />

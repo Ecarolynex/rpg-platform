@@ -52,18 +52,42 @@ const campaigns = [
   },
 ];
 
-const classCatalog = [{
-  id: "guerreiro",
-  nome: "Guerreiro",
-  aliases: [],
-  usaMagia: false,
-  atributoBonus: { forca: 0, destreza: 0, constituicao: 0, inteligencia: 0, carisma: 0 },
-  hpBonus: 10,
-  mpBonus: 0,
-  pericias: [],
-  habilidades: [],
-  magias: [],
-}];
+const classCatalog = [
+  {
+    id: "guerreiro",
+    nome: "Guerreiro",
+    aliases: [],
+    usaMagia: false,
+    atributoBonus: { forca: 0, destreza: 0, constituicao: 0, inteligencia: 0, carisma: 0 },
+    hpBonus: 10,
+    mpBonus: 0,
+    pericias: [
+      { id: "luta", nome: "Luta", atributo: "forca", descricao: "Combate corporal" },
+      { id: "atletismo", nome: "Atletismo", atributo: "forca", descricao: "Esforço físico" },
+    ],
+    habilidades: [
+      { nome: "Golpe Poderoso", descricao: "Ataque devastador", nivel: 1 },
+      { nome: "Investida Heroica", descricao: "Avança e ataca", nivel: 3 },
+    ],
+    magias: [],
+  },
+  {
+    id: "mago",
+    nome: "Mago",
+    aliases: [],
+    usaMagia: true,
+    atributoBonus: { forca: 0, destreza: 0, constituicao: 0, inteligencia: 2, carisma: 0 },
+    hpBonus: 4,
+    mpBonus: 16,
+    pericias: [
+      { id: "misticismo", nome: "Misticismo", atributo: "inteligencia", descricao: "Conhecimento arcano" },
+    ],
+    habilidades: [
+      { nome: "Raio Arcano", descricao: "Dano de energia", nivel: 1 },
+    ],
+    magias: [],
+  },
+];
 
 function bonusesWithHp(hpBonus: number) {
   return {
@@ -71,6 +95,11 @@ function bonusesWithHp(hpBonus: number) {
       atributoBonus: { forca: 0, destreza: 0, constituicao: 0, inteligencia: 0, carisma: 0 },
       hpBonus,
       mpBonus: 0,
+    },
+    Mago: {
+      atributoBonus: { forca: 0, destreza: 0, constituicao: 0, inteligencia: 2, carisma: 0 },
+      hpBonus: 4,
+      mpBonus: 16,
     },
   };
 }
@@ -173,7 +202,7 @@ describe("Dashboard", () => {
       "campaign-b",
       expect.objectContaining({
         nome: "Bram da Campanha B",
-        hp: { atual: 22, max: 22 },
+        hp: { atual: 212, max: 212 },
       }),
     );
   });
@@ -197,5 +226,157 @@ describe("Dashboard", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Tentar carregar novamente" }));
     await waitFor(() => expect(screen.getByRole("button", { name: "Salvar personagem" })).toBeEnabled());
+  });
+
+  it("impede salvar o personagem sem selecionar uma campanha válida", async () => {
+    renderDashboard();
+    fireEvent.click(screen.getByRole("button", { name: /\+ novo personagem/i }));
+    await screen.findByRole("heading", { name: /criação de personagem/i });
+
+    const saveBtn = screen.getByRole("button", { name: /selecione uma campanha/i });
+    expect(saveBtn).toBeDisabled();
+
+    fireEvent.submit(screen.getByLabelText("Nome do personagem").closest("form")!);
+    expect(api.criarPersonagem).not.toHaveBeenCalled();
+  });
+
+  it("permite escolher habilidades iniciais da classe e calcula a prévia de Vitalidade e Mana", async () => {
+    renderDashboard();
+    fireEvent.click(screen.getByRole("button", { name: /\+ novo personagem/i }));
+    await screen.findByRole("option", { name: "Campanha A" });
+    fireEvent.change(screen.getByLabelText("Vincular a uma campanha (opcional)"), {
+      target: { value: "campaign-a" },
+    });
+    await waitFor(() => expect(screen.getByRole("button", { name: "Salvar personagem" })).toBeEnabled());
+
+    fireEvent.change(screen.getByLabelText("Nome do personagem"), { target: { value: "Thorin" } });
+    fireEvent.change(screen.getByLabelText("Classe"), { target: { value: "Guerreiro" } });
+
+    // Habilidade inicial Golpe Poderoso disponível para escolha
+    const golpeCheckbox = await screen.findByRole("checkbox", { name: /golpe poderoso/i });
+    expect(golpeCheckbox).not.toBeChecked();
+    fireEvent.click(golpeCheckbox);
+    expect(golpeCheckbox).toBeChecked();
+
+    // Desbloqueio futuro apresentado
+    expect(screen.getAllByText(/investida heroica/i)[0]).toBeInTheDocument();
+
+    // Prévia dinâmica de Vitalidade e Mana
+    expect(screen.getByText(/pontos de vida \(pv máximo\)/i)).toBeInTheDocument();
+    expect(screen.getByText(/pontos de mana \(pm máximo\)/i)).toBeInTheDocument();
+
+    fireEvent.submit(screen.getByLabelText("Nome do personagem").closest("form")!);
+    await waitFor(() => expect(api.criarPersonagem).toHaveBeenCalledOnce());
+    expect(api.criarPersonagem).toHaveBeenCalledWith(
+      "campaign-a",
+      expect.objectContaining({
+        nome: "Thorin",
+        classe: "Guerreiro",
+        habilidades: [
+          expect.objectContaining({
+            nome: "Golpe Poderoso",
+            nivel: 1,
+          }),
+        ],
+      }),
+    );
+  });
+
+  it("notifica revalidação ao trocar de classe sem apagar atributos ou perícias", async () => {
+    renderDashboard();
+    fireEvent.click(screen.getByRole("button", { name: /\+ novo personagem/i }));
+    await screen.findByRole("option", { name: "Campanha A" });
+    fireEvent.change(screen.getByLabelText("Vincular a uma campanha (opcional)"), {
+      target: { value: "campaign-a" },
+    });
+    await waitFor(() => expect(screen.getByRole("button", { name: "Salvar personagem" })).toBeEnabled());
+
+    fireEvent.change(screen.getByLabelText("Classe"), { target: { value: "Guerreiro" } });
+    const golpeCheckbox = await screen.findByRole("checkbox", { name: /golpe poderoso/i });
+    fireEvent.click(golpeCheckbox);
+
+    // Marca perícia Luta
+    const lutaCheckbox = screen.getByRole("checkbox", { name: /luta/i });
+    fireEvent.click(lutaCheckbox);
+    expect(lutaCheckbox).toBeChecked();
+
+    // Altera atributo Força
+    const forcaInput = screen.getByLabelText("Força");
+    fireEvent.change(forcaInput, { target: { value: "14" } });
+    expect(forcaInput).toHaveValue(14);
+
+    // Troca classe para Mago
+    fireEvent.change(screen.getByLabelText("Classe"), { target: { value: "Mago" } });
+
+    // Mensagem de revalidação orienta o jogador
+    expect(await screen.findByText(/a classe foi alterada de guerreiro para mago/i)).toBeInTheDocument();
+
+    // Atributos e perícias foram preservados
+    expect(forcaInput).toHaveValue(14);
+    expect(lutaCheckbox).toBeChecked();
+  });
+
+  it("permite vincular campanha por código de convite no criador de personagem", async () => {
+    const campanhaPorCodigo = {
+      id: "campaign-c",
+      nome: "Campanha Convidada C",
+      descricao: "Mesa especial",
+      sistema: "Elementum",
+      imagem_url: null,
+      moeda_principal: "Ouro",
+      status: "ATIVA",
+      codigo_convite: "CONVITE123",
+      created_by: "master-c",
+      created_at: "2026-10-11T00:00:00.000Z",
+      ouro_inicial: 50,
+      bonus_classes: null,
+    };
+    api.entrarNaCampanha.mockResolvedValueOnce(campanhaPorCodigo);
+
+    renderDashboard();
+    fireEvent.click(screen.getByRole("button", { name: /\+ novo personagem/i }));
+    await screen.findByRole("heading", { name: /criação de personagem/i });
+
+    const codeInput = screen.getByLabelText("Código de convite da campanha");
+    fireEvent.change(codeInput, { target: { value: "convite123" } });
+    expect(codeInput).toHaveValue("CONVITE123");
+
+    fireEvent.click(screen.getByRole("button", { name: "Vincular Código" }));
+    await waitFor(() => expect(api.entrarNaCampanha).toHaveBeenCalledWith("CONVITE123"));
+
+    expect(await screen.findByText(/campanha "campanha convidada c" vinculada com sucesso!/i)).toBeInTheDocument();
+  });
+
+  it("permite inserir valores manuais customizados de Vida máxima e Mana máxima na criação", async () => {
+    renderDashboard();
+    fireEvent.click(screen.getByRole("button", { name: /\+ novo personagem/i }));
+    await screen.findByRole("option", { name: "Campanha A" });
+    fireEvent.change(screen.getByLabelText("Vincular a uma campanha (opcional)"), {
+      target: { value: "campaign-a" },
+    });
+    await waitFor(() => expect(screen.getByRole("button", { name: "Salvar personagem" })).toBeEnabled());
+
+    fireEvent.change(screen.getByLabelText("Nome do personagem"), { target: { value: "Custom Hero" } });
+
+    // Modifica manualmente os valores máximos de Vida e Mana
+    const hpInput = screen.getByLabelText("Pontos de Vida (PV Máximo)");
+    const mpInput = screen.getByLabelText("Pontos de Mana (PM Máximo)");
+
+    fireEvent.change(hpInput, { target: { value: "350" } });
+    fireEvent.change(mpInput, { target: { value: "180" } });
+
+    expect(hpInput).toHaveValue(350);
+    expect(mpInput).toHaveValue(180);
+
+    fireEvent.submit(screen.getByLabelText("Nome do personagem").closest("form")!);
+    await waitFor(() => expect(api.criarPersonagem).toHaveBeenCalledOnce());
+    expect(api.criarPersonagem).toHaveBeenCalledWith(
+      "campaign-a",
+      expect.objectContaining({
+        nome: "Custom Hero",
+        hp: { atual: 350, max: 350 },
+        mp: { atual: 180, max: 180 },
+      }),
+    );
   });
 });

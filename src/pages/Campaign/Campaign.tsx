@@ -23,7 +23,6 @@ import {
   type Campaign,
 } from "../../services/api";
 import type { Character } from "../../types/character";
-import { calculateDerivedCharacterStats } from "../../domain/characterRules";
 import {
   ATTRIBUTE_CONFIG,
   normalizarBonusClassesCampanha,
@@ -943,22 +942,11 @@ export default function Campaign() {
             <div className="party-overview-grid">
               {todosDaCampanha.map((personagem) => {
                 const po = personagem.carteira?.po ?? 0;
-                const derived = calculateDerivedCharacterStats(personagem, {
-                  classCatalog: catalogoClasses,
-                  campaignClassBonuses: bonusClasses,
-                  campaignClassContents: conteudosClasses,
-                  equippedItemBonuses: bonusEquipamentos[personagem.id]
-                    ? [bonusEquipamentos[personagem.id]]
-                    : [],
-                  serverResourceMaximums: maximosServidor[personagem.id]
-                    ? { hpMax: maximosServidor[personagem.id].hp, mpMax: maximosServidor[personagem.id].mp }
-                    : undefined,
-                });
                 const maximosAutoritativos = maximosServidor[personagem.id];
-                const hpMax = maximosAutoritativos?.hp ?? derived.hpMax;
-                const mpMax = maximosAutoritativos?.mp ?? derived.mpMax;
-                const hpAtual = Math.min(maximosAutoritativos?.hpAtual ?? personagem.hp.atual, hpMax);
-                const mpAtual = Math.min(maximosAutoritativos?.mpAtual ?? personagem.mp.atual, mpMax);
+                const hpMax = personagem.hp?.max ?? maximosAutoritativos?.hp ?? 200;
+                const mpMax = personagem.mp?.max ?? maximosAutoritativos?.mp ?? 200;
+                const hpAtual = Math.min(personagem.hp?.atual ?? 200, hpMax);
+                const mpAtual = Math.min(personagem.mp?.atual ?? 200, mpMax);
                 return (
                   <article key={personagem.id} className="party-char-card">
                     <div className="party-char-head">

@@ -48,7 +48,7 @@ describe("atualizarPersonagem", () => {
     vi.clearAllMocks();
   });
 
-  it("persists versioned current resources but never their derived maxima", async () => {
+  it("persists versioned current and manual maximum resources", async () => {
     rpc.mockImplementation(async (_name, payload) => ({
       data: {
         id: "character-1",
@@ -86,9 +86,8 @@ describe("atualizarPersonagem", () => {
     const payload = rpc.mock.calls[0][1];
     expect(payload.p_versao_esperada).toBe(1);
     expect(payload.p_dados.schemaVersion).toBe(1);
-    expect(payload.p_dados.hp).toEqual({ atual: 200, temp: 7 });
-    expect(payload.p_dados.mp).toEqual({ atual: 200 });
-    expect(payload.p_dados.hp).not.toHaveProperty("max");
+    expect(payload.p_dados.hp).toEqual({ atual: 250, max: 250, temp: 7 });
+    expect(payload.p_dados.mp).toEqual({ atual: 240, max: 240 });
   });
 });
 

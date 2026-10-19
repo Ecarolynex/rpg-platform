@@ -163,3 +163,61 @@
 .bestiary-empty {
   color: var(--muted);
 }
+
+.bestiary-campaign-select-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.bestiary-campaign-select-wrap label {
+  font-size: 0.9rem;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.bestiary-campaign-select {
+  padding: 6px 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-control);
+  background: var(--surface-inset);
+  color: var(--parchment);
+  font: inherit;
+  font-size: 0.9rem;
+}
+
+.bestiary-campaign-link {
+  font-size: 0.85rem;
+  color: var(--gold-bright);
+  text-decoration: none;
+  margin-left: 4px;
+}
+
+.bestiary-campaign-link:hover {
+  text-decoration: underline;
+}
+
+.bestiary-empty-box {
+  padding: 24px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-panel);
+  background: var(--surface-panel);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.bestiary-empty-box h2 {
+  margin: 0;
+  font-family: var(--font-title);
+  font-size: 1.2rem;
+  color: var(--gold-bright);
+}
+
+.bestiary-empty-box p {
+  margin: 0;
+  color: var(--parchment-dim);
+}
