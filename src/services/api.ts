@@ -1241,6 +1241,12 @@ export interface ShopItem {
   ativo: boolean;
 }
 
+/**
+ * Lista as ofertas de TODAS as lojas ativas da campanha.
+ * Não usa .single()/.maybeSingle(): uma campanha pode ter 0, 1 ou várias lojas,
+ * e qualquer uma dessas situações precisa funcionar sem erro.
+ */
+
 export async function listarItensDaLoja(
   campanhaId: string,
 ): Promise<ShopItem[]> {
@@ -1273,8 +1279,7 @@ export async function listarItensDaLoja(
       )
     `)
     .eq("campanha_id", campanhaId)
-    .eq("ativa", true)
-    .maybeSingle();
+    .eq("ativa", true);
 
   if (error) {
     throw new Error(
@@ -1282,11 +1287,11 @@ export async function listarItensDaLoja(
     );
   }
 
-  if (!data) {
+  if (!data || data.length === 0) {
     return [];
   }
 
-  const loja = data as unknown as {
+  type LojaComItens = {
     id: string;
     campanha_id: string;
     ativa: boolean;
@@ -1307,189 +1312,198 @@ export async function listarItensDaLoja(
             raridade: string | null;
             efeito: string | null;
             imagem_url: string | null;
-            bonus_atributos: Partial<Record<BaseAttributeKey, number>> | null;
-            efeito_mecanico: import("../types/character").ItemEffect | null;
+            bonus_atributos:
+              | Partial<Record<BaseAttributeKey, number>>
+              | null;
+            efeito_mecanico:
+              | import("../types/character").ItemEffect
+              | null;
             cargas_maximas: number | null;
           }
         | null;
     }>;
   };
 
-  return (loja.loja_itens ?? [])
-  .filter(
-    (lojaItem) =>
-      lojaItem.ativo &&
-      lojaItem.itens !== null,
-  )
-  .map((lojaItem) => ({
-    id: lojaItem.id,
-    lojaId: loja.id,
-    campanhaId: loja.campanha_id,
-      itemId: lojaItem.item_id,
-      nome: lojaItem.itens!.nome,
-      descricao: lojaItem.itens!.descricao,
-      tipo: lojaItem.itens!.tipo,
+  const lojas = data as unknown as LojaComItens[];
+
+  return lojas.flatMap((loja) =>
+    (loja.loja_itens ?? [])
+      .filter(
+        (lojaItem) =>
+          lojaItem.ativo &&
+          lojaItem.itens !== null,
+      )
+      .map((lojaItem) => ({
+        id: lojaItem.id,
+        lojaId: loja.id,
+        campanhaId: loja.campanha_id,
+        itemId: lojaItem.item_id,
+        nome: lojaItem.itens!.nome,
+        descricao: lojaItem.itens!.descricao,
+        tipo: lojaItem.itens!.tipo,
         raridade: lojaItem.itens!.raridade,
         efeito: lojaItem.itens!.efeito,
         imagemUrl: lojaItem.itens!.imagem_url,
-        bonusAtributos: lojaItem.itens!.bonus_atributos ?? {},
-        efeitoMecanico: lojaItem.itens!.efeito_mecanico ?? null,
-        cargasMaximas: lojaItem.itens!.cargas_maximas ?? null,
+        bonusAtributos:
+          lojaItem.itens!.bonus_atributos ?? {},
+        efeitoMecanico:
+          lojaItem.itens!.efeito_mecanico ?? null,
+        cargasMaximas:
+          lojaItem.itens!.cargas_maximas ?? null,
         precoCompra: Number(lojaItem.preco_compra),
-      precoVenda:
-        lojaItem.preco_venda === null
-          ? null
-          : Number(lojaItem.preco_venda),
-      estoque: Number(lojaItem.estoque),
-      vendaPermitida: lojaItem.venda_permitida,
-      ativo: lojaItem.ativo,
-    }));
+        precoVenda:
+          lojaItem.preco_venda === null
+            ? null
+            : Number(lojaItem.preco_venda),
+        estoque: Number(lojaItem.estoque),
+        vendaPermitida: lojaItem.venda_permitida,
+        ativo: lojaItem.ativo,
+      })),
+  );
 }
 
-  export interface SaveShopItemInput {
-    campanhaId: string;
-    lojaItemId?: string;
-    nome: string;
-    descricao: string;
-    tipo: string;
-    raridade: string;
+export interface SaveShopItemInput {
+  campanhaId: string;
+  lojaItemId?: string;
+  nome: string;
+  descricao: string;
+  tipo: string;
+  raridade: string;
   efeito: string;
   imagemUrl: string | null;
   bonusAtributos?: Partial<Record<BaseAttributeKey, number>>;
   efeitoMecanico?: import("../types/character").ItemEffect | null;
   cargasMaximas?: number | null;
   precoCompra: number;
-    estoque: number;
-    ativo: boolean;
+  estoque: number;
+  ativo: boolean;
+}
+
+
+export async function salvarItemDaLoja(
+  item: SaveShopItemInput,
+): Promise<ShopItem> {
+  const { data, error } = await supabase.rpc("salvar_item_loja", {
+    p_campanha_id: item.campanhaId,
+    p_loja_item_id: item.lojaItemId ?? null,
+    p_nome: item.nome,
+    p_descricao: item.descricao,
+    p_tipo: item.tipo,
+    p_raridade: item.raridade,
+    p_efeito: item.efeito,
+    p_imagem_url: item.imagemUrl,
+    p_preco_compra: item.precoCompra,
+    p_estoque: item.estoque,
+    p_ativo: item.ativo,
+  });
+
+  if (error) {
+    throw new Error(error.message || "Não foi possível salvar o item da loja.");
   }
 
-  export async function salvarItemDaLoja(
-    item: SaveShopItemInput,
-  ): Promise<ShopItem> {
-    const { data, error } = await supabase.rpc("salvar_item_loja", {
-      p_campanha_id: item.campanhaId,
-      p_loja_item_id: item.lojaItemId ?? null,
-      p_nome: item.nome,
-      p_descricao: item.descricao,
-      p_tipo: item.tipo,
-      p_raridade: item.raridade,
-       p_efeito: item.efeito,
-       p_imagem_url: item.imagemUrl,
-       p_bonus_atributos: item.bonusAtributos ?? {},
-       p_efeito_mecanico: item.efeitoMecanico ?? { tipo: "NENHUM" },
-       p_cargas_maximas: item.cargasMaximas ?? null,
-       p_preco_compra: item.precoCompra,
-      p_estoque: item.estoque,
-      p_ativo: item.ativo,
-    });
-
-    if (error) {
-      throw new Error(error.message || "Não foi possível salvar o item da loja.");
-    }
-
-    if (!data || typeof data !== "object") {
-      throw new Error("O Supabase não confirmou o salvamento do item.");
-    }
-
-    const receipt = data as {
-      loja_id: string;
-      loja_item_id: string;
-      item_id: string;
-    };
-
-    return {
-      id: receipt.loja_item_id,
-      lojaId: receipt.loja_id,
-      itemId: receipt.item_id,
-      campanhaId: item.campanhaId,
-      nome: item.nome,
-      descricao: item.descricao,
-      tipo: item.tipo,
-      raridade: item.raridade,
-      efeito: item.efeito,
-      imagemUrl: item.imagemUrl,
-      bonusAtributos: item.bonusAtributos ?? {},
-      efeitoMecanico: item.efeitoMecanico ?? null,
-      cargasMaximas: item.cargasMaximas ?? null,
-      precoCompra: item.precoCompra,
-      precoVenda: null,
-      estoque: item.estoque,
-      vendaPermitida: true,
-      ativo: item.ativo,
-    };
+  if (!data || typeof data !== "object") {
+    throw new Error("O Supabase não confirmou o salvamento do item.");
   }
 
-  export type CatalogItem = Pick<
-    ShopItem,
+  const receipt = data as {
+    loja_id: string;
+    loja_item_id: string;
+    item_id: string;
+  };
+
+  return {
+    id: receipt.loja_item_id,
+    lojaId: receipt.loja_id,
+    itemId: receipt.item_id,
+    campanhaId: item.campanhaId,
+    nome: item.nome,
+    descricao: item.descricao,
+    tipo: item.tipo,
+    raridade: item.raridade,
+    efeito: item.efeito,
+    imagemUrl: item.imagemUrl,
+    bonusAtributos: item.bonusAtributos ?? {},
+    efeitoMecanico: item.efeitoMecanico ?? null,
+    cargasMaximas: item.cargasMaximas ?? null,
+    precoCompra: item.precoCompra,
+    precoVenda: null,
+    estoque: item.estoque,
+    vendaPermitida: true,
+    ativo: item.ativo,
+  };
+}
+
+export type CatalogItem = Pick<
+  ShopItem,
   "itemId" | "nome" | "descricao" | "tipo" | "raridade" | "efeito" | "imagemUrl" |
   "bonusAtributos" | "efeitoMecanico" | "cargasMaximas"
 >;
 
-  export async function listarCatalogoItens(): Promise<CatalogItem[]> {
-    const { data, error } = await supabase
-      .from("itens")
-      .select("id, nome, descricao, tipo, raridade, efeito, imagem_url, bonus_atributos, efeito_mecanico, cargas_maximas")
-      .order("nome", { ascending: true });
+export async function listarCatalogoItens(): Promise<CatalogItem[]> {
+  const { data, error } = await supabase
+    .from("itens")
+    .select("id, nome, descricao, tipo, raridade, efeito, imagem_url, bonus_atributos, efeito_mecanico, cargas_maximas")
+    .order("nome", { ascending: true });
 
-    if (error) {
-      throw new Error(error.message || "Não foi possível carregar o catálogo de cartas.");
-    }
-
-    return (data ?? []).map((item) => ({
-      itemId: item.id,
-      nome: item.nome,
-      descricao: item.descricao,
-      tipo: item.tipo,
-      raridade: item.raridade,
-      efeito: item.efeito,
-      imagemUrl: item.imagem_url,
-      bonusAtributos: item.bonus_atributos ?? {},
-      efeitoMecanico: item.efeito_mecanico ?? null,
-      cargasMaximas: item.cargas_maximas ?? null,
-    }));
+  if (error) {
+    throw new Error(error.message || "Não foi possível carregar o catálogo de cartas.");
   }
 
-  export async function adicionarItemExistenteNaLoja(
-    campanhaId: string,
-    itemId: string,
-    precoCompra: number,
-    estoque: number,
-  ): Promise<string> {
-    const { data, error } = await supabase.rpc("adicionar_item_existente_loja", {
-      p_campanha_id: campanhaId,
-      p_item_id: itemId,
-      p_preco_compra: precoCompra,
-      p_estoque: estoque,
-    });
+  return (data ?? []).map((item) => ({
+    itemId: item.id,
+    nome: item.nome,
+    descricao: item.descricao,
+    tipo: item.tipo,
+    raridade: item.raridade,
+    efeito: item.efeito,
+    imagemUrl: item.imagem_url,
+    bonusAtributos: item.bonus_atributos ?? {},
+    efeitoMecanico: item.efeito_mecanico ?? null,
+    cargasMaximas: item.cargas_maximas ?? null,
+  }));
+}
 
-    if (error) {
-      throw new Error(error.message || "Não foi possível adicionar a carta existente.");
-    }
+export async function adicionarItemExistenteNaLoja(
+  campanhaId: string,
+  itemId: string,
+  precoCompra: number,
+  estoque: number,
+): Promise<string> {
+  const { data, error } = await supabase.rpc("adicionar_item_existente_loja", {
+    p_campanha_id: campanhaId,
+    p_item_id: itemId,
+    p_preco_compra: precoCompra,
+    p_estoque: estoque,
+  });
 
-    if (typeof data !== "string") {
-      throw new Error("O Supabase não confirmou a inclusão da carta.");
-    }
-
-    return data;
+  if (error) {
+    throw new Error(error.message || "Não foi possível adicionar a carta existente.");
   }
 
-  export async function removerItemDaLoja(
-    campanhaId: string,
-    lojaItemId: string,
-  ): Promise<void> {
-    const { data, error } = await supabase.rpc("remover_item_loja", {
-      p_campanha_id: campanhaId,
-      p_loja_item_id: lojaItemId,
-    });
-
-    if (error) {
-      throw new Error(error.message || "Não foi possível remover a carta desta loja.");
-    }
-
-    if (data !== true) {
-      throw new Error("O Supabase não confirmou a remoção da carta.");
-    }
+  if (typeof data !== "string") {
+    throw new Error("O Supabase não confirmou a inclusão da carta.");
   }
+
+  return data;
+}
+
+export async function removerItemDaLoja(
+  campanhaId: string,
+  lojaItemId: string,
+): Promise<void> {
+  const { data, error } = await supabase.rpc("remover_item_loja", {
+    p_campanha_id: campanhaId,
+    p_loja_item_id: lojaItemId,
+  });
+
+  if (error) {
+    throw new Error(error.message || "Não foi possível remover a carta desta loja.");
+  }
+
+  if (data !== true) {
+    throw new Error("O Supabase não confirmou a remoção da carta.");
+  }
+}
 
 /* =========================================================
    COMPRAR ITEM
@@ -1791,10 +1805,10 @@ export async function getInventory(
       personagem_id,
       item_id,
       quantidade,
-       equipado,
-       cargas_atuais,
-       comentario_pessoal,
-       updated_at,
+      equipado,
+      cargas_atuais,
+      comentario_pessoal,
+      updated_at,
       itens (
         id,
         nome,

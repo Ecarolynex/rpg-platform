@@ -16,6 +16,7 @@ import {
 import type {
   Campaign,
   CatalogItem,
+  SaveShopItemInput,
   ShopItem as DatabaseShopItem,
 } from "../../services/api";
 import type { Character, ItemEffect } from "../../types/character";
@@ -45,6 +46,10 @@ interface ShopItem {
   moeda: string;
   estoque: number;
   disponivel: boolean;
+  /** Flag "ativo" da oferta no banco (disponivel = ativo && estoque > 0). */
+  ativo?: boolean;
+  /** Tipo original do item no banco, preservado ao salvar para não ser sobrescrito. */
+  tipoBanco?: string | null;
   imagem?: string;
 }
 
@@ -52,6 +57,9 @@ interface CartEntry {
   itemId: string;
   quantity: number;
 }
+
+type QuickEditDraft = { preco: string; estoque: string };
+type ReuseOverride = { preco?: string; estoque?: string };
 
 const EMPTY_SHOP_ITEMS: ShopItem[] = [];
 
@@ -88,6 +96,22 @@ const ATTRIBUTE_KEYS_BY_LABEL = {
   Inteligência: "inteligencia",
   Carisma: "carisma",
 } as const;
+
+const TYPE_BY_CATEGORY: Record<string, string> = {
+  Armas: "ARMA",
+  Armaduras: "ARMADURA",
+  Poções: "CONSUMIVEL",
+  Acessórios: "ACESSORIO",
+  Diversos: "DIVERSOS",
+};
+
+/** Linha de efeito que representa o bônus de atributo (ex.: "+2 Constituição"). */
+const ATTRIBUTE_BONUS_LINE =
+  /^\s*[+-]?\d+\s+(Força|Destreza|Constituição|Inteligência|Carisma)\s*$/i;
+
+/** Erro devolvido quando a carta já tem oferta nesta loja (UNIQUE loja_id + item_id). */
+const ALREADY_IN_SHOP =
+  /duplicate key|already exists|loja_itens_loja_id_item_id_key|já (existe|está)/i;
 
 const MAX_SHOP_IMAGE_SIZE_BYTES = 3 * 1024 * 1024;
 
@@ -283,8 +307,49 @@ function fromDatabaseShopItem(item: DatabaseShopItem): ShopItem {
     moeda: "PO",
     estoque: item.estoque,
     disponivel: item.ativo && item.estoque > 0,
+    ativo: item.ativo,
+    tipoBanco: item.tipo,
     imagem: item.imagemUrl ?? undefined,
   });
+}
+
+/** Tipo a gravar no banco: preserva o tipo original quando existe. */
+function getDatabaseType(item: ShopItem): string {
+  return item.tipoBanco || TYPE_BY_CATEGORY[item.categoria] || "DIVERSOS";
+}
+
+/**
+ * Monta o payload de salvamento a partir de uma oferta já carregada,
+ * trocando apenas os campos informados em `changes`.
+ */
+function buildSaveInput(
+  campaignId: string,
+  item: ShopItem,
+  changes: Partial<Pick<SaveShopItemInput, "precoCompra" | "estoque" | "ativo">> = {},
+): SaveShopItemInput {
+  return {
+    campanhaId: campaignId,
+    lojaItemId: item.id,
+    nome: item.nome,
+    descricao: item.descricao,
+    tipo: getDatabaseType(item),
+    raridade: item.raridade.toUpperCase(),
+    efeito: item.efeitos.join("\n"),
+    imagemUrl: item.imagem ?? null,
+    bonusAtributos: item.bonusAtributos ?? {},
+    efeitoMecanico: item.efeitoMecanico ?? { tipo: "NENHUM" },
+    cargasMaximas: item.cargasMaximas ?? null,
+    precoCompra: item.preco,
+    estoque: item.estoque,
+    ativo: item.ativo ?? item.disponivel,
+    ...changes,
+  };
+}
+
+function omitKeys<T>(record: Record<string, T>, keys: string[]): Record<string, T> {
+  const next = { ...record };
+  for (const key of keys) delete next[key];
+  return next;
 }
 
 function readStoredItems(campaignId: string): ShopItem[] {
@@ -370,12 +435,21 @@ export default function Shop() {
   const [showItemForm, setShowItemForm] = useState(false);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [itemDraft, setItemDraft] = useState(initialItemDraft);
+
+
   const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
   const [selectedImagePreview, setSelectedImagePreview] = useState<string | null>(null);
   const imageReaderRef = useRef<FileReader | null>(null);
   const [itemSaving, setItemSaving] = useState(false);
   const [itemSaveError, setItemSaveError] = useState("");
   const [catalogItems, setCatalogItems] = useState<CatalogItem[]>([]);
+
+  // Edição rápida de preço/estoque direto no card (somente Mestre).
+  const [quickEdits, setQuickEdits] = useState<Record<string, QuickEditDraft>>({});
+  const [quickSavingId, setQuickSavingId] = useState<string | null>(null);
+  const [quickFeedback, setQuickFeedback] = useState<
+    { id: string; text: string; error: boolean } | null
+  >(null);
 
   const clearSelectedImage = () => {
     const reader = imageReaderRef.current;
@@ -390,6 +464,9 @@ export default function Shop() {
   const [selectedReuseItemIds, setSelectedReuseItemIds] = useState<string[]>([]);
   const [reusePrice, setReusePrice] = useState("100");
   const [reuseStock, setReuseStock] = useState("1");
+  // Valores individuais por carta; sem ajuste, a carta usa o padrão acima.
+  const [reuseOverrides, setReuseOverrides] = useState<Record<string, ReuseOverride>>({});
+  const [reuseFilter, setReuseFilter] = useState("");
 
   const [characters, setCharacters] =
     useState<Character[]>([]);
@@ -575,9 +652,42 @@ export default function Shop() {
   const selectedReusableItemCount = reusableCatalogItems.filter((catalogItem) =>
     selectedReuseItemIdSet.has(catalogItem.itemId),
   ).length;
-  const allReusableItemsSelected =
-    reusableCatalogItems.length > 0 &&
-    selectedReusableItemCount === reusableCatalogItems.length;
+  const reuseFilterQuery = reuseFilter.trim().toLowerCase();
+  const visibleReusableItems = reuseFilterQuery
+    ? reusableCatalogItems.filter((catalogItem) =>
+        catalogItem.nome.toLowerCase().includes(reuseFilterQuery),
+      )
+    : reusableCatalogItems;
+  const allVisibleReusableSelected =
+    visibleReusableItems.length > 0 &&
+    visibleReusableItems.every((catalogItem) =>
+      selectedReuseItemIdSet.has(catalogItem.itemId),
+    );
+
+  const getReuseValue = (itemId: string, field: "preco" | "estoque"): string =>
+    reuseOverrides[itemId]?.[field] ?? (field === "preco" ? reusePrice : reuseStock);
+
+  const setReuseOverride = (
+    itemId: string,
+    field: "preco" | "estoque",
+    value: string,
+  ) =>
+    setReuseOverrides((current) => ({
+      ...current,
+      [itemId]: { ...current[itemId], [field]: value },
+    }));
+
+  const toggleVisibleReuseSelection = () => {
+    const visibleIds = visibleReusableItems.map((catalogItem) => catalogItem.itemId);
+    if (allVisibleReusableSelected) {
+      setSelectedReuseItemIds((current) =>
+        current.filter((itemId) => !visibleIds.includes(itemId)),
+      );
+      setReuseOverrides((current) => omitKeys(current, visibleIds));
+    } else {
+      setSelectedReuseItemIds((current) => [...new Set([...current, ...visibleIds])]);
+    }
+  };
 
   const cartRows = useMemo(
     () =>
@@ -896,6 +1006,13 @@ export default function Shop() {
     setItemSaving(true);
     setItemSaveError("");
 
+    // "ativo" é a flag do banco; "disponivel" também depende do estoque.
+    // Usar disponivel aqui desativaria a carta ao editar uma oferta com estoque 0.
+    const original = editingItemId
+      ? items.find((item) => item.id === editingItemId)
+      : undefined;
+    const ativo = original ? original.ativo ?? original.disponivel : true;
+
     const nextItem: ShopItem = {
       id: editingItemId ?? `item-${Date.now()}`,
       campaignId,
@@ -915,23 +1032,28 @@ export default function Shop() {
       preco: Number(itemDraft.preco),
       moeda: "PO",
       estoque: Number(itemDraft.estoque),
-      disponivel: editingItemId
-        ? items.find((item) => item.id === editingItemId)?.disponivel ?? true
-        : true,
+      disponivel: ativo && Number(itemDraft.estoque) > 0,
       imagem: itemDraft.imagem,
     };
 
-    const typeByCategory: Record<ShopItem["categoria"], string> = {
-      Armas: "ARMA",
-      Armaduras: "ARMADURA",
-      Poções: "CONSUMIVEL",
-      Acessórios: "ACESSORIO",
-      Diversos: "DIVERSOS",
-    };
-    const effects = [...nextItem.efeitos];
-    if (nextItem.atributo && nextItem.bonus) {
-      effects.push(`+${nextItem.bonus} ${nextItem.atributo}`);
-    }
+    // Mantém o tipo original do banco quando a categoria não mudou.
+    const tipo =
+      original?.tipoBanco && original.categoria === nextItem.categoria
+        ? original.tipoBanco
+        : TYPE_BY_CATEGORY[nextItem.categoria] ?? "DIVERSOS";
+
+    // A linha do bônus de atributo é regravada a partir dos campos do formulário;
+    // sem remover a antiga, cada edição duplicaria "+N Atributo".
+    const attributeLine =
+      nextItem.atributo && nextItem.bonus
+        ? `${nextItem.bonus > 0 ? "+" : ""}${nextItem.bonus} ${nextItem.atributo}`
+        : null;
+    const effects = attributeLine
+      ? [
+          ...nextItem.efeitos.filter((effect) => !ATTRIBUTE_BONUS_LINE.test(effect)),
+          attributeLine,
+        ]
+      : [...nextItem.efeitos];
 
     let uploadedImageUrl: string | null = null;
 
@@ -954,7 +1076,7 @@ export default function Shop() {
         lojaItemId: editingItemId ?? undefined,
         nome: nextItem.nome,
         descricao: nextItem.descricao,
-        tipo: typeByCategory[nextItem.categoria],
+        tipo,
         raridade: nextItem.raridade.toUpperCase(),
         efeito: effects.join("\n"),
         imagemUrl,
@@ -963,13 +1085,16 @@ export default function Shop() {
         cargasMaximas: nextItem.cargasMaximas,
         precoCompra: nextItem.preco,
         estoque: nextItem.estoque,
-        ativo: nextItem.disponivel,
+        ativo,
       });
       const savedItem = fromDatabaseShopItem(saved);
 
       setItems((current) => editingItemId
         ? current.map((item) => item.id === editingItemId ? savedItem : item)
         : [savedItem, ...current]);
+      if (editingItemId) {
+        setQuickEdits((current) => omitKeys(current, [editingItemId]));
+      }
       setItemDraft(initialItemDraft);
       clearSelectedImage();
       setEditingItemId(null);
@@ -995,7 +1120,10 @@ export default function Shop() {
       subcategoria: item.subcategoria,
       raridade: item.raridade,
       descricao: item.descricao,
-      efeitos: item.efeitos.join("\n"),
+      // A linha do bônus de atributo já aparece nos campos próprios do formulário.
+      efeitos: item.efeitos
+        .filter((effect) => !(item.atributo && ATTRIBUTE_BONUS_LINE.test(effect)))
+        .join("\n"),
       atributo: item.atributo ?? "",
       bonus: String(item.bonus ?? 0),
       bonusAtributos: item.bonusAtributos ?? {},
@@ -1024,34 +1152,91 @@ export default function Shop() {
 
     setItemSaveError("");
     try {
-      const saved = await salvarItemDaLoja({
-        campanhaId: campaignId,
-        lojaItemId: item.id,
-        nome: item.nome,
-        descricao: item.descricao,
-        tipo: {
-          Armas: "ARMA",
-          Armaduras: "ARMADURA",
-          Poções: "CONSUMIVEL",
-          Acessórios: "ACESSORIO",
-          Diversos: "DIVERSOS",
-        }[item.categoria] ?? "DIVERSOS",
-        raridade: item.raridade.toUpperCase(),
-      efeito: item.efeitos.join("\n"),
-      imagemUrl: item.imagem ?? null,
-      bonusAtributos: item.bonusAtributos ?? {},
-      efeitoMecanico: item.efeitoMecanico ?? { tipo: "NENHUM" },
-      cargasMaximas: item.cargasMaximas ?? null,
-      precoCompra: item.preco,
-        estoque: item.estoque,
-        ativo: !item.disponivel,
-      });
+      const saved = await salvarItemDaLoja(
+        buildSaveInput(campaignId, item, { ativo: !(item.ativo ?? item.disponivel) }),
+      );
       const savedItem = fromDatabaseShopItem(saved);
       setItems((current) => current.map((entry) => entry.id === item.id ? savedItem : entry));
     } catch (error) {
       setItemSaveError(
         error instanceof Error ? error.message : "Não foi possível alterar a disponibilidade.",
       );
+    }
+  };
+
+  const getQuickDraftFrom = (
+    drafts: Record<string, QuickEditDraft>,
+    item: ShopItem,
+  ): QuickEditDraft =>
+    drafts[item.id] ?? { preco: String(item.preco), estoque: String(item.estoque) };
+
+  const getQuickDraft = (item: ShopItem): QuickEditDraft =>
+    getQuickDraftFrom(quickEdits, item);
+
+  const isQuickDirty = (item: ShopItem): boolean => {
+    const draft = quickEdits[item.id];
+    return Boolean(
+      draft &&
+        (draft.preco !== String(item.preco) || draft.estoque !== String(item.estoque)),
+    );
+  };
+
+  const setQuickField = (
+    item: ShopItem,
+    field: keyof QuickEditDraft,
+    value: string,
+  ) => {
+    setQuickFeedback(null);
+    setQuickEdits((current) => ({
+      ...current,
+      [item.id]: { ...getQuickDraftFrom(current, item), [field]: value },
+    }));
+  };
+
+  const handleQuickSave = async (item: ShopItem) => {
+    const draft = quickEdits[item.id];
+    if (!draft || quickSavingId) return;
+
+    const preco = Number(draft.preco);
+    const estoque = Number(draft.estoque);
+
+    if (draft.preco.trim() === "" || !Number.isFinite(preco) || preco < 0) {
+      setQuickFeedback({
+        id: item.id,
+        text: "Informe um preço em PO igual ou maior que 0.",
+        error: true,
+      });
+      return;
+    }
+    if (draft.estoque.trim() === "" || !Number.isInteger(estoque) || estoque < 0) {
+      setQuickFeedback({
+        id: item.id,
+        text: "Informe um estoque inteiro igual ou maior que 0.",
+        error: true,
+      });
+      return;
+    }
+
+    setQuickSavingId(item.id);
+    setQuickFeedback(null);
+    try {
+      const saved = await salvarItemDaLoja(
+        buildSaveInput(campaignId, item, { precoCompra: preco, estoque }),
+      );
+      const savedItem = fromDatabaseShopItem(saved);
+      setItems((current) => current.map((entry) => entry.id === item.id ? savedItem : entry));
+      setQuickEdits((current) => omitKeys(current, [item.id]));
+      setQuickFeedback({ id: item.id, text: "Preço e estoque salvos.", error: false });
+    } catch (error) {
+      setQuickFeedback({
+        id: item.id,
+        text: error instanceof Error
+          ? error.message
+          : "Não foi possível salvar o preço e o estoque.",
+        error: true,
+      });
+    } finally {
+      setQuickSavingId(null);
     }
   };
 
@@ -1063,31 +1248,78 @@ export default function Shop() {
     );
     if (itemSaving || selectedItems.length === 0) return;
 
+    // Valida preço e estoque de cada carta antes de enviar qualquer uma.
+    const offers: Array<{ catalogItem: CatalogItem; preco: number; estoque: number }> = [];
+    for (const catalogItem of selectedItems) {
+      const rawPrice = getReuseValue(catalogItem.itemId, "preco");
+      const rawStock = getReuseValue(catalogItem.itemId, "estoque");
+      const preco = Number(rawPrice);
+      const estoque = Number(rawStock);
+
+      if (rawPrice.trim() === "" || !Number.isFinite(preco) || preco < 0) {
+        setItemSaveError(`Informe um preço válido (0 ou mais) para “${catalogItem.nome}”.`);
+        return;
+      }
+      if (rawStock.trim() === "" || !Number.isInteger(estoque) || estoque < 0) {
+        setItemSaveError(`Informe um estoque inteiro (0 ou mais) para “${catalogItem.nome}”.`);
+        return;
+      }
+      offers.push({ catalogItem, preco, estoque });
+    }
+
     setItemSaving(true);
     setItemSaveError("");
     try {
       const results = await Promise.allSettled(
-        selectedItems.map((catalogItem) =>
-          adicionarItemExistenteNaLoja(
-            campaignId,
-            catalogItem.itemId,
-            Number(reusePrice),
-            Number(reuseStock),
-          ),
+        offers.map(({ catalogItem, preco, estoque }) =>
+          adicionarItemExistenteNaLoja(campaignId, catalogItem.itemId, preco, estoque),
         ),
       );
-      const failedItemIds = results.flatMap((result, index) =>
-        result.status === "rejected" ? [selectedItems[index].itemId] : [],
-      );
-      const addedCount = results.length - failedItemIds.length;
 
-      if (addedCount > 0) {
+      const failures: Array<{
+        itemId: string;
+        nome: string;
+        motivo: string;
+        jaExistia: boolean;
+      }> = [];
+      results.forEach((result, index) => {
+        if (result.status === "fulfilled") return;
+        const motivo =
+          result.reason instanceof Error ? result.reason.message : "erro desconhecido";
+        failures.push({
+          itemId: offers[index].catalogItem.itemId,
+          nome: offers[index].catalogItem.nome,
+          motivo,
+          jaExistia: ALREADY_IN_SHOP.test(motivo),
+        });
+      });
+
+      const realFailures = failures.filter((failure) => !failure.jaExistia);
+      const alreadyCount = failures.length - realFailures.length;
+      const addedCount = results.length - failures.length;
+      const failedItemIds = realFailures.map((failure) => failure.itemId);
+
+      // Só as cartas que falharam continuam selecionadas, com os valores que o Mestre definiu.
+      setSelectedReuseItemIds(failedItemIds);
+      setReuseOverrides((current) =>
+        omitKeys(
+          current,
+          Object.keys(current).filter((itemId) => !failedItemIds.includes(itemId)),
+        ),
+      );
+
+      const summary = [
+        addedCount > 0 ? `${addedCount} carta(s) adicionada(s)` : "",
+        alreadyCount > 0 ? `${alreadyCount} já estava(m) na loja` : "",
+      ].filter(Boolean).join("; ");
+
+      if (addedCount + alreadyCount > 0) {
         try {
           const refreshed = await listarItensDaLoja(campaignId);
           setItems(refreshed.map(fromDatabaseShopItem));
         } catch (error) {
           setItemSaveError(
-            `${addedCount} carta(s) adicionada(s), mas não foi possível atualizar a loja. ${
+            `${summary}, mas não foi possível atualizar a loja. ${
               error instanceof Error ? error.message : "Tente atualizar a página."
             }`,
           );
@@ -1095,18 +1327,26 @@ export default function Shop() {
         }
       }
 
-      setSelectedReuseItemIds(failedItemIds);
-      if (failedItemIds.length > 0) {
+      if (realFailures.length > 0) {
+        const details = realFailures
+          .slice(0, 3)
+          .map((failure) => `${failure.nome} (${failure.motivo})`)
+          .join("; ");
+        const more =
+          realFailures.length > 3 ? ` e mais ${realFailures.length - 3}` : "";
+
         setItemSaveError(
-          addedCount > 0
-            ? `${addedCount} carta(s) adicionada(s); ${failedItemIds.length} não puderam ser adicionada(s). Revise a seleção e tente novamente.`
-            : "Não foi possível adicionar as cartas selecionadas. Tente novamente.",
+          addedCount + alreadyCount > 0
+            ? `${summary}; ${realFailures.length} não puderam ser adicionada(s): ${details}${more}. Revise a seleção e tente novamente.`
+            : `Não foi possível adicionar as cartas selecionadas. ${details}${more}.`,
         );
         return;
       }
 
       setShowReuseForm(false);
       setSelectedReuseItemIds([]);
+      setReuseOverrides({});
+      setReuseFilter("");
       setReusePrice("100");
       setReuseStock("1");
     } catch (error) {
@@ -1822,46 +2062,8 @@ export default function Shop() {
           {itemSaveError && <p role="alert">{itemSaveError}</p>}
           {reusableCatalogItems.length > 0 ? (
             <div className="shop-item-form-grid">
-              <fieldset className="shop-reuse-selection shop-item-form-wide">
-                <legend>Cartas que serão adicionadas</legend>
-                <div className="shop-reuse-selection-toolbar">
-                  <span role="status">
-                    {selectedReusableItemCount} de {reusableCatalogItems.length} selecionadas
-                  </span>
-                  <button
-                    className="btn-ghost small"
-                    type="button"
-                    disabled={itemSaving}
-                    onClick={() => setSelectedReuseItemIds(
-                      allReusableItemsSelected
-                        ? []
-                        : reusableCatalogItems.map((item) => item.itemId),
-                    )}
-                    aria-pressed={allReusableItemsSelected}
-                  >
-                    {allReusableItemsSelected ? "Desmarcar todas" : "Selecionar todas"}
-                  </button>
-                </div>
-                <div className="shop-reuse-selection-list">
-                  {reusableCatalogItems.map((item) => (
-                    <label className="shop-reuse-checkbox-row" key={item.itemId}>
-                      <input
-                        type="checkbox"
-                        disabled={itemSaving}
-                        checked={selectedReuseItemIdSet.has(item.itemId)}
-                        onChange={(event) => setSelectedReuseItemIds((current) =>
-                          event.target.checked
-                            ? [...current, item.itemId]
-                            : current.filter((itemId) => itemId !== item.itemId),
-                        )}
-                      />
-                      <span>{item.nome}</span>
-                    </label>
-                  ))}
-                </div>
-              </fieldset>
               <label>
-                Preço em PO (para todas)
+                Preço padrão em PO
                 <input
                   type="number"
                   min={0}
@@ -1872,16 +2074,116 @@ export default function Shop() {
                 />
               </label>
               <label>
-                Estoque (para todas)
+                Estoque padrão
                 <input
                   type="number"
                   min={0}
+                  step={1}
                   required
                   disabled={itemSaving}
                   value={reuseStock}
                   onChange={(event) => setReuseStock(event.target.value)}
                 />
               </label>
+              <p className="shop-reuse-hint shop-item-form-wide">
+                O padrão vale para as cartas que você não ajustar. Marque as cartas e, se quiser,
+                mude o preço e o estoque de cada uma na própria linha.
+              </p>
+              <fieldset className="shop-reuse-selection shop-item-form-wide">
+                <legend>Cartas que serão adicionadas</legend>
+                <div className="shop-reuse-selection-toolbar">
+                  <span role="status">
+                    {selectedReusableItemCount} de {reusableCatalogItems.length} selecionadas
+                  </span>
+                  <input
+                    type="search"
+                    className="shop-reuse-filter"
+                    aria-label="Filtrar cartas do catálogo"
+                    placeholder="Filtrar por nome..."
+                    disabled={itemSaving}
+                    value={reuseFilter}
+                    onChange={(event) => setReuseFilter(event.target.value)}
+                  />
+                  <button
+                    className="btn-ghost small"
+                    type="button"
+                    disabled={itemSaving || visibleReusableItems.length === 0}
+                    onClick={toggleVisibleReuseSelection}
+                    aria-pressed={allVisibleReusableSelected}
+                  >
+                    {allVisibleReusableSelected
+                      ? reuseFilterQuery ? "Desmarcar exibidas" : "Desmarcar todas"
+                      : reuseFilterQuery ? "Selecionar exibidas" : "Selecionar todas"}
+                  </button>
+                  <button
+                    className="btn-ghost small"
+                    type="button"
+                    disabled={itemSaving || Object.keys(reuseOverrides).length === 0}
+                    onClick={() => setReuseOverrides({})}
+                  >
+                    Usar o padrão em todas
+                  </button>
+                </div>
+                <div className="shop-reuse-selection-list">
+                  {visibleReusableItems.map((item) => {
+                    const isSelected = selectedReuseItemIdSet.has(item.itemId);
+                    return (
+                      <div className="shop-reuse-row" key={item.itemId}>
+                        <label className="shop-reuse-checkbox-row">
+                          <input
+                            type="checkbox"
+                            disabled={itemSaving}
+                            checked={isSelected}
+                            onChange={(event) => {
+                              setSelectedReuseItemIds((current) =>
+                                event.target.checked
+                                  ? [...current, item.itemId]
+                                  : current.filter((itemId) => itemId !== item.itemId),
+                              );
+                              if (!event.target.checked) {
+                                setReuseOverrides((current) => omitKeys(current, [item.itemId]));
+                              }
+                            }}
+                          />
+                          <span>{item.nome}</span>
+                        </label>
+                        {isSelected && (
+                          <div className="shop-reuse-values">
+                            <span className="shop-reuse-caption">Preço (PO)</span>
+                            <input
+                              type="number"
+                              min={0}
+                              required
+                              disabled={itemSaving}
+                              aria-label={`Preço de ${item.nome} em PO`}
+                              value={getReuseValue(item.itemId, "preco")}
+                              onChange={(event) =>
+                                setReuseOverride(item.itemId, "preco", event.target.value)
+                              }
+                            />
+                            <span className="shop-reuse-caption">Estoque</span>
+                            <input
+                              type="number"
+                              min={0}
+                              step={1}
+                              required
+                              disabled={itemSaving}
+                              aria-label={`Estoque de ${item.nome}`}
+                              value={getReuseValue(item.itemId, "estoque")}
+                              onChange={(event) =>
+                                setReuseOverride(item.itemId, "estoque", event.target.value)
+                              }
+                            />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                  {visibleReusableItems.length === 0 && (
+                    <p className="shop-reuse-hint">Nenhuma carta encontrada para este filtro.</p>
+                  )}
+                </div>
+              </fieldset>
             </div>
           ) : (
             <p className="shop-empty">Todas as cartas do catálogo já estão nesta loja.</p>
@@ -2161,21 +2463,67 @@ export default function Shop() {
                     </div>
 
                     {isMaster && (
+                      <form
+                        className="shop-quick-edit"
+                        onSubmit={(event) => {
+                          event.preventDefault();
+                          void handleQuickSave(item);
+                        }}
+                      >
+                        <span className="shop-quick-edit-caption">Preço (PO)</span>
+                        <input
+                          type="number"
+                          min={0}
+                          step={1}
+                          disabled={quickSavingId === item.id}
+                          aria-label={`Preço de ${item.nome} em PO`}
+                          value={getQuickDraft(item).preco}
+                          onChange={(event) => setQuickField(item, "preco", event.target.value)}
+                        />
+                        <span className="shop-quick-edit-caption">Estoque</span>
+                        <input
+                          type="number"
+                          min={0}
+                          step={1}
+                          disabled={quickSavingId === item.id}
+                          aria-label={`Estoque de ${item.nome}`}
+                          value={getQuickDraft(item).estoque}
+                          onChange={(event) => setQuickField(item, "estoque", event.target.value)}
+                        />
+                        <button
+                          type="submit"
+                          className="btn-secondary"
+                          disabled={!isQuickDirty(item) || quickSavingId === item.id}
+                        >
+                          {quickSavingId === item.id ? "Salvando..." : "Salvar preço e estoque"}
+                        </button>
+                        {quickFeedback?.id === item.id && (
+                          <p
+                            className="shop-quick-feedback"
+                            role={quickFeedback.error ? "alert" : "status"}
+                          >
+                            {quickFeedback.text}
+                          </p>
+                        )}
+                      </form>
+                    )}
+
+                    {isMaster && (
                       <div className="shop-master-actions">
                         <button type="button" className="btn-secondary" onClick={() => editItem(item)}>
                           Editar
                         </button>
                         <button type="button" className="btn-ghost small" onClick={() => toggleItemAvailability(item.id)}>
-                          {item.disponivel ? "Desativar" : "Ativar"}
+                          {(item.ativo ?? item.disponivel) ? "Desativar" : "Ativar"}
                         </button>
                         <button
                           type="button"
                           className="btn-ghost small"
                           disabled={itemSaving}
                           onClick={() => void handleRemoveFromShop(item)}
-                           title="Exclui definitivamente esta oferta; mantém o item-base no catálogo e nos inventários"
-                         >
-                           Excluir oferta
+                          title="Exclui definitivamente esta oferta; mantém o item-base no catálogo e nos inventários"
+                        >
+                          Excluir oferta
                         </button>
                       </div>
                     )}

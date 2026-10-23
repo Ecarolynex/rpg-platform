@@ -1693,3 +1693,90 @@
     flex-direction: column;
   }
 }
+
+/* Edição rápida de preço e estoque no card (Mestre) */
+.shop-quick-edit {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0.4rem 0.6rem;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.shop-quick-edit-caption,
+.shop-reuse-caption {
+  font-size: 0.8rem;
+  opacity: 0.8;
+}
+
+.shop-quick-edit input,
+.shop-reuse-values input {
+  width: 100%;
+  min-width: 0;
+  padding: 0.35rem 0.5rem;
+  color: inherit;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 4px;
+  font: inherit;
+}
+
+.shop-quick-edit input:focus-visible,
+.shop-reuse-values input:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 1px;
+}
+
+.shop-quick-edit button[type="submit"],
+.shop-quick-feedback {
+  grid-column: 1 / -1;
+}
+
+.shop-quick-feedback {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+/* Reutilizar cartas: uma linha por carta, com preço e estoque próprios */
+.shop-reuse-row {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  padding: 0.35rem 0;
+}
+
+.shop-reuse-values {
+  display: grid;
+  grid-template-columns: auto 6.5rem auto 5.5rem;
+  align-items: center;
+  gap: 0.4rem 0.5rem;
+}
+
+.shop-reuse-filter {
+  flex: 1 1 12rem;
+  min-width: 0;
+  padding: 0.35rem 0.5rem;
+  color: inherit;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 4px;
+  font: inherit;
+}
+
+.shop-reuse-hint {
+  margin: 0;
+  font-size: 0.85rem;
+  opacity: 0.8;
+}
+
+@media (max-width: 560px) {
+  .shop-reuse-values {
+    grid-template-columns: auto minmax(0, 1fr);
+    width: 100%;
+  }
+}
