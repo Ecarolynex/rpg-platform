@@ -1,6 +1,8 @@
 import { lazy, Suspense } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { ProtectedRoute } from "./components/layout/ProtectedRoute";
+import LazyShopPanel from "./pages/Shop/LazyShopPanel";
+import LazyBestiaryPanel from "./pages/Bestiary/LazyBestiaryPanel"
 
 const Login = lazy(() => import("./pages/Login/Login"));
 const Dashboard = lazy(() => import("./pages/Dashboard/Dashboard"));
@@ -8,8 +10,8 @@ const CharacterSheet = lazy(() => import("./pages/CharacterSheet/CharacterSheet"
 const Campaigns = lazy(() => import("./pages/Campaigns/Campaigns"));
 const Campaign = lazy(() => import("./pages/Campaign/Campaign"));
 const CampaignMap = lazy(() => import("./pages/CampaignMap/CampaignMap"));
-const Bestiary = lazy(() => import("./pages/Bestiary/Bestiary"));
-const Shop = lazy(() => import("./pages/Shop/Shop"));
+
+
 const ClassCatalog = lazy(() => import("./pages/ClassCatalog/ClassCatalog"));
 const DiceRollerPage = lazy(() => import("./pages/DiceRoller/DiceRollerPage"));
 
@@ -44,7 +46,7 @@ function App() {
           <Route path="/" element={<Dashboard />} />
           <Route path="/campanhas" element={<Campaigns />} />
           <Route path="/regras/classes" element={<ClassCatalog />} />
-          <Route path="/bestiario" element={<Bestiary />} />
+          <Route path="/bestiario" element={<LazyBestiaryPanel />} />
           <Route path="/dados" element={<DiceRollerPage />} />
 
           {/* Compatibilidade: loja sem campanha */}
@@ -53,10 +55,10 @@ function App() {
           {/* Campanha e seus recursos */}
           <Route path="/campanha/:id" element={<Campaign />} />
           <Route path="/campanha/:id/mapa" element={<CampaignMap />} />
-          <Route path="/campanha/:id/bestiario" element={<Bestiary />} />
+          <Route path="/campanha/:id/bestiario" element={<LazyBestiaryPanel />} />
           <Route path="/campanha/:id/dados" element={<DiceRollerPage />} />
-          <Route path="/campanha/:id/loja" element={<Shop />} />
-          <Route path="/campanha/:id/loja/carrinho" element={<Shop />} />
+          <Route path="/campanha/:id/loja" element={<LazyShopPanel />} />
+          <Route path="/campanha/:id/loja/carrinho" element={<LazyShopPanel />} />
 
           {/* Ficha do personagem */}
           <Route path="/personagem/:id" element={<CharacterSheet />} />

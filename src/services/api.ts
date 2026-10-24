@@ -1648,6 +1648,28 @@ export async function entregarItemCampanha(
   return data;
 }
 
+export async function concederItemGratuito(
+  campanhaId: string,
+  itemId: string,
+  quantidade: number,
+  personagemId?: string,
+  requestId = criarIdempotencyKey(),
+): Promise<number> {
+  if (!campanhaId || !itemId || !Number.isSafeInteger(quantidade) || quantidade <= 0 || quantidade > 9999) {
+    throw new Error('Item e quantidade de concessão inválidos.');
+  }
+  const { data, error } = await supabase.rpc('conceder_item_gratuito', {
+    p_campanha_id: campanhaId,
+    p_item_id: itemId,
+    p_quantidade: quantidade,
+    p_personagem_id: personagemId ?? null,
+    p_request_id: requestId,
+  });
+  if (error) throw new Error(error.message || 'Não foi possível conceder o item gratuito.');
+  if (typeof data !== 'number') throw new Error('O Supabase não confirmou a concessão do item.');
+  return data;
+}
+
 export interface CampaignRewardHistoryItem {
   id: number;
   campanha_id: string;
