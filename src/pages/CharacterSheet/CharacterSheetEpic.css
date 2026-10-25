@@ -1,28 +1,43 @@
-@import url("https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&display=swap");
 
-/* Dourado mais intenso: sobrescreve os tokens da ficha sem mexer no CSS global. */
+/* ==========================================================
+   RPG Platform — CharacterSheet Epic Theme (Refinado)
+   Identidade: Verde-petróleo profundo, pedra mineral, ouro ancestral,
+   iluminação âmbar mística, rubi para vida e azul arcano para mana.
+   ========================================================== */
+
 .sheet {
-  --sheet-accent: #e8b923;
-  --sheet-accent-strong: #f0c33c;
-  --sheet-border: #b8901c;
+  --sheet-accent: #d4af37;
+  --sheet-accent-strong: #f0dba2;
+  --sheet-border: rgba(199, 166, 108, 0.42);
 
-  --ep-ouro: #f0c33c;
-  --ep-ouro-forte: #e8b923;
-  --ep-ouro-escuro: #b8901c;
-  --ep-verde-fundo: #0f2a24;
-  --ep-verde-card: #17382f;
-  --ep-verde-ceu: #12352d;
-  --ep-marfim: #f6efd8;
-  --ep-suave: #bfcfc3;
-  --ep-titulo: var(--font-display, "Cinzel", "Times New Roman", serif);
+  --ep-ouro: #f0dba2;
+  --ep-ouro-forte: #d4af37;
+  --ep-ouro-escuro: #8c733e;
+  --ep-bronze: #5a482b;
+  --ep-petroleo-fundo: #071210;
+  --ep-petroleo-card: #0c1c18;
+  --ep-petroleo-elevado: #132a24;
+  --ep-marfim: #f4efe9;
+  --ep-suave: #a8b8b0;
+  --ep-titulo: var(--font-title, "Cinzel", Georgia, serif);
+  --ep-corpo: var(--font-body, "EB Garamond", serif);
 }
 
 .ep-folio {
-  background: var(--ep-verde-fundo);
-  border: 1.5px solid var(--ep-ouro-forte);
+  background: 
+    radial-gradient(ellipse 90% 60% at 50% 0%, rgba(26, 61, 53, 0.22) 0%, transparent 75%),
+    linear-gradient(180deg, #091714 0%, var(--ep-petroleo-fundo) 100%);
+  border: 1px solid rgba(199, 166, 108, 0.45);
   border-radius: 12px;
   overflow: hidden;
   color: var(--ep-marfim);
+  box-shadow: 
+    0 20px 50px rgba(0, 0, 0, 0.85),
+    0 0 35px rgba(12, 35, 29, 0.5),
+    inset 0 0 35px rgba(0, 0, 0, 0.85),
+    inset 0 1px 0 rgba(240, 219, 162, 0.15);
+  position: relative;
 }
 
 .ep-folio *,
@@ -31,17 +46,22 @@
   box-sizing: border-box;
 }
 
-/* ---------- cabeçalho ---------- */
+/* ---------- cabeçalho monumental heroico ---------- */
 
 .ep-topo {
   position: relative;
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  gap: 16px;
-  min-height: 210px;
-  padding: 20px 18px 16px;
-  background: var(--ep-verde-ceu);
+  gap: 20px;
+  min-height: 200px;
+  padding: 28px 26px 22px;
+  background: 
+    radial-gradient(ellipse 70% 65% at 50% 20%, rgba(212, 175, 55, 0.14) 0%, transparent 68%),
+    radial-gradient(circle at 12% 40%, rgba(30, 80, 70, 0.25) 0%, transparent 50%),
+    linear-gradient(180deg, #132823 0%, #0a1714 100%);
+  border-bottom: 1px solid rgba(199, 166, 108, 0.35);
+  box-shadow: inset 0 -10px 20px rgba(0, 0, 0, 0.45);
 }
 
 .ep-paisagem {
@@ -49,38 +69,46 @@
   inset: 0;
   width: 100%;
   height: 100%;
+  opacity: 0.12;
+  filter: contrast(1.15) brightness(0.9);
+  pointer-events: none;
 }
 
 .ep-identidade {
   position: relative;
   display: flex;
-  align-items: flex-end;
-  gap: 16px;
+  align-items: center;
+  gap: 22px;
   min-width: 0;
   flex: 1;
+  z-index: 2;
 }
 
 .ep-retrato-wrap {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   flex: none;
 }
 
 .ep-retrato {
-  width: 88px;
-  height: 88px;
+  width: 100px;
+  height: 100px;
   border-radius: 50%;
   border: 2px solid var(--ep-ouro-forte);
-  background: var(--ep-verde-card);
+  background: radial-gradient(circle at 35% 30%, #362916 0%, #0c1c18 78%);
   color: var(--ep-ouro);
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
   font-family: var(--ep-titulo);
-  font-size: 34px;
+  font-size: 40px;
+  box-shadow: 
+    0 0 20px rgba(212, 175, 55, 0.45),
+    0 6px 18px rgba(0, 0, 0, 0.9),
+    inset 0 0 14px rgba(0, 0, 0, 0.85);
 }
 
 .ep-retrato-img {
@@ -90,8 +118,22 @@
 }
 
 .ep-foto-btn {
-  font-size: 12px;
-  padding: 3px 10px;
+  font-family: var(--ep-titulo);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 3px;
+  border-color: rgba(199, 166, 108, 0.35);
+  color: var(--ep-suave);
+  background: rgba(7, 18, 16, 0.6);
+  transition: all 0.2s ease;
+}
+
+.ep-foto-btn:hover {
+  border-color: var(--ep-ouro-forte);
+  color: var(--ep-ouro);
+  background: rgba(19, 42, 36, 0.8);
 }
 
 .ep-nome-grupo {
@@ -101,60 +143,81 @@
 .ep-nome-grupo h1 {
   margin: 0;
   font-family: var(--ep-titulo);
-  font-weight: 500;
-  font-size: clamp(26px, 4vw, 38px);
+  font-weight: 700;
+  font-size: clamp(26px, 3.8vw, 36px);
   line-height: 1.15;
-  color: var(--ep-marfim);
+  color: var(--ep-ouro);
+  text-shadow: 
+    0 0 16px rgba(212, 175, 55, 0.4),
+    0 2px 10px rgba(0, 0, 0, 0.95);
+  letter-spacing: 0.03em;
   overflow-wrap: anywhere;
 }
 
-.ep-linhagem,
+.ep-linhagem {
+  margin: 5px 0 0;
+  color: #f7eedb;
+  font-family: var(--ep-corpo);
+  font-size: 17px;
+  font-style: italic;
+  letter-spacing: 0.02em;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
+}
+
 .ep-extra {
-  margin: 2px 0 0;
+  margin: 3px 0 0;
   color: var(--ep-suave);
-  font-size: 15px;
+  font-size: 13px;
+  letter-spacing: 0.04em;
 }
 
 .ep-nivel {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  margin-top: 8px;
-  padding: 3px 8px;
-  border: 1px solid var(--ep-ouro-forte);
-  border-radius: 999px;
-  background: rgba(15, 42, 36, 0.85);
+  margin-top: 10px;
+  padding: 3px 10px;
+  border: 1px solid rgba(212, 175, 55, 0.55);
+  border-radius: 4px;
+  background: rgba(8, 20, 17, 0.88);
+  box-shadow: 
+    0 2px 8px rgba(0, 0, 0, 0.7),
+    inset 0 1px 3px rgba(0, 0, 0, 0.8);
 }
 
 .ep-nivel-texto {
   font-family: var(--ep-titulo);
-  font-size: 15px;
-  letter-spacing: 0.06em;
+  font-size: 14px;
+  letter-spacing: 0.1em;
   color: var(--ep-ouro);
-  min-width: 70px;
+  min-width: 74px;
   text-align: center;
+  font-weight: 700;
+  text-transform: uppercase;
 }
 
 .ep-mini {
-  width: 28px;
-  height: 28px;
+  width: 26px;
+  height: 26px;
   padding: 0;
   line-height: 1;
-  font-size: 17px;
-  color: var(--ep-marfim);
-  background: var(--ep-verde-fundo);
-  border: 1px solid var(--ep-ouro-forte);
-  border-radius: 6px;
+  font-size: 16px;
+  color: var(--ep-ouro);
+  background: #112822;
+  border: 1px solid rgba(199, 166, 108, 0.45);
+  border-radius: 3px;
   cursor: pointer;
+  transition: all 0.15s ease;
 }
 
 .ep-mini:hover:not(:disabled) {
   background: var(--ep-ouro-forte);
-  color: var(--ep-verde-fundo);
+  color: #071210;
+  box-shadow: 0 0 8px rgba(212, 175, 55, 0.6);
 }
 
 .ep-mini:disabled {
-  opacity: 0.4;
+  opacity: 0.3;
   cursor: default;
 }
 
@@ -165,47 +228,53 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
+  gap: 4px;
   flex: none;
   color: var(--ep-ouro);
+  z-index: 3;
 }
 
 .ep-bolsa-botao {
-  padding: 2px;
+  padding: 4px;
   border: none;
-  border-radius: 8px;
+  border-radius: 6px;
   background: none;
   color: inherit;
   cursor: pointer;
+  filter: drop-shadow(0 0 10px rgba(212, 175, 55, 0.35));
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .ep-bolsa-botao:hover {
-  color: #fff2b8;
+  transform: scale(1.08);
+  color: #fff6db;
 }
 
 .ep-bolsa-saldo {
   display: flex;
   align-items: center;
-  gap: 4px;
-  font-size: 15px;
+  gap: 6px;
+  font-size: 14px;
+  font-family: var(--ep-titulo);
 }
 
 .ep-bolsa-input {
-  width: 80px;
-  padding: 3px 6px;
+  width: 86px;
+  padding: 4px 6px;
   text-align: center;
   font: inherit;
-  font-size: 15px;
-  color: var(--ep-marfim);
-  background: rgba(15, 42, 36, 0.85);
-  border: 1px dashed var(--ep-ouro-escuro);
-  border-radius: 6px;
+  font-size: 14px;
+  color: var(--ep-ouro);
+  background: rgba(7, 16, 14, 0.92);
+  border: 1px solid rgba(199, 166, 108, 0.4);
+  border-radius: 4px;
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.8);
   appearance: textfield;
   -moz-appearance: textfield;
 }
 
 .ep-bolsa-input:hover:not(:disabled) {
-  border-style: solid;
+  border-color: var(--ep-ouro-forte);
 }
 
 .ep-bolsa-input::-webkit-outer-spin-button,
@@ -218,40 +287,52 @@
   position: absolute;
   top: 100%;
   right: 0;
-  z-index: 5;
+  z-index: 10;
   display: flex;
   align-items: center;
-  gap: 6px;
-  margin-top: 6px;
-  padding: 8px;
-  background: var(--ep-verde-card);
-  border: 1px solid var(--ep-ouro-forte);
-  border-radius: 8px;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 10px 14px;
+  background: #0d1e1a;
+  border: 1px solid rgba(212, 175, 55, 0.55);
+  border-radius: 6px;
+  box-shadow: 
+    0 10px 30px rgba(0, 0, 0, 0.95),
+    0 0 14px rgba(212, 175, 55, 0.25);
 }
 
-/* ---------- divisor ---------- */
+/* ---------- divisor místico de rocha e luz ---------- */
 
 .ep-divisor {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 18px;
+  gap: 14px;
+  padding: 16px 26px;
 }
 
 .ep-divisor span {
   flex: 1;
   height: 1px;
-  background: var(--ep-ouro-escuro);
+  background: linear-gradient(90deg, transparent, rgba(199, 166, 108, 0.5) 40%, rgba(199, 166, 108, 0.5) 60%, transparent);
 }
 
-/* ---------- cartões ---------- */
+.ep-divisor svg {
+  filter: drop-shadow(0 0 6px rgba(240, 219, 162, 0.6));
+}
+
+/* ---------- cartões integrados à arquitetura ---------- */
 
 .ep-card {
-  margin: 0 18px 14px;
-  padding: 16px;
-  background: var(--ep-verde-card);
-  border: 1px solid var(--ep-ouro-escuro);
+  margin: 0 26px 18px;
+  padding: 20px 22px;
+  background: 
+    radial-gradient(ellipse at 50% 10%, rgba(26, 58, 50, 0.25) 0%, transparent 60%),
+    linear-gradient(180deg, var(--ep-petroleo-card) 0%, #081412 100%);
+  border: 1px solid rgba(199, 166, 108, 0.28);
   border-radius: 8px;
+  box-shadow: 
+    0 6px 20px rgba(0, 0, 0, 0.6),
+    inset 0 1px 0 rgba(240, 219, 162, 0.08);
 }
 
 .ep-blocos .ep-card {
@@ -259,126 +340,144 @@
 }
 
 .ep-card-head {
-  margin-bottom: 14px;
+  margin-bottom: 16px;
   text-align: center;
+  border-bottom: 1px solid rgba(199, 166, 108, 0.18);
+  padding-bottom: 10px;
 }
 
 .ep-card-head h2 {
   margin: 0;
   font-family: var(--ep-titulo);
-  font-weight: 500;
-  font-size: 16px;
-  letter-spacing: 0.1em;
+  font-weight: 600;
+  font-size: 15px;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--ep-ouro);
+  text-shadow: 0 0 12px rgba(212, 175, 55, 0.35);
 }
 
-/* ---------- atributos ---------- */
+/* ---------- atributos esculpidos em relevo heráldico ---------- */
 
 .ep-attr-grid {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 12px;
+  gap: 16px;
 }
 
 .ep-attr {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
-  padding: 12px 6px;
-  background: var(--ep-verde-fundo);
-  border: 1px solid var(--ep-ouro-forte);
-  border-radius: 8px;
+  gap: 4px;
+  padding: 16px 10px;
+  background: 
+    radial-gradient(circle at 50% 15%, rgba(212, 175, 55, 0.08) 0%, transparent 65%),
+    linear-gradient(180deg, var(--ep-petroleo-elevado) 0%, #0b1a17 100%);
+  border: 1px solid rgba(199, 166, 108, 0.35);
+  border-radius: 6px;
+  box-shadow: 
+    inset 0 2px 8px rgba(0, 0, 0, 0.8),
+    0 3px 10px rgba(0, 0, 0, 0.5);
+  transition: all 0.2s ease;
+}
+
+.ep-attr:hover {
+  border-color: rgba(212, 175, 55, 0.7);
+  box-shadow: 
+    inset 0 2px 8px rgba(0, 0, 0, 0.8),
+    0 0 14px rgba(212, 175, 55, 0.25);
+  transform: translateY(-1px);
 }
 
 .ep-attr-nome {
-  font-size: 14px;
+  font-family: var(--ep-titulo);
+  font-size: 13px;
+  letter-spacing: 0.12em;
   color: var(--ep-suave);
+  text-transform: uppercase;
+  font-weight: 600;
 }
 
 .ep-attr-total {
   font-family: var(--ep-titulo);
-  font-weight: 500;
+  font-weight: 700;
   font-size: 36px;
   line-height: 1.1;
   color: var(--ep-ouro);
-}
-
-.ep-attr-mod {
-  font-size: 13px;
-  color: var(--ep-suave);
+  text-shadow: 
+    0 0 14px rgba(240, 219, 162, 0.5),
+    0 2px 6px rgba(0, 0, 0, 0.9);
 }
 
 .ep-attr-soma {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 8px;
-  margin-top: 8px;
-  font-size: 14px;
+  gap: 4px;
+  margin-top: 6px;
+  font-size: 13px;
+  width: 100%;
 }
 
 .ep-attr-input {
-  width: 54px;
+  width: 52px;
   padding: 3px 4px;
   text-align: center;
-  font: inherit;
-  font-size: 14px;
+  font-family: var(--ep-titulo);
+  font-size: 13px;
   color: var(--ep-marfim);
-  background: var(--ep-verde-card);
-  border: 1px dashed var(--ep-ouro-escuro);
-  border-radius: 4px;
+  background: rgba(6, 14, 12, 0.94);
+  border: 1px solid rgba(199, 166, 108, 0.35);
+  border-radius: 3px;
   appearance: textfield;
   -moz-appearance: textfield;
 }
 
-.ep-attr-input:hover {
-  border-style: solid;
-}
-
-.ep-attr-input::-webkit-outer-spin-button,
-.ep-attr-input::-webkit-inner-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
+.ep-attr-input:focus {
+  outline: none;
+  border-color: var(--ep-ouro-forte);
+  box-shadow: 0 0 8px rgba(212, 175, 55, 0.5);
 }
 
 .ep-attr-base {
-  color: var(--ep-marfim);
+  color: var(--ep-suave);
+  font-size: 13px;
 }
 
 .ep-bonus {
+  font-size: 11px;
   color: var(--ep-ouro);
-}
-
-.ep-bonus.ep-zero {
-  color: var(--ep-suave);
-  opacity: 0.7;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(199, 166, 108, 0.18);
+  padding: 2px 7px;
+  border-radius: 3px;
+  white-space: nowrap;
 }
 
 .ep-legenda {
-  margin: 12px 0 0;
+  margin: 16px 0 0;
   text-align: center;
-  font-size: 13px;
+  font-size: 12px;
   color: var(--ep-suave);
+  font-family: var(--ep-corpo);
+  font-style: italic;
+  opacity: 0.85;
 }
 
-/* ---------- vitalidade e perícias (uma embaixo da outra) ---------- */
+/* ---------- vitalidade e perícias ---------- */
 
 .ep-blocos {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 14px;
-  padding: 0 18px 14px;
-}
-
-.ep-vitalidade {
-  grid-column: auto;
+  gap: 18px;
+  padding: 0 26px 18px;
 }
 
 .ep-vitais {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
+  gap: 18px;
 }
 
 .ep-pericias-lista {
@@ -386,7 +485,7 @@
   padding: 0;
   list-style: none;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
   gap: 8px 24px;
 }
 
@@ -394,9 +493,14 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  padding-bottom: 6px;
-  border-bottom: 1px solid #2a4a40;
+  gap: 10px;
+  padding: 6px 6px;
+  border-bottom: 1px solid rgba(199, 166, 108, 0.15);
+  transition: background 0.15s ease;
+}
+
+.ep-pericia:hover {
+  background: rgba(26, 61, 53, 0.18);
 }
 
 .ep-pericia-nome {
@@ -408,66 +512,87 @@
 
 .ep-pericia-nome strong {
   font-weight: 500;
-  font-size: 15px;
+  font-size: 14px;
   color: var(--ep-marfim);
+  letter-spacing: 0.02em;
 }
 
 .ep-pericia-nome small {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--ep-suave);
+  text-transform: uppercase;
+  font-family: var(--ep-titulo);
 }
 
 .ep-pericias .cs-skill-input {
-  width: 58px;
+  width: 54px;
   flex: none;
   text-align: center;
+  font-family: var(--ep-titulo);
   color: var(--ep-ouro);
+  background: rgba(7, 16, 14, 0.9);
+  border: 1px solid rgba(199, 166, 108, 0.35);
+  border-radius: 3px;
+  padding: 4px 0;
 }
 
-/* ---------- abas (largura total, como antes) ---------- */
+.ep-pericias .cs-skill-input:focus {
+  border-color: var(--ep-ouro-forte);
+  box-shadow: 0 0 6px rgba(212, 175, 55, 0.4);
+}
+
+/* ---------- grimório de abas ancestral ---------- */
 
 .ep-abas {
   padding: 0;
-  border-color: var(--ep-ouro-forte);
+  border-color: rgba(199, 166, 108, 0.4);
+  background: var(--ep-petroleo-card);
 }
 
 .sheet .ep-abas .sheet-tabs {
   display: flex;
-  gap: 6px;
-  padding: 8px;
-  border-bottom: 1px solid var(--ep-ouro-escuro);
+  gap: 4px;
+  padding: 8px 14px 0;
+  border-bottom: 1px solid rgba(199, 166, 108, 0.3);
   overflow-x: auto;
-  background: transparent;
+  background: #071311;
 }
 
 .sheet .ep-abas button.sheet-tab {
   flex: 1;
-  min-width: 96px;
-  padding: 10px 8px;
+  min-width: 108px;
+  padding: 12px 14px 11px;
   text-align: center;
   font-family: var(--ep-titulo);
-  font-size: 13px;
-  letter-spacing: 0.08em;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--ep-suave);
   background: transparent;
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-bottom: none;
+  border-radius: 6px 6px 0 0;
   cursor: pointer;
+  transition: all 0.2s ease;
 }
 
 .sheet .ep-abas button.sheet-tab:hover {
-  color: var(--ep-marfim);
+  color: var(--ep-ouro);
+  background: rgba(26, 61, 53, 0.25);
 }
 
 .sheet .ep-abas button.sheet-tab--active {
-  color: var(--ep-ouro);
-  background: var(--ep-verde-fundo);
-  border-color: var(--ep-ouro);
+  color: #fff6de;
+  background: var(--ep-petroleo-card);
+  border-color: rgba(199, 166, 108, 0.45);
+  border-top: 2px solid var(--ep-ouro-forte);
+  text-shadow: 0 0 10px rgba(240, 219, 162, 0.5);
 }
 
 .ep-abas .sheet-content {
-  padding: 16px;
+  padding: 22px;
+  min-height: 290px;
 }
 
 /* ---------- rodapé ---------- */
@@ -476,19 +601,20 @@
   display: flex;
   justify-content: space-between;
   gap: 12px;
-  padding: 10px 18px;
-  border-top: 1px solid var(--ep-ouro-escuro);
+  padding: 12px 26px;
+  border-top: 1px solid rgba(199, 166, 108, 0.22);
   font-family: var(--ep-titulo);
-  font-size: 12px;
-  letter-spacing: 0.08em;
+  font-size: 11px;
+  letter-spacing: 0.1em;
   color: var(--ep-suave);
+  background: #06100e;
 }
 
 .ep-rodape span:last-child {
   color: var(--ep-ouro);
 }
 
-/* ---------- responsivo ---------- */
+/* ---------- responsividade refinada ---------- */
 
 @media (max-width: 960px) {
   .ep-attr-grid {
@@ -500,16 +626,18 @@
   .ep-topo {
     flex-direction: column;
     align-items: stretch;
-    padding-top: 24px;
+    padding: 20px 16px;
+    gap: 16px;
   }
 
   .ep-bolsa {
-    align-self: flex-end;
+    align-self: flex-start;
   }
 
   .ep-identidade {
     flex-direction: column;
     align-items: flex-start;
+    gap: 14px;
   }
 
   .ep-retrato-wrap {
@@ -525,16 +653,26 @@
   }
 
   .ep-card {
-    margin-inline: 12px;
+    margin-inline: 14px;
+    padding: 16px;
   }
 
   .ep-blocos {
-    padding-inline: 12px;
+    padding-inline: 14px;
+  }
+
+  .ep-divisor {
+    padding-inline: 14px;
+  }
+
+  .ep-rodape {
+    padding-inline: 14px;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .ep-folio * {
     transition: none !important;
+    animation: none !important;
   }
 }

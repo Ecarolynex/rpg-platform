@@ -1,0 +1,4569 @@
+
+
+========== src/pages/Campaign/Campaign.tsx ==========
+
+import { useEffect, useRef, useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import {
+  creditarOuroCampanha,
+  creditarExperienciaCampanha,
+  entregarItemCampanha,
+  listarCatalogoItens,
+  listarRecompensasCampanha,
+  excluirCampanha,
+  getCatalogoGlobalClasses,
+  getCampaignAccess,
+  getCampaignResourceMaximums,
+  getCharacters,
+  getEquippedAttributeBonusesByCharacter,
+  listarConteudosClasseCampanha,
+  listarMinhasCampanhas,
+  listarPersonagensDaCampanha,
+  adicionarConteudoClasseCampanha,
+  removerConteudoClasseCampanha,
+  salvarBonusClassesCampanha,
+  type CampaignClassContent,
+  vincularPersonagem,
+  type Campaign,
+} from "../../services/api";
+import type { Character } from "../../types/character";
+import {
+  ATTRIBUTE_CONFIG,
+  normalizarBonusClassesCampanha,
+  type ClassDefinition,
+  type BaseAttributeKey,
+  type CampaignClassBonuses,
+} from "../../data/personaRules";
+import { CharacterCard } from "../../components/character/CharacterCard";
+import { StatBar } from "../../components/ui/StatBar";
+import "./Campaign.css";
+
+
+function criarIdClasseCampanha() {
+  return `camp-${globalThis.crypto?.randomUUID?.() ?? Date.now()}`;
+}
+
+function criarRequestId(): string {
+  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (token) => {
+    const value = Math.floor(Math.random() * 16);
+    return (token === "x" ? value : (value & 0x3) | 0x8).toString(16);
+  });
+}
+
+export default function Campaign() {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+
+  const [campaign, setCampaign] = useState<Campaign | null>(null);
+  const [bonusClasses, setBonusClasses] = useState<CampaignClassBonuses>(
+    () => normalizarBonusClassesCampanha(),
+  );
+  const [salvandoBonusClasses, setSalvandoBonusClasses] = useState(false);
+  const [bonusClassesMensagem, setBonusClassesMensagem] = useState("");
+  const [catalogoClasses, setCatalogoClasses] = useState<ClassDefinition[]>([]);
+  const [conteudosClasses, setConteudosClasses] = useState<CampaignClassContent[]>([]);
+  const [bonusEquipamentos, setBonusEquipamentos] = useState<Record<string, Partial<Record<BaseAttributeKey, number>>>>({});
+  const [erroBonusEquipamentos, setErroBonusEquipamentos] = useState("");
+  const [maximosServidor, setMaximosServidor] = useState<Record<string, { hp: number; mp: number; hpAtual: number; mpAtual: number }>>({});
+  const [tipoNovoConteudo, setTipoNovoConteudo] = useState<"CLASSE" | "PERICIA" | "HABILIDADE">("HABILIDADE");
+  const [classeNovoConteudo, setClasseNovoConteudo] = useState("");
+  const [nomeNovoConteudo, setNomeNovoConteudo] = useState("");
+  const [descricaoNovoConteudo, setDescricaoNovoConteudo] = useState("");
+  const [atributoNovaPericia, setAtributoNovaPericia] = useState<BaseAttributeKey>("forca");
+  const [nivelNovaHabilidade, setNivelNovaHabilidade] = useState(1);
+  const [bonusNovaClasse, setBonusNovaClasse] = useState<Record<BaseAttributeKey, number>>({
+    forca: 0, destreza: 0, constituicao: 0, inteligencia: 0, carisma: 0,
+  });
+  const [vidaNovaClasse, setVidaNovaClasse] = useState(0);
+  const [manaNovaClasse, setManaNovaClasse] = useState(0);
+  const [salvandoConteudo, setSalvandoConteudo] = useState(false);
+  const [mensagemConteudo, setMensagemConteudo] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [isMaster, setIsMaster] = useState(false);
+
+  const [todosDaCampanha, setTodosDaCampanha] = useState<Character[]>([]);
+  const [meusNaCampanha, setMeusNaCampanha] = useState<Character[]>([]);
+  const [outrosPersonagens, setOutrosPersonagens] = useState<Character[]>([]);
+  const [semCampanha, setSemCampanha] = useState<Character[]>([]);
+  const [escolhido, setEscolhido] = useState("");
+
+  const [vinculando, setVinculando] = useState(false);
+  const [confirmandoExclusao, setConfirmandoExclusao] = useState(false);
+  const [excluindo, setExcluindo] = useState(false);
+  const [erroExclusao, setErroExclusao] = useState("");
+  const [mensagem, setMensagem] = useState("");
+  const [versao, setVersao] = useState(0);
+
+  // Ferramenta do Mestre: Distribuição de Ouro
+  const [tipoRecompensa, setTipoRecompensa] = useState<"OURO" | "XP" | "ITEM">("OURO");
+  const [quantidadeRecompensa, setQuantidadeRecompensa] = useState("50");
+  const [itemRecompensa, setItemRecompensa] = useState("");
+  const [catalogoItens, setCatalogoItens] = useState<Awaited<ReturnType<typeof listarCatalogoItens>>>([]);
+  const [historicoRecompensas, setHistoricoRecompensas] = useState<Awaited<ReturnType<typeof listarRecompensasCampanha>>>([]);
+  const [destinatarioOuro, setDestinatarioOuro] = useState("TODOS");
+  const [distribuindoOuro, setDistribuindoOuro] = useState(false);
+  const [ouroMensagem, setOuroMensagem] = useState("");
+  const rewardRequestIdsRef = useRef(new Map<string, string>());
+
+  // Feedback de cópia do código
+  const [copiado, setCopiado] = useState(false);
+  const [erroCopiarConvite, setErroCopiarConvite] = useState("");
+
+  async function atualizarMaximosServidor(campanhaId: string) {
+    try {
+      const maximums = await getCampaignResourceMaximums(campanhaId);
+      setMaximosServidor(Object.fromEntries(maximums.map((row) => [row.personagem_id, {
+        hp: row.hp_max,
+        mp: row.mp_max,
+        hpAtual: row.hp_atual,
+        mpAtual: row.mp_atual,
+      }])));
+    } catch (error) {
+      console.error("Não foi possível atualizar máximos autoritativos da campanha:", error);
+      setMaximosServidor({});
+    }
+  }
+
+  useEffect(() => {
+    if (!id) return;
+
+    async function carregar(campanhaId: string) {
+      try {
+        const [campanhas, acesso, daCampanha, meus, catalogo, conteudos] = await Promise.all([
+          listarMinhasCampanhas(),
+          getCampaignAccess(campanhaId),
+          listarPersonagensDaCampanha(campanhaId),
+          getCharacters(),
+          getCatalogoGlobalClasses(),
+          listarConteudosClasseCampanha(campanhaId),
+        ]);
+
+        const meusIds = new Set(meus.map((personagem) => personagem.id));
+        const livres = meus.filter((personagem) => personagem.campanhaId === null);
+        let equipamentoPorPersonagem: Record<string, Partial<Record<BaseAttributeKey, number>>> = {};
+        try {
+          equipamentoPorPersonagem = await getEquippedAttributeBonusesByCharacter(
+            daCampanha.map((personagem) => personagem.id),
+          );
+          setErroBonusEquipamentos("");
+        } catch (error) {
+          console.error("Não foi possível carregar bônus de equipamento da campanha:", error);
+          setErroBonusEquipamentos("Bônus de equipamento não carregaram; os máximos mostrados podem estar incompletos.");
+        }
+        setBonusEquipamentos(equipamentoPorPersonagem);
+        try {
+          const maxima = await getCampaignResourceMaximums(campanhaId);
+          setMaximosServidor(Object.fromEntries(maxima.map((row) => [row.personagem_id, {
+            hp: row.hp_max,
+            mp: row.mp_max,
+            hpAtual: row.hp_atual,
+            mpAtual: row.mp_atual,
+          }])));
+        } catch (error) {
+          console.error("Não foi possível carregar máximos autoritativos da campanha:", error);
+          setMaximosServidor({});
+        }
+        // Catálogo e histórico são independentes: se um falhar, o outro ainda carrega.
+        const [catalogoResultado, historicoResultado] = await Promise.allSettled([
+          listarCatalogoItens(),
+          listarRecompensasCampanha(campanhaId),
+        ]);
+        if (catalogoResultado.status === "fulfilled") {
+          setCatalogoItens(catalogoResultado.value);
+        } else {
+          console.error("Não foi possível carregar o catálogo de itens:", catalogoResultado.reason);
+        }
+        if (historicoResultado.status === "fulfilled") {
+          setHistoricoRecompensas(historicoResultado.value);
+        } else {
+          console.error("Não foi possível carregar o histórico de recompensas:", historicoResultado.reason);
+        }
+
+        const campanhaAtual =
+          campanhas.find((item) => item.id === campanhaId) ?? null;
+        setCampaign(campanhaAtual);
+        setCatalogoClasses(catalogo);
+        setConteudosClasses(conteudos);
+        setBonusClasses({
+          ...Object.fromEntries(catalogo.map((classe) => [classe.nome, classe])),
+          ...Object.fromEntries(
+            conteudos
+              .filter((conteudo) => conteudo.tipo === "CLASSE")
+              .map((conteudo) => [
+                conteudo.nome,
+                {
+                  atributoBonus: {
+                    forca: conteudo.bonus_atributos.forca ?? 0,
+                    destreza: conteudo.bonus_atributos.destreza ?? 0,
+                    constituicao: conteudo.bonus_atributos.constituicao ?? 0,
+                    inteligencia: conteudo.bonus_atributos.inteligencia ?? 0,
+                    carisma: conteudo.bonus_atributos.carisma ?? 0,
+                  },
+                  hpBonus: conteudo.bonus_hp,
+                  mpBonus: conteudo.bonus_mp,
+                },
+              ]),
+          ),
+          ...(campanhaAtual?.bonus_classes &&
+          Object.keys(campanhaAtual.bonus_classes).length > 0
+            ? normalizarBonusClassesCampanha(campanhaAtual.bonus_classes, false)
+            : {}),
+        });
+        setIsMaster(acesso.isMaster);
+        setTodosDaCampanha(daCampanha);
+        setMeusNaCampanha(
+          meus.filter((personagem) => personagem.campanhaId === campanhaId),
+        );
+        setOutrosPersonagens(
+          daCampanha.filter((personagem) => !meusIds.has(personagem.id)),
+        );
+        setSemCampanha(livres);
+        setEscolhido((atual) =>
+          livres.some((personagem) => personagem.id === atual)
+            ? atual
+            : (livres[0]?.id ?? ""),
+        );
+      } catch (error) {
+        console.error("Erro ao carregar campanha:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    void carregar(id);
+  }, [id, versao]);
+
+  const classesDisponiveis = [
+    ...catalogoClasses,
+    ...conteudosClasses
+      .filter((conteudo) => conteudo.tipo === "CLASSE")
+      .map((conteudo) => ({
+        id: conteudo.classe_id,
+        nome: conteudo.nome,
+        atributoBonus: {
+          forca: conteudo.bonus_atributos.forca ?? 0,
+          destreza: conteudo.bonus_atributos.destreza ?? 0,
+          constituicao: conteudo.bonus_atributos.constituicao ?? 0,
+          inteligencia: conteudo.bonus_atributos.inteligencia ?? 0,
+          carisma: conteudo.bonus_atributos.carisma ?? 0,
+        },
+        hpBonus: conteudo.bonus_hp,
+        mpBonus: conteudo.bonus_mp,
+        pericias: [],
+        habilidades: [],
+      })),
+  ];
+
+  const classeNovoConteudoSelecionada = classesDisponiveis.some(
+    (classe) => classe.id === classeNovoConteudo,
+  )
+    ? classeNovoConteudo
+    : (classesDisponiveis[0]?.id ?? "");
+
+  function atualizarBonusAtributo(
+    classe: string,
+    atributo: BaseAttributeKey,
+    valor: number,
+  ) {
+    setBonusClasses((atuais) => ({
+      ...atuais,
+      [classe]: {
+        ...(atuais[classe] ?? classesDisponiveis.find((item) => item.nome === classe)),
+        atributoBonus: {
+          ...(atuais[classe]?.atributoBonus ??
+            classesDisponiveis.find((item) => item.nome === classe)?.atributoBonus ??
+            {}),
+          [atributo]: valor,
+        },
+      },
+    }));
+  }
+
+  function atualizarBonusRecurso(
+    classe: string,
+    recurso: "hpBonus" | "mpBonus",
+    valor: number,
+  ) {
+    setBonusClasses((atuais) => ({
+      ...atuais,
+      [classe]: {
+        ...(atuais[classe] ?? classesDisponiveis.find((item) => item.nome === classe)),
+        [recurso]: valor,
+      },
+    }));
+  }
+
+  async function handleSalvarBonusClasses(
+    event: React.FormEvent<HTMLFormElement>,
+  ) {
+    event.preventDefault();
+    if (!id || !isMaster || salvandoBonusClasses) return;
+
+    setSalvandoBonusClasses(true);
+    setBonusClassesMensagem("");
+
+    try {
+      const salvo = await salvarBonusClassesCampanha(id, bonusClasses);
+      setBonusClasses(salvo);
+      setCampaign((atual) =>
+        atual ? { ...atual, bonus_classes: salvo } : atual,
+      );
+      void atualizarMaximosServidor(id);
+      setBonusClassesMensagem("Bônus de classe salvos para esta campanha.");
+    } catch (error) {
+      setBonusClassesMensagem(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível salvar os bônus de classe.",
+      );
+    } finally {
+      setSalvandoBonusClasses(false);
+    }
+  }
+
+  async function handleAdicionarConteudoClasse(
+    event: React.FormEvent<HTMLFormElement>,
+  ) {
+    event.preventDefault();
+    if (!id || salvandoConteudo || !nomeNovoConteudo.trim()) return;
+
+    setSalvandoConteudo(true);
+    setMensagemConteudo("");
+    try {
+      if (
+        tipoNovoConteudo === "CLASSE" &&
+        classesDisponiveis.some(
+          (classe) =>
+            classe.nome.toLocaleLowerCase() === nomeNovoConteudo.trim().toLocaleLowerCase(),
+        )
+      ) {
+        throw new Error("Já existe uma classe com esse nome nesta campanha.");
+      }
+      const classeId =
+        tipoNovoConteudo === "CLASSE"
+          ? criarIdClasseCampanha()
+          : classeNovoConteudoSelecionada;
+      if (tipoNovoConteudo !== "CLASSE" && !classeId) {
+        throw new Error("Selecione a classe relacionada ao novo conteúdo.");
+      }
+
+      const novo = await adicionarConteudoClasseCampanha(id, {
+        classe_id: classeId,
+        tipo: tipoNovoConteudo,
+        nome: nomeNovoConteudo.trim(),
+        descricao: descricaoNovoConteudo.trim(),
+        atributo: tipoNovoConteudo === "PERICIA" ? atributoNovaPericia : null,
+        nivel: tipoNovoConteudo === "HABILIDADE" ? nivelNovaHabilidade : null,
+        bonus_atributos:
+          tipoNovoConteudo === "CLASSE" ? bonusNovaClasse : {},
+        bonus_hp: tipoNovoConteudo === "CLASSE" ? vidaNovaClasse : 0,
+        bonus_mp: tipoNovoConteudo === "CLASSE" ? manaNovaClasse : 0,
+      });
+      setConteudosClasses((atuais) => [...atuais, novo]);
+      void atualizarMaximosServidor(id);
+      if (novo.tipo === "CLASSE") {
+        setBonusClasses((atuais) => ({
+          ...atuais,
+          [novo.nome]: {
+            atributoBonus: {
+              forca: novo.bonus_atributos.forca ?? 0,
+              destreza: novo.bonus_atributos.destreza ?? 0,
+              constituicao: novo.bonus_atributos.constituicao ?? 0,
+              inteligencia: novo.bonus_atributos.inteligencia ?? 0,
+              carisma: novo.bonus_atributos.carisma ?? 0,
+            },
+            hpBonus: novo.bonus_hp,
+            mpBonus: novo.bonus_mp,
+          },
+        }));
+      }
+      setNomeNovoConteudo("");
+      setDescricaoNovoConteudo("");
+      setMensagemConteudo("Conteúdo adicionado a esta campanha.");
+    } catch (error) {
+      setMensagemConteudo(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível adicionar o conteúdo.",
+      );
+    } finally {
+      setSalvandoConteudo(false);
+    }
+  }
+
+  async function handleRemoverConteudoClasse(conteudo: CampaignClassContent) {
+    try {
+      await removerConteudoClasseCampanha(conteudo.id);
+      setConteudosClasses((atuais) =>
+        atuais.filter((item) => item.id !== conteudo.id),
+      );
+      if (id) void atualizarMaximosServidor(id);
+      setMensagemConteudo("Conteúdo removido desta campanha.");
+    } catch (error) {
+      setMensagemConteudo(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível remover o conteúdo.",
+      );
+    }
+  }
+
+  async function handleVincular(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!id || !escolhido) return;
+
+    setVinculando(true);
+    setMensagem("");
+
+    try {
+      await vincularPersonagem(escolhido, id);
+      setMensagem("Personagem vinculado à campanha com sucesso!");
+      setVersao((atual) => atual + 1);
+    } catch (error) {
+      setMensagem(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível vincular o personagem.",
+      );
+    } finally {
+      setVinculando(false);
+    }
+  }
+
+  async function handleDistribuirOuro(event: React.FormEvent) {
+    event.preventDefault();
+    const quantia = Number(quantidadeRecompensa);
+    if (!Number.isSafeInteger(quantia) || quantia <= 0 || todosDaCampanha.length === 0) return;
+    if (tipoRecompensa === "OURO" && quantia > 100000) return;
+    if (tipoRecompensa === "ITEM" && (!itemRecompensa || quantia > 9999)) return;
+
+    setDistribuindoOuro(true);
+    setOuroMensagem("");
+
+    const requestSignature = JSON.stringify([
+      id,
+      tipoRecompensa,
+      quantia,
+      destinatarioOuro,
+      tipoRecompensa === "ITEM" ? itemRecompensa : null,
+    ]);
+    let requestId = rewardRequestIdsRef.current.get(requestSignature);
+    if (!requestId) {
+      requestId = criarRequestId();
+      rewardRequestIdsRef.current.set(requestSignature, requestId);
+    }
+
+    try {
+      const alvo = destinatarioOuro === "TODOS"
+        ? null
+        : todosDaCampanha.find((character) => character.id === destinatarioOuro);
+      if (destinatarioOuro !== "TODOS" && !alvo) {
+        throw new Error("Personagem selecionado não foi encontrado.");
+      }
+
+      if (tipoRecompensa === "OURO") {
+        const count = await creditarOuroCampanha(id!, quantia, alvo?.id, requestId);
+        setOuroMensagem(destinatarioOuro === "TODOS"
+          ? `Concluído! ${quantia} PO foram distribuídos para ${count} personagens do grupo.`
+          : `Concluído! ${quantia} PO foram entregues para ${alvo?.nome}.`);
+      } else if (tipoRecompensa === "XP") {
+        const count = await creditarExperienciaCampanha(id!, quantia, alvo?.id, requestId);
+        setOuroMensagem(destinatarioOuro === "TODOS"
+          ? `Concluído! ${quantia} XP foram distribuídos para ${count} personagens do grupo.`
+          : `Concluído! ${quantia} XP foram entregues para ${alvo?.nome}.`);
+      } else {
+        const count = await entregarItemCampanha(id!, itemRecompensa, quantia, alvo?.id, requestId);
+        const nomeItem = catalogoItens.find((item) => item.itemId === itemRecompensa)?.nome ?? "item";
+        setOuroMensagem(destinatarioOuro === "TODOS"
+          ? `Concluído! ${quantia} ${nomeItem} foram entregues para ${count} personagens do grupo.`
+          : `Concluído! ${quantia} ${nomeItem} foram entregues para ${alvo?.nome}.`);
+      }
+
+      rewardRequestIdsRef.current.delete(requestSignature);
+      setVersao((v) => v + 1);
+    } catch (err) {
+      setOuroMensagem(
+        err instanceof Error ? err.message : "Erro ao entregar recompensa.",
+      );
+    } finally {
+      setDistribuindoOuro(false);
+    }
+  }
+
+  const handleCopiarCodigo = async () => {
+    if (!campaign?.codigo_convite) return;
+
+    setCopiado(false);
+    setErroCopiarConvite("");
+    try {
+      const clipboard = navigator.clipboard;
+      if (!clipboard?.writeText) throw new Error("Clipboard API indisponível.");
+      await clipboard.writeText(campaign.codigo_convite);
+      setCopiado(true);
+    } catch {
+      setErroCopiarConvite(
+        "Não foi possível copiar o convite. Selecione o código para copiá-lo manualmente.",
+      );
+    }
+  };
+
+  async function handleExcluirCampanha() {
+    if (!id || !isMaster || excluindo) return;
+
+    setExcluindo(true);
+    setErroExclusao("");
+
+    try {
+      await excluirCampanha(id);
+      navigate("/campanhas", { replace: true });
+    } catch (error) {
+      setErroExclusao(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível excluir a campanha.",
+      );
+    } finally {
+      setExcluindo(false);
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="campaign-detail-page">
+        <p>Carregando aventura e dados da mesa...</p>
+      </div>
+    );
+  }
+
+  if (!campaign) {
+    return (
+      <div className="campaign-detail-page">
+        <div className="campaign-empty-banner">
+          <h1>Campanha não encontrada</h1>
+          <p>Você não participa desta aventura ou ela foi arquivada.</p>
+          <Link to="/campanhas" className="btn-primary">
+            Voltar para Minhas Campanhas
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="campaign-detail-page">
+      {/* Cabeçalho da Campanha */}
+      {erroBonusEquipamentos && <p className="campaign-status-message" role="alert">{erroBonusEquipamentos}</p>}
+
+      <header className="campaign-detail-header">
+        <div className="campaign-detail-nav">
+          <Link to="/campanhas" className="campaign-back-link">
+            ← Minhas Campanhas
+          </Link>
+
+          <div className="campaign-header-badges">
+            <span className="campaign-badge">{campaign.status}</span>
+            {isMaster && (
+              <span className="campaign-badge campaign-badge-master">
+                👑 Mestre da Campanha
+              </span>
+            )}
+          </div>
+        </div>
+
+        <h1 className="campaign-detail-title">{campaign.nome}</h1>
+
+        <p className="campaign-detail-desc">
+          {campaign.descricao || "Nenhuma descrição cadastrada para esta aventura."}
+        </p>
+
+        <nav className="campaign-context-nav" aria-label="Áreas da campanha">
+          <span className="campaign-context-current" aria-current="page">Visão geral</span>
+          <Link className="btn-ghost" to={"/campanha/" + campaign.id + "/mapa"}>
+            Mapa
+          </Link>
+          <Link className="btn-ghost" to={"/campanha/" + campaign.id + "/bestiario"}>
+            Bestiário
+          </Link>
+          <Link className="btn-ghost" to={"/campanha/" + campaign.id + "/loja"}>
+            Loja
+          </Link>
+          <Link className="btn-ghost" to={"/campanha/" + campaign.id + "/dados"}>
+            Dados
+          </Link>
+        </nav>
+      </header>
+
+      {/* Grid de Metadados da Campanha */}
+      <div className="campaign-meta-grid">
+        <div className="campaign-meta-card">
+          <span>Sistema de Regras</span>
+          <strong>{campaign.sistema || "D&D 5e / Custom"}</strong>
+        </div>
+
+        <div className="campaign-meta-card">
+          <span>Moeda Principal</span>
+          <strong>{campaign.moeda_principal || "Ouro (PO)"}</strong>
+        </div>
+
+        <div className="campaign-meta-card">
+          <span>Ouro Inicial por Jogador</span>
+          <strong>{campaign.ouro_inicial ?? 1250} PO</strong>
+        </div>
+
+        <div className="campaign-meta-card">
+          <span>Código de Convite</span>
+          <div className="campaign-code-highlight">
+            <strong>{campaign.codigo_convite}</strong>
+            <button
+              type="button"
+              className="btn-ghost campaign-copy-btn"
+              onClick={handleCopiarCodigo}
+            >
+              {copiado ? "Copiado!" : "Copiar"}
+            </button>
+          </div>
+          {copiado && (
+            <p className="campaign-copy-feedback" role="status">
+              Convite copiado!
+            </p>
+          )}
+          {erroCopiarConvite && (
+            <p className="campaign-copy-feedback campaign-copy-feedback--error" role="alert">
+              {erroCopiarConvite}
+            </p>
+          )}
+        </div>
+      </div>
+
+      <section className="campaign-section campaign-content-section">
+        <div className="campaign-section-header">
+          <div className="campaign-section-title">
+            <h2>Classes e conteúdos desta campanha</h2>
+          </div>
+        </div>
+        <p className="campaign-content-intro">
+          O catálogo global está disponível para todos. Somente o Mestre pode
+          adicionar ou remover classes, perícias e habilidades desta aventura.
+        </p>
+        {isMaster && (
+        <form
+          className="campaign-content-form"
+          onSubmit={handleAdicionarConteudoClasse}
+        >
+          <label>
+            <span>O que deseja adicionar?</span>
+            <select
+              value={tipoNovoConteudo}
+              onChange={(event) => setTipoNovoConteudo(
+                event.target.value as "CLASSE" | "PERICIA" | "HABILIDADE",
+              )}
+              disabled={salvandoConteudo}
+            >
+              <option value="CLASSE">Nova classe</option>
+              <option value="PERICIA">Perícia de classe</option>
+              <option value="HABILIDADE">Habilidade de classe</option>
+            </select>
+          </label>
+          {tipoNovoConteudo !== "CLASSE" && (
+            <label>
+              <span>Classe</span>
+              <select
+                value={classeNovoConteudoSelecionada}
+                onChange={(event) => setClasseNovoConteudo(event.target.value)}
+                required
+              >
+                {classesDisponiveis.map((classe) => (
+                  <option value={classe.id} key={classe.id}>{classe.nome}</option>
+                ))}
+              </select>
+            </label>
+          )}
+          <label>
+            <span>{tipoNovoConteudo === "CLASSE" ? "Nome da classe" : "Nome"}</span>
+            <input
+              value={nomeNovoConteudo}
+              onChange={(event) => setNomeNovoConteudo(event.target.value)}
+              maxLength={100}
+              required
+            />
+          </label>
+          {tipoNovoConteudo === "PERICIA" && (
+            <label>
+              <span>Atributo relacionado</span>
+              <select
+                value={atributoNovaPericia}
+                onChange={(event) =>
+                  setAtributoNovaPericia(event.target.value as BaseAttributeKey)
+                }
+              >
+                {ATTRIBUTE_CONFIG.map(({ key, label }) => (
+                  <option value={key} key={key}>{label}</option>
+                ))}
+              </select>
+            </label>
+          )}
+          {tipoNovoConteudo === "HABILIDADE" && (
+            <label>
+              <span>Nível de desbloqueio</span>
+              <input
+                type="number"
+                min={1}
+                max={20}
+                value={nivelNovaHabilidade}
+                onChange={(event) =>
+                  setNivelNovaHabilidade(
+                    Math.max(1, Math.min(20, Number(event.target.value) || 1)),
+                  )
+                }
+              />
+            </label>
+          )}
+          {tipoNovoConteudo === "CLASSE" && (
+            <>
+              <div className="campaign-new-class-attributes">
+                {ATTRIBUTE_CONFIG.map(({ key, label }) => (
+                  <label key={key}>
+                    <span>{label}</span>
+                    <input
+                      type="number"
+                      aria-label={`Bônus de ${label}`}
+                      value={bonusNovaClasse[key]}
+                      onChange={(event) =>
+                        setBonusNovaClasse((atual) => ({
+                          ...atual,
+                          [key]: Number(event.target.value) || 0,
+                        }))
+                      }
+                    />
+                  </label>
+                ))}
+                <label>
+                  <span>PV</span>
+                  <input
+                    type="number"
+                    aria-label="Bônus de PV"
+                    value={vidaNovaClasse}
+                    onChange={(event) => setVidaNovaClasse(Number(event.target.value) || 0)}
+                  />
+                </label>
+                <label>
+                  <span>PM</span>
+                  <input
+                    type="number"
+                    aria-label="Bônus de PM"
+                    value={manaNovaClasse}
+                    onChange={(event) => setManaNovaClasse(Number(event.target.value) || 0)}
+                  />
+                </label>
+              </div>
+              <label className="campaign-content-description">
+                <span>Descrição (opcional)</span>
+                <textarea
+                  rows={2}
+                  value={descricaoNovoConteudo}
+                  onChange={(event) => setDescricaoNovoConteudo(event.target.value)}
+                />
+              </label>
+            </>
+          )}
+          {tipoNovoConteudo !== "CLASSE" && (
+            <label className="campaign-content-description">
+              <span>Descrição</span>
+              <textarea
+                rows={2}
+                value={descricaoNovoConteudo}
+                onChange={(event) => setDescricaoNovoConteudo(event.target.value)}
+              />
+            </label>
+          )}
+          <button className="btn-primary" type="submit" disabled={salvandoConteudo}>
+            {salvandoConteudo ? "Adicionando..." : "Adicionar à campanha"}
+          </button>
+        </form>
+        )}
+        {mensagemConteudo && (
+          <p className="campaign-content-message" role="status">{mensagemConteudo}</p>
+        )}
+        <div className="campaign-content-list">
+          {conteudosClasses.map((conteudo) => (
+            <article className="campaign-content-card" key={conteudo.id}>
+              <div>
+                <span className="campaign-content-kind">
+                  {conteudo.tipo === "CLASSE"
+                    ? "Classe da campanha"
+                    : conteudo.tipo === "PERICIA"
+                      ? "Perícia"
+                      : "Habilidade"}
+                  {conteudo.tipo !== "CLASSE" &&
+                    ` · ${classesDisponiveis.find((classe) => classe.id === conteudo.classe_id)?.nome ?? "Classe"}`}
+                </span>
+                <h3>{conteudo.nome}</h3>
+                {conteudo.tipo === "CLASSE" && (
+                  <p>
+                    Bônus: {ATTRIBUTE_CONFIG.map(({ key, abbr }) =>
+                      `${abbr} ${conteudo.bonus_atributos[key] ?? 0}`,
+                    ).join(" · ")} · PV {conteudo.bonus_hp} · PM {conteudo.bonus_mp}
+                  </p>
+                )}
+                {conteudo.tipo === "PERICIA" && (
+                  <p>Atributo: {ATTRIBUTE_CONFIG.find(({ key }) => key === conteudo.atributo)?.label}</p>
+                )}
+                {conteudo.tipo === "HABILIDADE" && <p>Desbloqueia no nível {conteudo.nivel}</p>}
+                {conteudo.descricao && <p>{conteudo.descricao}</p>}
+              </div>
+              {isMaster && (
+                <button
+                  type="button"
+                  className="campaign-content-remove"
+                  onClick={() => void handleRemoverConteudoClasse(conteudo)}
+                >
+                  Remover
+                </button>
+              )}
+            </article>
+          ))}
+          {conteudosClasses.length === 0 && (
+            <p className="campaign-content-empty">
+              Ainda não há conteúdo personalizado nesta campanha.
+            </p>
+          )}
+        </div>
+      </section>
+
+      {/* PAINEL DO MESTRE: Visível apenas se o usuário for o Mestre */}
+      {isMaster && (
+        <section className="campaign-section">
+          <div className="campaign-section-header">
+            <div className="campaign-section-title">
+              <h2>👑 Painel de Controle do Mestre</h2>
+              <span className="campaign-section-badge">
+                {todosDaCampanha.length} {todosDaCampanha.length === 1 ? "Personagem" : "Personagens"} na Mesa
+              </span>
+            </div>
+          </div>
+
+          <p style={{ color: "var(--muted)", margin: "0 0 16px" }}>
+            Como Mestre, você pode visualizar e alterar livremente a vida, mana, dinheiro e atributos de todos os personagens da aventura.
+          </p>
+
+          <form
+            className="campaign-class-bonuses"
+            onSubmit={handleSalvarBonusClasses}
+          >
+            <div className="campaign-class-bonuses-heading">
+              <div>
+                <h3>Bônus de classe desta campanha</h3>
+                <p>
+                  Defina bônus dos atributos disponíveis, vida e mana. Estes
+                  valores substituem os padrões e são usados na criação
+                  de personagens vinculados a esta campanha.
+                </p>
+              </div>
+              <button
+                type="submit"
+                className="btn-primary"
+                disabled={salvandoBonusClasses}
+              >
+                {salvandoBonusClasses ? "Salvando..." : "Salvar bônus"}
+              </button>
+            </div>
+
+            <div className="campaign-class-bonus-grid">
+              {classesDisponiveis.map((classe) => {
+                const bonusAtual = bonusClasses[classe.nome] ?? classe;
+                return (
+                <fieldset className="campaign-class-bonus-card" key={classe.id}>
+                  <legend>{classe.nome}</legend>
+                  <div className="campaign-class-bonus-fields">
+                    {ATTRIBUTE_CONFIG.map((atributo) => (
+                      <label key={atributo.key}>
+                        <span>{atributo.label}</span>
+                        <input
+                          type="number"
+                          step="1"
+                          aria-label={`${classe.nome} - ${atributo.label}`}
+                          value={bonusAtual.atributoBonus[atributo.key]}
+                          disabled={salvandoBonusClasses}
+                          onChange={(event) =>
+                            atualizarBonusAtributo(
+                              classe.nome,
+                              atributo.key,
+                              Number(event.target.value) || 0,
+                            )
+                          }
+                        />
+                      </label>
+                    ))}
+                    <label>
+                      <span>Vida (PV)</span>
+                      <input
+                        type="number"
+                        step="1"
+                        aria-label={`${classe.nome} - Bônus de vida`}
+                        value={bonusAtual.hpBonus}
+                        disabled={salvandoBonusClasses}
+                        onChange={(event) =>
+                          atualizarBonusRecurso(
+                            classe.nome,
+                            "hpBonus",
+                            Number(event.target.value) || 0,
+                          )
+                        }
+                      />
+                    </label>
+                    <label>
+                      <span>Mana (PM)</span>
+                      <input
+                        type="number"
+                        step="1"
+                        aria-label={`${classe.nome} - Bônus de mana`}
+                        value={bonusAtual.mpBonus}
+                        disabled={salvandoBonusClasses}
+                        onChange={(event) =>
+                          atualizarBonusRecurso(
+                            classe.nome,
+                            "mpBonus",
+                            Number(event.target.value) || 0,
+                          )
+                        }
+                      />
+                    </label>
+                  </div>
+                </fieldset>
+                );
+              })}
+            </div>
+            {bonusClassesMensagem && (
+              <p className="campaign-class-bonuses-message" role="status">
+                {bonusClassesMensagem}
+              </p>
+            )}
+          </form>
+
+          {todosDaCampanha.length > 0 ? (
+            <div className="party-overview-grid">
+              {todosDaCampanha.map((personagem) => {
+                const po = personagem.carteira?.po ?? 0;
+                const maximosAutoritativos = maximosServidor[personagem.id];
+                const hpMax = personagem.hp?.max ?? maximosAutoritativos?.hp ?? 200;
+                const mpMax = personagem.mp?.max ?? maximosAutoritativos?.mp ?? 200;
+                const hpAtual = Math.min(personagem.hp?.atual ?? 200, hpMax);
+                const mpAtual = Math.min(personagem.mp?.atual ?? 200, mpMax);
+                return (
+                  <article key={personagem.id} className="party-char-card">
+                    <div className="party-char-head">
+                      <div className="party-char-portrait">
+                        {personagem.portraitUrl ? (
+                          <img src={personagem.portraitUrl} alt={personagem.nome} />
+                        ) : (
+                          personagem.nome.charAt(0)
+                        )}
+                      </div>
+
+                      <div className="party-char-info">
+                        <h3>{personagem.nome}</h3>
+                        <p className="party-char-meta">
+                          {personagem.raca} · {personagem.classe} · Nvl {personagem.nivel}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="party-char-stats-row">
+                      <div className="party-stat-mini">
+                        <span>Vida</span>
+                        <strong>{hpAtual} / {hpMax}</strong>
+                      </div>
+                      <div className="party-stat-mini">
+                        <span>Mana</span>
+                        <strong>{mpAtual} / {mpMax}</strong>
+                      </div>
+                      <div className="party-stat-mini">
+                        <span>Ouro</span>
+                        <strong style={{ color: "var(--gold-bright)" }}>{po} PO</strong>
+                      </div>
+                    </div>
+
+                    <div className="party-char-vitals">
+                      <StatBar
+                        label="Vida"
+                        atual={hpAtual}
+                        max={hpMax}
+                        tone="wine"
+                      />
+                      <StatBar
+                        label="Mana"
+                        atual={mpAtual}
+                        max={mpMax}
+                        tone="forest"
+                      />
+                    </div>
+
+                    <div className="party-char-actions">
+                      <Link
+                        className="btn-primary"
+                        to={"/personagem/" + personagem.id}
+                      >
+                        Abrir / Alterar Ficha
+                      </Link>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="campaign-empty-banner">
+              <p>Nenhum personagem de jogador entrou na campanha ainda.</p>
+              <p>
+                Compartilhe o código <strong>{campaign.codigo_convite}</strong> com seus jogadores para que eles possam vincular seus personagens.
+              </p>
+            </div>
+          )}
+
+          {/* Ferramenta de Recompensa do Mestre: Distribuir Ouro */}
+          {todosDaCampanha.length > 0 && (
+            <div className="master-reward-box">
+              <div className="master-reward-info">
+                <h4>Entregar recompensa</h4>
+                <p>Distribua ouro ou XP para todo o grupo ou para um personagem específico.</p>
+              </div>
+
+              <form onSubmit={handleDistribuirOuro} className="master-reward-form">
+                <div className="master-reward-field">
+                  <label htmlFor="master-reward-type">Tipo de recompensa</label>
+                  <select
+                    id="master-reward-type"
+                    className="master-reward-select"
+                    value={tipoRecompensa}
+                    onChange={(event) => setTipoRecompensa(event.target.value as "OURO" | "XP" | "ITEM")}
+                    disabled={distribuindoOuro}
+                  >
+                    <option value="OURO">Ouro</option>
+                    <option value="XP">Experiência (XP)</option>
+                    <option value="ITEM">Item</option>
+                  </select>
+                </div>
+                {tipoRecompensa === "ITEM" && (
+                  <div className="master-reward-field">
+                    <label htmlFor="master-reward-item">Item</label>
+                    <select
+                      id="master-reward-item"
+                      className="master-reward-select"
+                      value={itemRecompensa}
+                      onChange={(event) => setItemRecompensa(event.target.value)}
+                      disabled={distribuindoOuro}
+                      required
+                    >
+                      <option value="">Selecione um item do catálogo</option>
+                      {catalogoItens.map((item) => (
+                        <option key={item.itemId} value={item.itemId}>{item.nome}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+                <div className="master-reward-field">
+                  <label htmlFor="master-gold-input">Quantidade</label>
+                  <div className="master-reward-amount-wrap">
+                    <input
+                      id="master-gold-input"
+                      type="number"
+                      className="master-reward-input"
+                      min="1"
+                      max={tipoRecompensa === "OURO" ? 100000 : tipoRecompensa === "ITEM" ? 9999 : 2147483647}
+                      value={quantidadeRecompensa}
+                      onChange={(event) => setQuantidadeRecompensa(event.target.value)}
+                      disabled={distribuindoOuro}
+                    />
+                    <span className="master-reward-unit">{tipoRecompensa === "OURO" ? "PO" : tipoRecompensa === "XP" ? "XP" : "un."}</span>
+                  </div>
+                </div>
+
+                <div className="master-reward-field">
+                  <label htmlFor="master-target-select">Destinatário</label>
+                  <select
+                    id="master-target-select"
+                    className="master-reward-select"
+                    value={destinatarioOuro}
+                    onChange={(e) => setDestinatarioOuro(e.target.value)}
+                    disabled={distribuindoOuro}
+                  >
+                    <option value="TODOS">✦ Todos os Jogadores ({todosDaCampanha.length})</option>
+                    <optgroup label="Jogador Específico">
+                      {todosDaCampanha.map((char) => (
+                        <option key={char.id} value={char.id}>
+                          {char.nome} ({char.classe} · Nvl {char.nivel} · {char.xp ?? 0} XP)
+                        </option>
+                      ))}
+                    </optgroup>
+                  </select>
+                </div>
+
+                <button
+                  type="submit"
+                  className="btn-primary master-reward-submit"
+                  disabled={distribuindoOuro || !quantidadeRecompensa || Number(quantidadeRecompensa) <= 0 || (tipoRecompensa === "OURO" && Number(quantidadeRecompensa) > 100000) || (tipoRecompensa === "ITEM" && (!itemRecompensa || Number(quantidadeRecompensa) > 9999)) || Number(quantidadeRecompensa) > 2147483647}
+                >
+                  {distribuindoOuro ? "Entregando..." : "Entregar Recompensa"}
+                </button>
+              </form>
+            </div>
+          )}
+
+          {ouroMensagem && (
+            <p style={{ marginTop: 12, color: "var(--gold-bright)", fontWeight: 600 }}>
+              {ouroMensagem}
+            </p>
+          )}
+        </section>
+      )}
+
+      {historicoRecompensas.length > 0 && (
+        <section className="campaign-section" aria-labelledby="reward-history-title">
+          <div className="campaign-section-header">
+            <div className="campaign-section-title">
+              <h2 id="reward-history-title">Histórico de recompensas</h2>
+            </div>
+          </div>
+          <ul className="campaign-content-list">
+            {historicoRecompensas.map((reward) => {
+              const item = reward.item_id ? catalogoItens.find((entry) => entry.itemId === reward.item_id) : undefined;
+              const recipient = reward.personagem_id
+                ? todosDaCampanha.find((character) => character.id === reward.personagem_id)?.nome ?? "Personagem removido"
+                : `${reward.total_destinatarios} personagens`;
+              const description = reward.tipo === "OURO"
+                ? `${reward.quantidade} PO`
+                : reward.tipo === "XP"
+                  ? `${reward.quantidade} XP`
+                  : `${reward.quantidade_item ?? reward.quantidade} × ${item?.nome ?? "item removido"}`;
+              return (
+                <li key={reward.id} className="campaign-content-card">
+                  <strong>{description}</strong>
+                  <span> para {recipient}</span>
+                  <time dateTime={reward.created_at}>{new Date(reward.created_at).toLocaleString()}</time>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
+
+      {/* ÁREA DO JOGADOR: Meu Personagem na Campanha */}
+      <section className="campaign-section">
+        <div className="campaign-section-header">
+          <div className="campaign-section-title">
+            <h2>Meu personagem nesta aventura</h2>
+          </div>
+        </div>
+
+        {meusNaCampanha.length > 0 ? (
+          <div className="dashboard-grid">
+            {meusNaCampanha.map((personagem) => (
+              <CharacterCard
+                key={personagem.id}
+                character={personagem}
+                rulesContext={{
+                  classCatalog: catalogoClasses,
+                  campaignClassBonuses: bonusClasses,
+                  campaignClassContents: conteudosClasses,
+                  equippedItemBonuses: bonusEquipamentos[personagem.id]
+                    ? [bonusEquipamentos[personagem.id]]
+                    : [],
+                  serverResourceMaximums: maximosServidor[personagem.id]
+                    ? { hpMax: maximosServidor[personagem.id].hp, mpMax: maximosServidor[personagem.id].mp }
+                    : undefined,
+                }}
+              />
+            ))}
+          </div>
+        ) : isMaster ? (
+          <div>
+            <p style={{ color: "var(--muted)" }}>
+              Você está atuando como <strong>Mestre</strong> nesta campanha. Mestres não precisam de um personagem de jogador para narrar.
+            </p>
+            {semCampanha.length > 0 && (
+              <details style={{ marginTop: 12, cursor: "pointer" }}>
+                <summary style={{ color: "var(--gold-bright)", fontSize: "0.9rem" }}>
+                  Deseja vincular um personagem ou NPC próprio a esta campanha?
+                </summary>
+                <form onSubmit={handleVincular} style={{ marginTop: 12 }}>
+                  <label className="field">
+                    <span>Escolher personagem</span>
+                    <select
+                      value={escolhido}
+                      onChange={(event) => setEscolhido(event.target.value)}
+                    >
+                      {semCampanha.map((personagem) => (
+                        <option key={personagem.id} value={personagem.id}>
+                          {personagem.nome} · {personagem.raca} · {personagem.classe}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <button
+                    type="submit"
+                    className="btn-primary"
+                    style={{ marginTop: 8 }}
+                    disabled={vinculando || !escolhido}
+                  >
+                    {vinculando ? "Vinculando..." : "Vincular à campanha"}
+                  </button>
+                </form>
+              </details>
+            )}
+          </div>
+        ) : semCampanha.length > 0 ? (
+          <form onSubmit={handleVincular}>
+            <p>Escolha qual personagem vai participar desta campanha.</p>
+
+            <label className="field">
+              <span>Personagem</span>
+              <select
+                value={escolhido}
+                onChange={(event) => setEscolhido(event.target.value)}
+              >
+                {semCampanha.map((personagem) => (
+                  <option key={personagem.id} value={personagem.id}>
+                    {personagem.nome} · {personagem.raca} · {personagem.classe}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <button
+              type="submit"
+              className="btn-primary"
+              disabled={vinculando || !escolhido}
+            >
+              {vinculando ? "Vinculando..." : "Vincular à campanha"}
+            </button>
+          </form>
+        ) : (
+          <p>
+            Você ainda não tem um personagem livre para esta campanha.{" "}
+            <Link to="/">Crie um em Meus personagens</Link> e volte aqui.
+          </p>
+        )}
+
+        {mensagem && (
+          <p style={{ marginTop: 12, color: "var(--gold-bright)" }}>
+            {mensagem}
+          </p>
+        )}
+      </section>
+
+      {/* Companheiros de Aventura (visão para jogadores quando não são mestre) */}
+      {!isMaster && outrosPersonagens.length > 0 && (
+        <section className="campaign-section">
+          <div className="campaign-section-header">
+            <div className="campaign-section-title">
+              <h2>Companheiros de Grupo</h2>
+              <span className="campaign-section-badge">
+                {outrosPersonagens.length} Aventureiros
+              </span>
+            </div>
+          </div>
+
+          <div className="dashboard-grid">
+            {outrosPersonagens.map((personagem) => (
+              <CharacterCard
+                key={personagem.id}
+                character={personagem}
+                rulesContext={{
+                  classCatalog: catalogoClasses,
+                  campaignClassBonuses: bonusClasses,
+                  campaignClassContents: conteudosClasses,
+                  equippedItemBonuses: bonusEquipamentos[personagem.id]
+                    ? [bonusEquipamentos[personagem.id]]
+                    : [],
+                  serverResourceMaximums: maximosServidor[personagem.id]
+                    ? { hpMax: maximosServidor[personagem.id].hp, mpMax: maximosServidor[personagem.id].mp }
+                    : undefined,
+                }}
+              />
+            ))}
+          </div>
+        </section>
+      )}
+      {isMaster && (
+        <section className="campaign-danger-zone" aria-labelledby="campaign-danger-title">
+          <div>
+            <h2 id="campaign-danger-title">Zona de perigo</h2>
+            <p>A exclusão remove a campanha e não pode ser desfeita.</p>
+          </div>
+
+          {!confirmandoExclusao ? (
+            <button
+              type="button"
+              className="campaign-delete-trigger"
+              onClick={() => {
+                setErroExclusao("");
+                setConfirmandoExclusao(true);
+              }}
+            >
+              Excluir campanha
+            </button>
+          ) : (
+            <div
+              className="campaign-delete-confirmation"
+              role="alertdialog"
+              aria-labelledby="campaign-delete-confirm-title"
+              aria-describedby="campaign-delete-confirm-description"
+            >
+              <div>
+                <h3 id="campaign-delete-confirm-title">Excluir “{campaign.nome}”?</h3>
+                <p id="campaign-delete-confirm-description">
+                  Esta ação é permanente. Confirme somente se deseja apagar esta campanha.
+                </p>
+              </div>
+              {erroExclusao && <p className="campaign-delete-error" role="alert">{erroExclusao}</p>}
+              <div className="campaign-delete-confirm-actions">
+                <button
+                  type="button"
+                  className="btn-ghost"
+                  onClick={() => setConfirmandoExclusao(false)}
+                  disabled={excluindo}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  className="campaign-delete-confirm-button"
+                  onClick={() => void handleExcluirCampanha()}
+                  disabled={excluindo}
+                >
+                  {excluindo ? "Excluindo..." : "Confirmar exclusão"}
+                </button>
+              </div>
+            </div>
+          )}
+        </section>
+      )}
+    </div>
+  );
+}
+
+
+
+========== src/pages/Campaign/Campaign.css ==========
+
+/* Estilos da Página da Campanha e Painel do Mestre */
+
+.campaign-detail-page {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 24px 16px 64px;
+}
+
+.campaign-detail-header {
+  border: 1px solid var(--border-strong);
+  background: linear-gradient(180deg, rgba(26, 61, 57, 0.9), rgba(9, 23, 19, 0.94));
+  border-radius: var(--radius-panel);
+  padding: 24px 28px;
+  margin-bottom: 24px;
+  box-shadow: var(--shadow-panel), inset 0 0 0 1px rgba(240, 219, 162, 0.08);
+  position: relative;
+}
+
+.campaign-detail-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.campaign-back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--gold-bright, #f0cf6e);
+  text-decoration: none;
+  font-size: 0.88rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 4px;
+  background: rgba(201, 162, 39, 0.1);
+  border: 1px solid rgba(201, 162, 39, 0.25);
+  transition: all 0.15s ease;
+}
+
+.campaign-back-link:hover {
+  background: rgba(201, 162, 39, 0.25);
+  border-color: var(--gold-bright, #f0cf6e);
+  transform: translateX(-2px);
+}
+
+.campaign-header-badges {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.campaign-badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 4px;
+  border: 1px solid rgba(201, 162, 39, 0.4);
+  background: rgba(201, 162, 39, 0.12);
+  color: var(--gold-bright, #f0cf6e);
+}
+
+.campaign-badge-master {
+  border-color: #f59e0b;
+  background: linear-gradient(180deg, rgba(245, 158, 11, 0.25), rgba(180, 83, 9, 0.35));
+  color: #fef3c7;
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.2);
+}
+
+.campaign-detail-title {
+  margin: 10px 0 8px;
+  font-family: var(--font-title, serif);
+  font-size: 2.2rem;
+  color: var(--gold-bright, #f0cf6e);
+  letter-spacing: 0.04em;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+}
+
+.campaign-detail-desc {
+  color: var(--muted, rgba(236, 223, 192, 0.8));
+  font-size: 1.05rem;
+  line-height: 1.6;
+  max-width: 800px;
+  margin-bottom: 20px;
+}
+
+.campaign-context-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.campaign-context-nav .btn-ghost,
+.campaign-context-current {
+  min-height: 42px;
+  padding: 9px 14px;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.campaign-context-current {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-control);
+  background: rgba(199, 166, 108, 0.12);
+  color: var(--gold-bright);
+}
+
+/* Dados da Campanha Grid */
+.campaign-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  margin-bottom: 28px;
+}
+
+.campaign-meta-card {
+  min-width: 0;
+  background: rgba(16, 43, 40, 0.72);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-control);
+  padding: 12px 16px;
+}
+
+.campaign-meta-card span {
+  display: block;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted, rgba(236, 223, 192, 0.65));
+  margin-bottom: 4px;
+}
+
+.campaign-meta-card strong {
+  font-size: 1.15rem;
+  color: var(--parchment, #fff0cc);
+  font-family: var(--font-display, inherit);
+}
+
+.campaign-code-highlight {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.campaign-code-highlight strong {
+  font-size: 1.3rem;
+  color: var(--gold-bright, #f0cf6e);
+  letter-spacing: 0.1em;
+}
+
+.campaign-copy-btn {
+  font-size: 0.72rem;
+  padding: 3px 8px;
+}
+
+.campaign-copy-feedback {
+  margin-top: 6px;
+  color: var(--status-success-text);
+  font-size: 0.78rem;
+}
+
+.campaign-copy-feedback--error {
+  color: var(--status-error-text);
+}
+
+/* Seções e Painéis */
+.campaign-section {
+  min-width: 0;
+  border: 1px solid var(--border-subtle);
+  background: rgba(16, 43, 40, 0.66);
+  border-radius: var(--radius-panel);
+  padding: 22px;
+  margin-bottom: 24px;
+  box-shadow: inset 0 1px 0 rgba(240, 219, 162, 0.04);
+}
+
+.campaign-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(201, 162, 39, 0.2);
+}
+
+.campaign-section-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.campaign-section-title h2 {
+  margin: 0;
+  font-family: var(--font-title, serif);
+  font-size: 1.4rem;
+  color: var(--gold-bright, #f0cf6e);
+}
+
+.campaign-section-badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 12px;
+  background: rgba(201, 162, 39, 0.15);
+  color: var(--gold-bright, #f0cf6e);
+}
+
+/* Painel do Mestre - Acompanhamento do Grupo */
+.party-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+  margin-top: 14px;
+}
+
+.party-char-card {
+  border: 1px solid rgba(201, 162, 39, 0.35);
+  background: linear-gradient(180deg, rgba(28, 20, 13, 0.9) 0%, rgba(16, 11, 7, 0.95) 100%);
+  border-radius: 6px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.party-char-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--gold-bright, #f0cf6e);
+}
+
+.party-char-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.party-char-portrait {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: 2px solid var(--gold-bright, #f0cf6e);
+  background: rgba(10, 7, 5, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.3rem;
+  font-weight: bold;
+  color: var(--gold-bright, #f0cf6e);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.party-char-portrait img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.party-char-info h3 {
+  margin: 0 0 2px;
+  font-size: 1.15rem;
+  color: var(--parchment, #fff0cc);
+  font-family: var(--font-title, serif);
+}
+
+.party-char-meta {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--muted, rgba(236, 223, 192, 0.7));
+}
+
+.party-char-stats-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 6px;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 6px 8px;
+  border-radius: 4px;
+  text-align: center;
+}
+
+.party-stat-mini span {
+  display: block;
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  color: var(--muted, rgba(236, 223, 192, 0.6));
+}
+
+.party-stat-mini strong {
+  font-size: 0.95rem;
+  color: var(--parchment, #fff0cc);
+}
+
+.party-char-vitals {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.party-char-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 8px;
+  border-top: 1px solid rgba(201, 162, 39, 0.15);
+}
+
+.party-char-actions .btn-primary {
+  flex: 1;
+  text-align: center;
+  text-decoration: none;
+  font-size: 0.82rem;
+  padding: 6px 12px;
+}
+
+/* Ferramenta de Recompensa do Mestre */
+.master-reward-box {
+  background: rgba(36, 24, 15, 0.5);
+  border: 1px dashed rgba(240, 207, 110, 0.4);
+  border-radius: 6px;
+  padding: 14px 18px;
+  margin-top: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.master-reward-info h4 {
+  margin: 0 0 4px;
+  color: var(--gold-bright, #f0cf6e);
+  font-size: 1rem;
+}
+
+.master-reward-info p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--muted, rgba(236, 223, 192, 0.7));
+}
+
+.master-reward-form {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.master-reward-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.master-reward-field label {
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted, rgba(236, 223, 192, 0.7));
+  font-weight: 600;
+}
+
+.master-reward-amount-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.master-reward-input {
+  width: 90px;
+  padding: 8px 10px;
+  border-radius: 4px;
+  border: 1px solid rgba(240, 207, 110, 0.4);
+  background: rgba(10, 7, 5, 0.85);
+  color: var(--gold-bright, #f0cf6e);
+  font-weight: 700;
+  font-size: 1rem;
+  text-align: right;
+}
+
+.master-reward-unit {
+  font-weight: bold;
+  color: var(--gold-bright, #f0cf6e);
+  font-size: 0.95rem;
+}
+
+.master-reward-select {
+  padding: 8px 12px;
+  border-radius: 4px;
+  border: 1px solid rgba(240, 207, 110, 0.4);
+  background: rgba(18, 12, 8, 0.9);
+  color: var(--parchment, #fff0cc);
+  font-weight: 600;
+  font-size: 0.9rem;
+  min-width: 220px;
+  cursor: pointer;
+  height: 38px;
+}
+
+.master-reward-select:focus {
+  border-color: var(--gold-bright, #f0cf6e);
+  outline: none;
+  box-shadow: 0 0 6px rgba(240, 207, 110, 0.3);
+}
+
+.master-reward-submit {
+  padding: 8px 16px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  height: 38px;
+  white-space: nowrap;
+}
+
+.campaign-class-bonuses {
+  margin: 20px 0 24px;
+  padding: 18px;
+  border: 1px solid rgba(240, 207, 110, 0.3);
+  border-radius: 8px;
+  background: rgba(10, 7, 5, 0.45);
+}
+
+.campaign-class-bonuses-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.campaign-class-bonuses-heading h3 {
+  margin: 0 0 5px;
+  color: var(--gold-bright, #f0cf6e);
+  font-family: var(--font-title, serif);
+}
+
+.campaign-class-bonuses-heading p {
+  margin: 0;
+  color: var(--muted, rgba(236, 223, 192, 0.75));
+  font-size: 0.88rem;
+}
+
+.campaign-class-bonus-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 330px), 1fr));
+  gap: 12px;
+}
+
+.campaign-class-bonus-card {
+  min-width: 0;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid rgba(201, 162, 39, 0.25);
+  border-radius: 6px;
+}
+
+.campaign-class-bonus-card legend {
+  padding: 0 6px;
+  color: var(--gold-bright, #f0cf6e);
+  font-family: var(--font-display, serif);
+  font-weight: 700;
+}
+
+.campaign-class-bonus-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.campaign-class-bonus-fields label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--muted, rgba(236, 223, 192, 0.75));
+  font-size: 0.76rem;
+}
+
+.campaign-class-bonus-fields input {
+  width: 100%;
+  min-width: 0;
+  padding: 7px 8px;
+  border: 1px solid rgba(240, 207, 110, 0.3);
+  border-radius: 4px;
+  background: rgba(10, 7, 5, 0.85);
+  color: var(--parchment, #fff0cc);
+}
+
+.campaign-class-bonus-fields input:focus {
+  outline: none;
+  border-color: var(--gold-bright, #f0cf6e);
+}
+
+.campaign-class-bonuses-message {
+  margin: 12px 0 0;
+  color: var(--gold-bright, #f0cf6e);
+}
+
+.campaign-content-intro {
+  margin: 0 0 16px;
+  color: var(--muted, rgba(236, 223, 192, 0.75));
+}
+
+.campaign-content-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid rgba(201, 162, 39, 0.25);
+  border-radius: 6px;
+  background: rgba(10, 7, 5, 0.42);
+}
+
+.campaign-content-form > label {
+  display: grid;
+  gap: 5px;
+  color: var(--muted, rgba(236, 223, 192, 0.75));
+  font-size: 0.8rem;
+}
+
+.campaign-content-form input,
+.campaign-content-form select,
+.campaign-content-form textarea {
+  width: 100%;
+  min-width: 0;
+  padding: 8px 9px;
+  border: 1px solid rgba(240, 207, 110, 0.32);
+  border-radius: 4px;
+  background: rgba(8, 10, 9, 0.9);
+  color: var(--parchment, #fff0cc);
+  font: inherit;
+}
+
+.campaign-content-description {
+  grid-column: 1 / -1;
+}
+
+.campaign-new-class-attributes {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-column: 1 / -1;
+  gap: 8px;
+}
+
+.campaign-new-class-attributes label {
+  display: grid;
+  gap: 4px;
+  color: var(--muted, rgba(236, 223, 192, 0.75));
+  font-size: 0.76rem;
+}
+
+.campaign-content-form > button {
+  justify-self: start;
+}
+
+.campaign-content-message {
+  color: var(--gold-bright, #f0cf6e);
+}
+
+.campaign-content-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.campaign-content-card {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 14px;
+  border: 1px solid rgba(201, 162, 39, 0.2);
+  border-radius: 5px;
+  background: rgba(25, 20, 13, 0.55);
+}
+
+.campaign-content-card h3 {
+  margin: 3px 0 5px;
+  color: var(--parchment, #fff0cc);
+}
+
+.campaign-content-card p {
+  margin: 3px 0;
+  color: var(--muted, rgba(236, 223, 192, 0.75));
+  font-size: 0.86rem;
+}
+
+.campaign-content-kind {
+  color: var(--gold-bright, #f0cf6e);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.campaign-content-remove {
+  flex: 0 0 auto;
+  border: 1px solid rgba(172, 80, 74, 0.5);
+  border-radius: 4px;
+  padding: 5px 9px;
+  background: rgba(63, 24, 23, 0.5);
+  color: #e2aaa0;
+}
+
+.campaign-content-empty {
+  color: var(--muted, rgba(236, 223, 192, 0.65));
+}
+
+/* Empty states */
+.campaign-empty-banner {
+  text-align: center;
+  padding: 28px 16px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px dashed rgba(201, 162, 39, 0.25);
+  border-radius: 6px;
+  color: var(--muted, rgba(236, 223, 192, 0.75));
+}
+
+.campaign-empty-banner p {
+  margin: 0 0 12px;
+}
+
+
+
+
+.campaign-danger-zone {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-top: 34px;
+  padding: 18px;
+  border: 1px solid rgba(163, 39, 60, 0.55);
+  background: linear-gradient(120deg, rgba(122, 22, 38, 0.11), rgba(23, 17, 11, 0.55));
+}
+
+.campaign-danger-zone h2 {
+  margin: 0 0 4px;
+  color: #d68a82;
+  font-size: 17px;
+}
+
+.campaign-danger-zone p {
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.campaign-delete-trigger,
+.campaign-delete-confirm-button {
+  border: 1px solid #a43d45;
+  background: linear-gradient(180deg, #822d37, #4b1b22);
+  color: #fff0cc;
+  font-family: var(--font-display);
+  font-weight: 600;
+  padding: 10px 14px;
+  text-transform: uppercase;
+}
+
+.campaign-delete-trigger:hover,
+.campaign-delete-confirm-button:hover:not(:disabled) {
+  border-color: #d16a70;
+  background: linear-gradient(180deg, #a43d45, #63232c);
+}
+
+.campaign-delete-confirmation {
+  display: grid;
+  gap: 12px;
+  width: min(100%, 490px);
+  padding: 14px;
+  border: 1px solid rgba(209, 106, 112, 0.65);
+  background: rgba(30, 14, 15, 0.96);
+}
+
+.campaign-delete-confirmation h3 {
+  margin: 0 0 5px;
+  color: #e5a29a;
+  font-size: 17px;
+}
+
+.campaign-delete-error {
+  color: #ffaaa5 !important;
+}
+
+.campaign-delete-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.campaign-delete-confirm-actions button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+
+@media (max-width: 760px) {
+  .campaign-detail-page {
+    padding: 8px 0 40px;
+  }
+
+  .campaign-detail-header {
+    padding: 18px 16px;
+  }
+
+  .campaign-detail-title {
+    font-size: clamp(1.8rem, 8vw, 2.2rem);
+    overflow-wrap: anywhere;
+  }
+
+  .campaign-section {
+    padding: 18px 14px;
+  }
+
+  .party-overview-grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  }
+
+  .campaign-content-card {
+    flex-direction: column;
+  }
+
+  .campaign-content-card > div {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .campaign-content-remove {
+    align-self: flex-start;
+    min-height: 40px;
+  }
+
+  .campaign-detail-nav {
+    align-items: flex-start;
+  }
+
+  .campaign-context-nav .btn-ghost,
+  .campaign-context-current {
+    flex: 1 1 calc(50% - 8px);
+    min-width: 0;
+    text-align: center;
+  }
+
+  .campaign-content-form {
+    grid-template-columns: 1fr;
+  }
+
+  .campaign-new-class-attributes {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .campaign-class-bonuses-heading {
+    flex-direction: column;
+  }
+
+  .campaign-class-bonuses-heading .btn-primary {
+    width: 100%;
+  }
+
+
+  .campaign-danger-zone {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .campaign-class-bonus-fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .master-reward-form,
+  .master-reward-field,
+  .master-reward-select {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .master-reward-submit {
+    width: 100%;
+    white-space: normal;
+  }
+
+  .campaign-delete-trigger {
+    width: 100%;
+  }
+
+  .campaign-delete-confirm-actions > button {
+    flex: 1;
+  }
+}
+
+
+
+========== src/pages/Campaign/Campaign.test.tsx ==========
+
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { beforeEach, expect, it, vi } from "vitest";
+import {
+  adicionarConteudoClasseCampanha,
+  creditarExperienciaCampanha,
+  creditarOuroCampanha,
+  entregarItemCampanha,
+  listarPersonagensDaCampanha,
+  listarMinhasCampanhas,
+  listarRecompensasCampanha,
+  excluirCampanha,
+  getCampaignAccess,
+  salvarBonusClassesCampanha,
+} from "../../services/api";
+import {
+  makeCampaignAccessFixture,
+  makeCampaignCharacter,
+  makeCampaignFixture,
+  makeCatalogItemFixture,
+  makeRewardHistoryFixture,
+  rewardFixtureIds,
+} from "../../test/fixtures/rewards";
+import Campaign from "./Campaign";
+
+vi.mock("../../services/api", () => ({
+  creditarOuroCampanha: vi.fn().mockResolvedValue(1),
+  creditarExperienciaCampanha: vi.fn().mockResolvedValue(1),
+  entregarItemCampanha: vi.fn().mockResolvedValue(1),
+  listarCatalogoItens: vi.fn().mockResolvedValue([]),
+  listarRecompensasCampanha: vi.fn().mockResolvedValue([]),
+  adicionarConteudoClasseCampanha: vi.fn().mockImplementation(async (campaignId, conteudo) => ({
+    ...conteudo,
+    id: "content-1",
+    campanha_id: campaignId,
+    created_by: "master-1",
+  })),
+  excluirCampanha: vi.fn().mockResolvedValue(undefined),
+  getCatalogoGlobalClasses: vi.fn().mockResolvedValue([{
+    id: "guerreiro",
+    nome: "Guerreiro",
+    aliases: [],
+    atributoBonus: { forca: 2, destreza: 0, constituicao: 0, inteligencia: 0, carisma: 0 },
+    hpBonus: 10,
+    mpBonus: 0,
+    pericias: [],
+    habilidades: [],
+  }]),
+  getCampaignAccess: vi.fn().mockResolvedValue({ isMaster: true, startingGold: 0 }),
+  getCampaignResourceMaximums: vi.fn().mockResolvedValue([]),
+  getCharacters: vi.fn().mockResolvedValue([]),
+  getEquippedAttributeBonusesByCharacter: vi.fn().mockResolvedValue({}),
+  salvarBonusClassesCampanha: vi.fn().mockImplementation(async (_id, bonuses) => bonuses),
+  listarMinhasCampanhas: vi.fn().mockResolvedValue([{
+    id: "campaign-1",
+    nome: "Aventura de Teste",
+    descricao: "Uma aventura de teste.",
+    sistema: "Elementum",
+    imagem_url: null,
+    moeda_principal: "Ouro",
+    ouro_inicial: 0,
+    bonus_classes: null,
+    status: "ATIVA",
+    codigo_convite: "ABC123",
+    created_by: "master-1",
+    created_at: "2026-09-30T00:00:00.000Z",
+  }]),
+  listarConteudosClasseCampanha: vi.fn().mockResolvedValue([]),
+  listarPersonagensDaCampanha: vi.fn().mockResolvedValue([]),
+  removerConteudoClasseCampanha: vi.fn(),
+  vincularPersonagem: vi.fn(),
+}));
+
+function renderCampaign() {
+  return render(
+    <MemoryRouter initialEntries={["/campanha/campaign-1"]}>
+      <Routes>
+        <Route path="/campanha/:id" element={<Campaign />} />
+        <Route path="/campanhas" element={<p>Lista de campanhas</p>} />
+      </Routes>
+    </MemoryRouter>,
+  );
+}
+
+describe("exclusão da campanha", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(getCampaignAccess).mockResolvedValue(makeCampaignAccessFixture());
+    vi.mocked(listarMinhasCampanhas).mockResolvedValue([makeCampaignFixture()]);
+    vi.mocked(listarPersonagensDaCampanha).mockResolvedValue([]);
+  });
+
+  describe("conteúdos personalizados da campanha", () => {
+    beforeEach(() => {
+      vi.clearAllMocks();
+      vi.mocked(getCampaignAccess).mockResolvedValue(makeCampaignAccessFixture());
+    });
+
+    it("permite ao Mestre adicionar habilidades exclusivas a uma classe da campanha", async () => {
+      renderCampaign();
+
+      fireEvent.change(await screen.findByLabelText("Nome"), {
+        target: { value: "Passo das sombras" },
+      });
+      fireEvent.change(screen.getByLabelText("Descrição"), {
+        target: { value: "Move-se sem ser percebido." },
+      });
+      fireEvent.change(screen.getByLabelText("Nível de desbloqueio"), {
+        target: { value: "4" },
+      });
+      fireEvent.click(screen.getByRole("button", { name: "Adicionar à campanha" }));
+
+      await waitFor(() => {
+        expect(adicionarConteudoClasseCampanha).toHaveBeenCalledWith(
+          "campaign-1",
+          expect.objectContaining({
+            classe_id: "guerreiro",
+            tipo: "HABILIDADE",
+            nome: "Passo das sombras",
+            nivel: 4,
+          }),
+        );
+      });
+      expect(await screen.findByRole("heading", { name: "Passo das sombras" })).toBeInTheDocument();
+    });
+  });
+
+  describe("bônus de classe da campanha", () => {
+    beforeEach(() => {
+      vi.clearAllMocks();
+      vi.mocked(getCampaignAccess).mockResolvedValue(makeCampaignAccessFixture());
+      vi.mocked(salvarBonusClassesCampanha).mockImplementation(async (_id, bonuses) => bonuses);
+    });
+
+    it("permite ao mestre configurar os cinco atributos do sistema", async () => {
+      renderCampaign();
+
+      const forcaGuerreiro = await screen.findByRole("spinbutton", {
+        name: "Guerreiro - Força",
+      });
+      expect(screen.getAllByRole("spinbutton", { name: /^Guerreiro - / })).toHaveLength(7);
+
+      fireEvent.change(forcaGuerreiro, { target: { value: "4" } });
+      fireEvent.click(screen.getByRole("button", { name: "Salvar bônus" }));
+
+      await waitFor(() => {
+        expect(salvarBonusClassesCampanha).toHaveBeenCalledWith(
+          "campaign-1",
+          expect.objectContaining({
+            Guerreiro: expect.objectContaining({
+              atributoBonus: expect.objectContaining({ forca: 4 }),
+            }),
+          }),
+        );
+      });
+      expect(await screen.findByRole("status")).toHaveTextContent(
+        "Bônus de classe salvos para esta campanha.",
+      );
+    });
+
+    it("não mostra a configuração para jogadores", async () => {
+      vi.mocked(getCampaignAccess).mockResolvedValueOnce(makeCampaignAccessFixture({ isMaster: false }));
+      renderCampaign();
+
+      expect(await screen.findByRole("heading", { name: "Meu personagem nesta aventura" })).toBeInTheDocument();
+      expect(screen.queryByRole("heading", { name: "Bônus de classe desta campanha" })).not.toBeInTheDocument();
+    });
+  });
+
+  it("distribui ouro ao personagem selecionado com a fixture de campanha", async () => {
+    vi.mocked(listarPersonagensDaCampanha).mockResolvedValueOnce([makeCampaignCharacter()]);
+    renderCampaign();
+
+    fireEvent.change(await screen.findByLabelText("Tipo de recompensa"), { target: { value: "OURO" } });
+    fireEvent.change(screen.getByLabelText("Quantidade"), { target: { value: "50" } });
+    fireEvent.change(screen.getByLabelText("Destinatário"), {
+      target: { value: rewardFixtureIds.character },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Entregar Recompensa" }));
+
+    await waitFor(() => {
+      expect(creditarOuroCampanha).toHaveBeenCalledWith(
+        rewardFixtureIds.campaign,
+        50,
+        rewardFixtureIds.character,
+        expect.any(String),
+      );
+    });
+    expect(await screen.findByText("Concluído! 50 PO foram entregues para Lira.")).toBeInTheDocument();
+  });
+
+  it("aplica XP ao personagem selecionado e confirma a operação", async () => {
+    vi.mocked(listarPersonagensDaCampanha).mockResolvedValueOnce([makeCampaignCharacter()]);
+    renderCampaign();
+
+    fireEvent.change(await screen.findByLabelText("Tipo de recompensa"), { target: { value: "XP" } });
+    fireEvent.change(screen.getByLabelText("Quantidade"), { target: { value: "150" } });
+    fireEvent.change(screen.getByLabelText("Destinatário"), { target: { value: "character-1" } });
+    fireEvent.click(screen.getByRole("button", { name: "Entregar Recompensa" }));
+
+    await waitFor(() => {
+      expect(creditarExperienciaCampanha).toHaveBeenCalledWith(
+        "campaign-1", 150, "character-1", expect.any(String),
+      );
+    });
+    expect(await screen.findByText("Concluído! 150 XP foram entregues para Lira.")).toBeInTheDocument();
+  });
+
+  it("entrega um item ao personagem ou ao grupo selecionado", async () => {
+    vi.mocked(listarPersonagensDaCampanha).mockResolvedValueOnce([makeCampaignCharacter()]);
+    const { listarCatalogoItens } = await import("../../services/api");
+    vi.mocked(listarCatalogoItens).mockResolvedValueOnce([
+      makeCatalogItemFixture({ nome: "Poção" }),
+    ]);
+    renderCampaign();
+
+    fireEvent.change(await screen.findByLabelText("Tipo de recompensa"), { target: { value: "ITEM" } });
+    fireEvent.change(screen.getByLabelText("Quantidade"), { target: { value: "2" } });
+    fireEvent.change(screen.getByLabelText("Item"), { target: { value: "potion-1" } });
+    fireEvent.change(screen.getByLabelText("Destinatário"), { target: { value: "character-1" } });
+    fireEvent.click(screen.getByRole("button", { name: "Entregar Recompensa" }));
+
+    await waitFor(() => {
+      expect(entregarItemCampanha).toHaveBeenCalledWith(
+        "campaign-1", "potion-1", 2, "character-1", expect.any(String),
+      );
+    });
+    expect(await screen.findByText("Concluído! 2 Poção foram entregues para Lira.")).toBeInTheDocument();
+  });
+
+  it("gera uma nova chave de recompensa quando muda o item e preserva a chave em retries idênticos", async () => {
+    vi.mocked(listarPersonagensDaCampanha).mockResolvedValueOnce([makeCampaignCharacter()]);
+    const { listarCatalogoItens } = await import("../../services/api");
+    vi.mocked(listarCatalogoItens).mockResolvedValueOnce([
+      makeCatalogItemFixture({ itemId: "item-a", nome: "Poção rubra" }),
+      makeCatalogItemFixture({ itemId: "item-b", nome: "Poção azul" }),
+    ]);
+    vi.mocked(entregarItemCampanha)
+      .mockRejectedValueOnce(new Error("Falha temporária"))
+      .mockRejectedValueOnce(new Error("Falha temporária"))
+      .mockRejectedValueOnce(new Error("Falha temporária"))
+      .mockResolvedValueOnce(1);
+
+    renderCampaign();
+    fireEvent.change(await screen.findByLabelText("Tipo de recompensa"), {
+      target: { value: "ITEM" },
+    });
+    fireEvent.change(screen.getByLabelText("Item"), { target: { value: "item-a" } });
+    const form = screen.getByRole("button", { name: "Entregar Recompensa" }).closest("form");
+    expect(form).not.toBeNull();
+
+    fireEvent.submit(form!);
+    await screen.findByText("Falha temporária");
+    const firstRequestId = vi.mocked(entregarItemCampanha).mock.calls[0][4];
+
+    fireEvent.change(screen.getByLabelText("Item"), { target: { value: "item-b" } });
+    fireEvent.submit(form!);
+    await waitFor(() => expect(entregarItemCampanha).toHaveBeenCalledTimes(2));
+    await screen.findByText("Falha temporária");
+    const secondRequestId = vi.mocked(entregarItemCampanha).mock.calls[1][4];
+    expect(secondRequestId).not.toBe(firstRequestId);
+
+    fireEvent.change(screen.getByLabelText("Item"), { target: { value: "item-a" } });
+    fireEvent.submit(form!);
+    await waitFor(() => expect(entregarItemCampanha).toHaveBeenCalledTimes(3));
+    const retriedFirstItemId = vi.mocked(entregarItemCampanha).mock.calls[2][4];
+    expect(retriedFirstItemId).toBe(firstRequestId);
+    await screen.findByText("Falha temporária");
+
+    fireEvent.submit(form!);
+    await waitFor(() => expect(entregarItemCampanha).toHaveBeenCalledTimes(4));
+    expect(vi.mocked(entregarItemCampanha).mock.calls[3][4]).toBe(firstRequestId);
+    expect(await screen.findByText("Concluído! 50 Poção rubra foram entregues para 1 personagens do grupo.")).toBeInTheDocument();
+  });
+
+  it("renderiza o histórico da campanha a partir da fixture de recompensa", async () => {
+    vi.mocked(listarPersonagensDaCampanha).mockResolvedValueOnce([makeCampaignCharacter()]);
+    vi.mocked(listarRecompensasCampanha).mockResolvedValueOnce([
+      makeRewardHistoryFixture({ quantidade: 25 }),
+    ]);
+    renderCampaign();
+
+    const history = await screen.findByRole("region", { name: "Histórico de recompensas" });
+    expect(history).toHaveTextContent("25 PO");
+    expect(history).toHaveTextContent("para Lira");
+  });
+
+  it("confirma a cópia do convite apenas após sucesso e oferece cópia manual na falha", async () => {
+    const originalClipboard = Object.getOwnPropertyDescriptor(navigator, "clipboard");
+    const writeText = vi.fn().mockRejectedValue(new Error("Bloqueada pelo navegador"));
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText },
+    });
+
+    try {
+      renderCampaign();
+      fireEvent.click(await screen.findByRole("button", { name: "Copiar" }));
+
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+        "Não foi possível copiar o convite. Selecione o código para copiá-lo manualmente.",
+      );
+      expect(screen.getAllByText("ABC123")).toHaveLength(2);
+      expect(screen.queryByText("Convite copiado!")).not.toBeInTheDocument();
+      expect(writeText).toHaveBeenCalledWith("ABC123");
+    } finally {
+      if (originalClipboard) {
+        Object.defineProperty(navigator, "clipboard", originalClipboard);
+      } else {
+        Reflect.deleteProperty(navigator, "clipboard");
+      }
+    }
+  });
+
+  it("confirma que o código foi copiado quando a Clipboard API resolve", async () => {
+    const originalClipboard = Object.getOwnPropertyDescriptor(navigator, "clipboard");
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText },
+    });
+
+    try {
+      renderCampaign();
+      fireEvent.click(await screen.findByRole("button", { name: "Copiar" }));
+
+      expect(await screen.findByText("Convite copiado!")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Copiado!" })).toBeInTheDocument();
+      expect(writeText).toHaveBeenCalledWith("ABC123");
+    } finally {
+      if (originalClipboard) {
+        Object.defineProperty(navigator, "clipboard", originalClipboard);
+      } else {
+        Reflect.deleteProperty(navigator, "clipboard");
+      }
+    }
+  });
+
+  it("não declara sucesso se a Clipboard API estiver indisponível", async () => {
+    const originalClipboard = Object.getOwnPropertyDescriptor(navigator, "clipboard");
+    Reflect.deleteProperty(navigator, "clipboard");
+
+    try {
+      renderCampaign();
+      fireEvent.click(await screen.findByRole("button", { name: "Copiar" }));
+
+      expect(await screen.findByRole("alert")).toHaveTextContent("copiá-lo manualmente");
+      expect(screen.getAllByText("ABC123")).toHaveLength(2);
+    } finally {
+      if (originalClipboard) {
+        Object.defineProperty(navigator, "clipboard", originalClipboard);
+      }
+    }
+  });
+
+  it("pede confirmação antes de chamar a exclusão", async () => {
+    renderCampaign();
+
+    const dangerZone = await screen.findByRole("region", { name: "Zona de perigo" });
+    expect(dangerZone).toHaveTextContent("A exclusão remove a campanha e não pode ser desfeita.");
+    fireEvent.click(within(dangerZone).getByRole("button", { name: "Excluir campanha" }));
+
+    expect(screen.getByRole("alertdialog")).toHaveTextContent("Excluir “Aventura de Teste”?");
+    expect(screen.getByRole("button", { name: "Confirmar exclusão" })).toBeInTheDocument();
+    expect(excluirCampanha).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    expect(excluirCampanha).not.toHaveBeenCalled();
+  });
+
+  it("exclui a campanha e retorna à lista após confirmação", async () => {
+    renderCampaign();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Excluir campanha" }));
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar exclusão" }));
+
+    await waitFor(() => {
+      expect(excluirCampanha).toHaveBeenCalledWith("campaign-1");
+    });
+    expect(await screen.findByText("Lista de campanhas")).toBeInTheDocument();
+  });
+
+  it("não mostra a opção para jogadores", async () => {
+    vi.mocked(getCampaignAccess).mockResolvedValueOnce(makeCampaignAccessFixture({ isMaster: false }));
+    renderCampaign();
+
+    expect(await screen.findByRole("heading", { name: "Meu personagem nesta aventura" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Excluir campanha" })).not.toBeInTheDocument();
+  });
+});
+
+
+
+========== src/services/api.ts ==========
+
+import type { Character, User } from "../types/character";
+import {
+  parseCharacterData,
+  serializeCharacterData,
+} from "../domain/characterData";
+import {
+  DEFAULT_CLASS_CATALOG,
+  normalizarCatalogoClasses,
+  normalizarBonusClassesCampanha,
+  type BaseAttributeKey,
+  type CampaignClassBonuses,
+  type ClassDefinition,
+} from "../data/personaRules";
+import { supabase } from "./supabase";
+
+/* =========================================================
+   AUTENTICAÇÃO
+========================================================= */
+
+export async function login(
+  usuario: string,
+  senha: string,
+): Promise<User> {
+  const cleanInput = usuario.trim();
+
+  if (!cleanInput || !senha) {
+    throw new Error("Informe seu e-mail e senha para prosseguir.");
+  }
+
+  if (!cleanInput.includes("@")) {
+    throw new Error(
+      "Para entrar pelo Supabase, informe o e-mail cadastrado.",
+    );
+  }
+
+  const { data, error } =
+    await supabase.auth.signInWithPassword({
+      email: cleanInput,
+      password: senha,
+    });
+
+  if (error) {
+    const mensagem = error.message.toLowerCase();
+
+    if (mensagem.includes("email not confirmed")) {
+      throw new Error(
+        "E-mail ainda não confirmado! Verifique sua caixa de entrada ou desative a confirmação de e-mail no Supabase durante os testes.",
+      );
+    }
+
+    if (mensagem.includes("invalid login credentials")) {
+      throw new Error("E-mail ou senha incorretos.");
+    }
+
+    throw new Error(
+      error.message || "Erro ao conectar com o Supabase.",
+    );
+  }
+
+  if (!data.user) {
+    throw new Error("Usuário não encontrado.");
+  }
+
+  const nome =
+    data.user.user_metadata?.nome ||
+    data.user.user_metadata?.username ||
+    data.user.email?.split("@")[0] ||
+    "Aventureiro";
+
+  return {
+    id: data.user.id,
+    nome,
+    email: data.user.email,
+  };
+}
+
+export async function registerUser(
+  usuario: string,
+  email: string,
+  senha: string,
+): Promise<User> {
+  const cleanUser = usuario.trim();
+  const cleanEmail = email.trim().toLowerCase();
+
+  if (!cleanUser || !cleanEmail || !senha) {
+    throw new Error("Preencha todos os campos obrigatórios.");
+  }
+
+  const { data, error } = await supabase.auth.signUp({
+    email: cleanEmail,
+    password: senha,
+    options: {
+      data: {
+        username: cleanUser,
+        nome: cleanUser,
+      },
+    },
+  });
+
+  if (error) {
+    if (
+      error.message
+        .toLowerCase()
+        .includes("already registered")
+    ) {
+      throw new Error(
+        "Este e-mail já está registrado no Supabase.",
+      );
+    }
+
+    throw new Error(
+      error.message ||
+        "Não foi possível cadastrar no Supabase.",
+    );
+  }
+
+  if (!data.user) {
+    throw new Error(
+      "Erro ao criar aventureiro no Supabase.",
+    );
+  }
+
+  try {
+    await supabase.from("usuarios").insert([
+      {
+        id: data.user.id,
+        usuario: cleanUser,
+        nome: cleanUser,
+        email: cleanEmail,
+      },
+    ]);
+  } catch {
+    // Mantém o cadastro mesmo que a tabela usuarios não exista.
+  }
+
+  return {
+    id: data.user.id,
+    nome: cleanUser,
+    email: cleanEmail,
+  };
+}
+
+/* =========================================================
+   PERSONAGENS
+========================================================= */
+
+type PersonagemRow = {
+  id: string;
+  user_id?: string | null;
+  campanha_id?: string | null;
+  nome?: string | null;
+  nivel?: number | null;
+  xp?: number | null;
+  dados_version?: number | null;
+  dados?: unknown;
+};
+
+function rowToCharacter(row: PersonagemRow): Character | null {
+  const dados = parseCharacterData(row.dados);
+  if (!dados) return null;
+
+  const { schemaVersion: _schemaVersion, ...personagem } = dados;
+  const base = {
+    ...personagem,
+    id: row.id,
+    dataVersion: row.dados_version ?? 1,
+    campanhaId: row.campanha_id ?? null,
+    xp: row.xp ?? 0,
+    nome: row.nome ?? personagem.nome,
+    nivel: row.nivel ?? personagem.nivel,
+  };
+  return {
+    ...base,
+    hp: {
+      atual: personagem.hp.atual,
+      max: personagem.hp.max ?? 200,
+      ...(personagem.hp.temp !== undefined ? { temp: personagem.hp.temp } : {}),
+    },
+    mp: {
+      atual: personagem.mp.atual,
+      max: personagem.mp.max ?? 200,
+      ...(personagem.mp.temp !== undefined ? { temp: personagem.mp.temp } : {}),
+    },
+  };
+}
+
+function paraDados(personagem: Character) {
+  return serializeCharacterData(personagem);
+}
+
+/* =========================================================
+   LISTAR PERSONAGENS
+========================================================= */
+
+export async function getCharacters(): Promise<Character[]> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return [];
+  }
+
+  const { data, error } = await supabase
+    .from("personagens")
+    .select("*")
+    .eq("user_id", user.id);
+
+  if (error) {
+    throw new Error(
+      error.message ||
+        "Não foi possível carregar os personagens.",
+    );
+  }
+
+  return ((data ?? []) as PersonagemRow[])
+    .map(rowToCharacter)
+    .filter(
+      (c): c is Character => c !== null,
+    );
+}
+
+export async function getCharacterById(
+  id: string,
+): Promise<Character | undefined> {
+  const { data, error } = await supabase
+    .from("personagens")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(
+      error.message ||
+        "Não foi possível carregar o personagem.",
+    );
+  }
+
+  if (!data) {
+    return undefined;
+  }
+
+  const personagem = rowToCharacter(
+    data as PersonagemRow,
+  );
+
+  if (!personagem) {
+    throw new Error(
+      "O personagem foi encontrado, mas os dados da ficha estão vazios.",
+    );
+  }
+
+  return personagem;
+}
+
+/* =========================================================
+   EDITAR PERSONAGEM
+========================================================= */
+
+export async function atualizarPersonagem(
+  id: string,
+  personagem: Character,
+): Promise<Character> {
+  const { data, error } = await supabase.rpc("atualizar_personagem_versionado", {
+    p_personagem_id: id,
+    p_versao_esperada: personagem.dataVersion ?? 1,
+    p_nome: personagem.nome,
+    p_nivel: personagem.nivel,
+    p_dados: paraDados(personagem),
+  });
+
+  if (error) {
+    throw new Error(error.message || "Não foi possível salvar o personagem.");
+  }
+
+  if (!data || typeof data !== "object") {
+    throw new Error("Você não tem permissão para alterar este personagem.");
+  }
+
+  const atualizado = rowToCharacter(data as PersonagemRow);
+  if (!atualizado) {
+    throw new Error("Os dados da ficha ficaram vazios após salvar.");
+  }
+
+  return atualizado;
+}
+
+export function saveCharacter(personagem: Character): void {
+  void atualizarPersonagem(personagem.id, personagem).catch((error: unknown) => {
+    console.error("Erro ao salvar ficha:", error);
+  });
+}
+
+/* =========================================================
+   PERMISSÕES DO PERSONAGEM
+========================================================= */
+
+export async function getCharacterAccess(
+  characterId: string,
+): Promise<{
+  canEdit: boolean;
+  isMaster: boolean;
+}> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return {
+      canEdit: false,
+      isMaster: false,
+    };
+  }
+
+  const { data, error } = await supabase
+    .from("personagens")
+    .select("user_id, campanha_id")
+    .eq("id", characterId)
+    .maybeSingle();
+
+  if (error || !data) {
+    return {
+      canEdit: false,
+      isMaster: false,
+    };
+  }
+
+  const { data: membership } = await supabase
+    .from("campanha_membros")
+    .select("papel")
+    .eq("campanha_id", data.campanha_id)
+    .eq("user_id", user.id)
+    .eq("status", "ATIVO")
+    .maybeSingle();
+
+  const isMaster =
+    membership?.papel === "MESTRE";
+
+  const isOwner =
+    data.user_id === user.id;
+
+  return {
+    canEdit: isOwner || isMaster,
+    isMaster,
+  };
+}
+
+/* =========================================================
+   FOTO DO PERSONAGEM
+========================================================= */
+
+export async function enviarRetrato(
+  arquivo: File,
+): Promise<string> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    throw new Error("Usuário não autenticado.");
+  }
+
+  if (!arquivo.type.startsWith("image/")) {
+    throw new Error("Escolha um arquivo de imagem.");
+  }
+
+  if (arquivo.size > 3 * 1024 * 1024) {
+    throw new Error(
+      "A imagem deve ter no máximo 3 MB.",
+    );
+  }
+
+  const extensao =
+    (
+      arquivo.name.split(".").pop() ||
+      "png"
+    ).toLowerCase();
+
+  const caminho =
+    user.id +
+    "/" +
+    Date.now() +
+    "." +
+    extensao;
+
+  const { error } = await supabase.storage
+    .from("retratos")
+    .upload(
+      caminho,
+      arquivo,
+      {
+        cacheControl: "3600",
+        upsert: false,
+        contentType: arquivo.type,
+      },
+    );
+
+  if (error) {
+    throw new Error(
+      error.message ||
+        "Não foi possível enviar a imagem.",
+    );
+  }
+
+  const { data } =
+    supabase.storage
+      .from("retratos")
+      .getPublicUrl(caminho);
+
+  return data.publicUrl;
+}
+
+/* =========================================================
+   PERSONAGENS DA CAMPANHA
+========================================================= */
+
+export async function listarPersonagensDaCampanha(
+  campanhaId: string,
+): Promise<Character[]> {
+  const { data, error } = await supabase
+    .from("personagens")
+    .select("*")
+    .eq("campanha_id", campanhaId);
+
+  if (error) {
+    throw new Error(
+      error.message ||
+        "Não foi possível carregar os personagens da campanha.",
+    );
+  }
+
+  return ((data ?? []) as PersonagemRow[])
+    .map(rowToCharacter)
+    .filter(
+      (c): c is Character => c !== null,
+    );
+}
+
+/* =========================================================
+   VINCULAR PERSONAGEM À CAMPANHA
+========================================================= */
+
+export async function vincularPersonagem(
+  personagemId: string,
+  campanhaId: string,
+): Promise<Character> {
+  const atual = await getCharacterById(personagemId);
+  if (!atual) throw new Error("Personagem não encontrado.");
+
+  const { data, error } = await supabase.rpc("vincular_personagem_campanha", {
+    p_personagem_id: personagemId,
+    p_campanha_id: campanhaId,
+    p_versao_esperada: atual.dataVersion ?? 1,
+  });
+
+  if (error) {
+    throw new Error(error.message || "Não foi possível vincular o personagem.");
+  }
+
+  const vinculado = data && typeof data === "object"
+    ? rowToCharacter(data as PersonagemRow)
+    : null;
+  if (!vinculado) {
+    throw new Error("O Supabase não confirmou o vínculo do personagem.");
+  }
+  return vinculado;
+}
+
+/* =========================================================
+   EXCLUIR PERSONAGEM
+========================================================= */
+
+export async function excluirPersonagem(
+  personagemId: string,
+): Promise<void> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    throw new Error("Usuário não autenticado.");
+  }
+
+  const {
+    data,
+    error,
+  } = await supabase
+    .from("personagens")
+    .delete()
+    .eq("id", personagemId)
+    .eq("user_id", user.id)
+    .select("id");
+
+  if (error) {
+    throw new Error(
+      error.message ||
+        "Não foi possível excluir o personagem.",
+    );
+  }
+
+  if (!data || data.length === 0) {
+    throw new Error(
+      "Não foi possível excluir: personagem não encontrado ou sem permissão.",
+    );
+  }
+}
+
+/* =========================================================
+   CAMPANHAS
+========================================================= */
+
+export interface Campaign {
+  id: string;
+  nome: string;
+  descricao: string | null;
+  sistema: string | null;
+  imagem_url: string | null;
+  moeda_principal: string | null;
+  status: string;
+  codigo_convite: string;
+  created_by: string;
+  created_at: string;
+  ouro_inicial: number;
+  bonus_classes: CampaignClassBonuses | null;
+}
+
+export interface CampaignClassContent {
+  id: string;
+  campanha_id: string;
+  classe_id: string;
+  tipo: "CLASSE" | "PERICIA" | "HABILIDADE";
+  nome: string;
+  descricao: string;
+  atributo: BaseAttributeKey | null;
+  nivel: number | null;
+  bonus_atributos: Partial<Record<BaseAttributeKey, number>>;
+  bonus_hp: number;
+  bonus_mp: number;
+  created_by: string;
+}
+
+export async function canManageGlobalClassCatalog(): Promise<boolean> {
+  const { data, error } = await supabase.auth.getUser();
+  if (error) throw new Error(error.message || "Não foi possível verificar o acesso ao catálogo.");
+  return data.user?.app_metadata?.global_rules_admin === true;
+}
+
+export async function getCatalogoGlobalClasses(): Promise<ClassDefinition[]> {
+  const { data, error } = await supabase
+    .from("global_class_catalog")
+    .select("dados")
+    .eq("id", "global")
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(
+      error.message || "Não foi possível carregar o catálogo de classes.",
+    );
+  }
+
+  return data ? normalizarCatalogoClasses(data.dados) : DEFAULT_CLASS_CATALOG;
+}
+
+export async function salvarCatalogoGlobalClasses(
+  classes: ClassDefinition[],
+): Promise<ClassDefinition[]> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Usuário não autenticado.");
+
+  const normalizadas = normalizarCatalogoClasses(classes);
+  const ids = new Set<string>();
+  const nomes = new Set<string>();
+  for (const classe of normalizadas) {
+    const nome = classe.nome.toLocaleLowerCase();
+    if (ids.has(classe.id) || nomes.has(nome)) {
+      throw new Error("As classes precisam ter nomes e identificadores únicos.");
+    }
+    ids.add(classe.id);
+    nomes.add(nome);
+  }
+
+  const { data, error } = await supabase
+    .from("global_class_catalog")
+    .upsert(
+      { id: "global", dados: normalizadas, updated_at: new Date().toISOString() },
+      { onConflict: "id" },
+    )
+    .select("dados")
+    .single();
+
+  if (error || !data) {
+    throw new Error(error?.message || "Não foi possível salvar o catálogo.");
+  }
+
+  return normalizarCatalogoClasses(data.dados);
+}
+
+export async function listarConteudosClasseCampanha(
+  campaignId: string,
+): Promise<CampaignClassContent[]> {
+  const { data, error } = await supabase
+    .from("campanha_classes_conteudos")
+    .select("*")
+    .eq("campanha_id", campaignId)
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    throw new Error(
+      error.message || "Não foi possível carregar os conteúdos da campanha.",
+    );
+  }
+
+  return (data ?? []) as CampaignClassContent[];
+}
+
+export async function adicionarConteudoClasseCampanha(
+  campaignId: string,
+  conteudo: Omit<CampaignClassContent, "id" | "campanha_id" | "created_by">,
+): Promise<CampaignClassContent> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Usuário não autenticado.");
+
+  const { data: membership, error: membershipError } = await supabase
+    .from("campanha_membros")
+    .select("papel")
+    .eq("campanha_id", campaignId)
+    .eq("user_id", user.id)
+    .eq("status", "ATIVO")
+    .maybeSingle();
+
+  if (membershipError) {
+    throw new Error(
+      membershipError.message || "Não foi possível verificar sua permissão.",
+    );
+  }
+  if (membership?.papel !== "MESTRE") {
+    throw new Error("Somente o Mestre ativo pode alterar as regras da campanha.");
+  }
+
+  const { data, error } = await supabase
+    .from("campanha_classes_conteudos")
+    .insert({
+      ...conteudo,
+      campanha_id: campaignId,
+      created_by: user.id,
+    })
+    .select("*")
+    .single();
+
+  if (error || !data) {
+    throw new Error(
+      error?.message || "Não foi possível adicionar conteúdo à campanha.",
+    );
+  }
+
+  return data as CampaignClassContent;
+}
+
+export async function removerConteudoClasseCampanha(id: string): Promise<void> {
+  const { data, error } = await supabase
+    .from("campanha_classes_conteudos")
+    .delete()
+    .eq("id", id)
+    .select("id")
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message || "Não foi possível remover o conteúdo.");
+  }
+  if (!data) {
+    throw new Error("Conteúdo não encontrado ou você não participa da campanha.");
+  }
+}
+
+export async function getCampaignClassBonuses(
+  campaignId: string,
+): Promise<CampaignClassBonuses> {
+  const [{ data, error }, catalogo] = await Promise.all([
+    supabase
+      .from("campanhas")
+      .select("bonus_classes")
+      .eq("id", campaignId)
+      .maybeSingle(),
+    getCatalogoGlobalClasses(),
+  ]);
+
+  if (error) {
+    throw new Error(
+      error.message || "Não foi possível carregar os bônus da campanha.",
+    );
+  }
+
+  if (!data) {
+    throw new Error("Campanha não encontrada.");
+  }
+
+  const bonusesCatalogo = Object.fromEntries(
+    catalogo.map((classe) => [classe.nome, classe]),
+  );
+  const hasCampaignOverrides =
+    typeof data.bonus_classes === "object" &&
+    data.bonus_classes !== null &&
+    Object.keys(data.bonus_classes).length > 0;
+  return {
+    ...bonusesCatalogo,
+    ...(hasCampaignOverrides
+      ? normalizarBonusClassesCampanha(data.bonus_classes, false)
+      : {}),
+  };
+}
+
+export async function salvarBonusClassesCampanha(
+  campaignId: string,
+  bonuses: CampaignClassBonuses,
+): Promise<CampaignClassBonuses> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    throw new Error("Usuário não autenticado.");
+  }
+
+  const { data: membership, error: membershipError } = await supabase
+    .from("campanha_membros")
+    .select("papel")
+    .eq("campanha_id", campaignId)
+    .eq("user_id", user.id)
+    .eq("status", "ATIVO")
+    .maybeSingle();
+
+  if (membershipError) {
+    throw new Error(
+      membershipError.message || "Não foi possível verificar sua permissão.",
+    );
+  }
+
+  if (membership?.papel !== "MESTRE") {
+    throw new Error("Somente o Mestre pode alterar os bônus da campanha.");
+  }
+
+  const bonusNormalizados = normalizarBonusClassesCampanha(bonuses);
+  const { data, error } = await supabase
+    .from("campanhas")
+    .update({ bonus_classes: bonusNormalizados })
+    .eq("id", campaignId)
+    .select("bonus_classes")
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(
+      error.message || "Não foi possível salvar os bônus da campanha.",
+    );
+  }
+
+  if (!data) {
+    throw new Error("Campanha não encontrada ou sem permissão para alterar.");
+  }
+
+  return normalizarBonusClassesCampanha(data.bonus_classes);
+}
+
+function gerarCodigoConvite(): string {
+  const caracteres =
+    "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+
+  let codigo = "";
+
+  for (let i = 0; i < 6; i++) {
+    const indice = Math.floor(
+      Math.random() * caracteres.length,
+    );
+
+    codigo += caracteres[indice];
+  }
+
+  return codigo;
+}
+
+/* =========================================================
+   CRIAR CAMPANHA
+========================================================= */
+
+export async function criarCampanha(
+  dados: {
+    nome: string;
+    descricao: string;
+    sistema: string;
+    moeda_principal: string;
+    ouro_inicial: number;
+  },
+  requestId = criarIdempotencyKey(),
+): Promise<Campaign> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    throw new Error("Usuário não autenticado.");
+  }
+  if (
+    !Number.isSafeInteger(dados.ouro_inicial) ||
+    dados.ouro_inicial < 0 ||
+    dados.ouro_inicial > 100000
+  ) {
+    throw new Error("O ouro inicial deve estar entre 0 e 100000 PO.");
+  }
+
+  for (let tentativa = 0; tentativa < 5; tentativa++) {
+    const { data, error } = await supabase.rpc("criar_campanha_atomica", {
+      p_nome: dados.nome.trim(),
+      p_descricao: dados.descricao.trim() || null,
+      p_sistema: dados.sistema.trim() || null,
+      p_moeda_principal: dados.moeda_principal.trim() || null,
+      p_ouro_inicial: Math.max(0, Math.min(100000, Math.floor(dados.ouro_inicial))),
+      p_codigo_convite: gerarCodigoConvite(),
+      p_request_id: requestId,
+    });
+
+    if (!error && data && typeof data === "object") return data as Campaign;
+    if (error?.code === "23505") continue;
+    throw new Error(error?.message || "Não foi possível criar a campanha.");
+  }
+
+  throw new Error("Não foi possível gerar um código de convite exclusivo. Tente novamente.");
+}
+
+export async function excluirCampanha(campanhaId: string): Promise<void> {
+  if (!campanhaId) {
+    throw new Error("Campanha não informada.");
+  }
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    throw new Error("Usuário não autenticado.");
+  }
+
+  const { data: membro, error: membroError } = await supabase
+    .from("campanha_membros")
+    .select("papel")
+    .eq("campanha_id", campanhaId)
+    .eq("user_id", user.id)
+    .eq("status", "ATIVO")
+    .maybeSingle();
+
+  if (membroError) {
+    throw new Error(membroError.message || "Não foi possível verificar sua permissão.");
+  }
+
+  if (membro?.papel !== "MESTRE") {
+    throw new Error("Somente o Mestre pode excluir esta campanha.");
+  }
+
+  const { data, error } = await supabase
+    .from("campanhas")
+    .delete()
+    .eq("id", campanhaId)
+    .select("id")
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message || "Não foi possível excluir a campanha.");
+  }
+
+  if (!data) {
+    throw new Error("Campanha não encontrada ou sem permissão para excluir.");
+  }
+}
+
+/* =========================================================
+   LISTAR CAMPANHAS DO USUÁRIO
+========================================================= */
+
+export async function listarMinhasCampanhas(): Promise<
+  Campaign[]
+> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    throw new Error(
+      "Usuário não autenticado.",
+    );
+  }
+
+  const {
+    data,
+    error,
+  } = await supabase
+    .from("campanha_membros")
+    .select(
+      "campanha_id, campanhas (*)",
+    )
+    .eq("user_id", user.id)
+    .eq("status", "ATIVO");
+
+  if (error) {
+    throw new Error(
+      error.message ||
+        "Não foi possível carregar suas campanhas.",
+    );
+  }
+
+  const campanhas: Campaign[] = [];
+
+  for (const item of data ?? []) {
+    const campanha =
+      item.campanhas;
+
+    if (
+      campanha &&
+      !Array.isArray(campanha)
+    ) {
+      campanhas.push(
+        campanha as Campaign,
+      );
+    }
+  }
+
+  return campanhas;
+}
+
+/* =========================================================
+   ENTRAR EM CAMPANHA POR CÓDIGO
+========================================================= */
+
+export async function entrarNaCampanha(
+  codigoConvite: string,
+): Promise<Campaign> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    throw new Error(
+      "Usuário não autenticado.",
+    );
+  }
+
+  const codigo =
+    codigoConvite.trim().toUpperCase();
+
+  if (!codigo) {
+    throw new Error(
+      "Informe o código da campanha.",
+    );
+  }
+
+  const {
+    data: campanha,
+    error: campanhaError,
+  } = await supabase
+    .from("campanhas")
+    .select("*")
+    .eq(
+      "codigo_convite",
+      codigo,
+    )
+    .eq("status", "ATIVA")
+    .single();
+
+  if (
+    campanhaError ||
+    !campanha
+  ) {
+    throw new Error(
+      "Campanha não encontrada ou não está ativa.",
+    );
+  }
+
+  const {
+    data: membroExistente,
+    error: membroConsultaError,
+  } = await supabase
+    .from("campanha_membros")
+    .select("id, status")
+    .eq(
+      "campanha_id",
+      campanha.id,
+    )
+    .eq(
+      "user_id",
+      user.id,
+    )
+    .maybeSingle();
+
+  if (membroConsultaError) {
+    throw new Error(
+      membroConsultaError.message ||
+        "Não foi possível verificar sua participação.",
+    );
+  }
+
+  if (membroExistente) {
+    if (
+      membroExistente.status !==
+      "ATIVO"
+    ) {
+      const {
+        error: atualizarError,
+      } = await supabase
+        .from("campanha_membros")
+        .update({
+          status: "ATIVO",
+        })
+        .eq(
+          "id",
+          membroExistente.id,
+        );
+
+      if (atualizarError) {
+        throw new Error(
+          atualizarError.message ||
+            "Não foi possível reativar sua participação.",
+        );
+      }
+    }
+
+    return campanha as Campaign;
+  }
+
+  const {
+    error: entradaError,
+  } = await supabase
+    .from("campanha_membros")
+    .insert({
+      campanha_id: campanha.id,
+      user_id: user.id,
+      papel: "JOGADOR",
+      status: "ATIVO",
+    });
+
+  if (entradaError) {
+    throw new Error(
+      entradaError.message ||
+        "Não foi possível entrar na campanha.",
+    );
+  }
+
+  return campanha as Campaign;
+}
+
+/* =========================================================
+   BUSCAR CAMPANHA POR CÓDIGO
+========================================================= */
+
+export async function buscarCampanhaPorCodigo(
+  codigoConvite: string,
+): Promise<Campaign> {
+  const codigo =
+    codigoConvite.trim().toUpperCase();
+
+  if (!codigo) {
+    throw new Error(
+      "Informe o código da campanha.",
+    );
+  }
+
+  const {
+    data,
+    error,
+  } = await supabase
+    .from("campanhas")
+    .select("*")
+    .eq(
+      "codigo_convite",
+      codigo,
+    )
+    .eq("status", "ATIVA")
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(
+      error.message ||
+        "Não foi possível buscar a campanha.",
+    );
+  }
+
+  if (!data) {
+    throw new Error(
+      "Campanha não encontrada ou não está ativa.",
+    );
+  }
+
+  return data as Campaign;
+}
+
+/* =========================================================
+   ACESSO À CAMPANHA
+========================================================= */
+
+export async function getCampaignAccess(
+  campaignId: string,
+): Promise<{
+  isMaster: boolean;
+  startingGold: number;
+}> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return {
+      isMaster: false,
+      startingGold: 1250,
+    };
+  }
+
+  const {
+    data: membership,
+    error: membershipError,
+  } = await supabase
+    .from("campanha_membros")
+    .select("papel")
+    .eq(
+      "campanha_id",
+      campaignId,
+    )
+    .eq(
+      "user_id",
+      user.id,
+    )
+    .eq("status", "ATIVO")
+    .maybeSingle();
+
+  if (membershipError) {
+    throw new Error(
+      membershipError.message ||
+        "Não foi possível verificar seu papel na campanha.",
+    );
+  }
+
+  const {
+    data: campaign,
+    error: campaignError,
+  } = await supabase
+    .from("campanhas")
+    .select("*")
+    .eq("id", campaignId)
+    .maybeSingle();
+
+  if (campaignError) {
+    throw new Error(
+      campaignError.message ||
+        "Não foi possível carregar a economia da campanha.",
+    );
+  }
+
+  return {
+    isMaster:
+      membership?.papel ===
+      "MESTRE",
+    startingGold:
+      campaign?.ouro_inicial ??
+      1250,
+  };
+}
+
+/* =========================================================
+   CRIAR PERSONAGEM
+========================================================= */
+
+export async function criarPersonagem(
+  campanhaId: string | null,
+  personagem: Character,
+): Promise<Character> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    throw new Error(
+      "Usuário não autenticado.",
+    );
+  }
+
+  const {
+    data,
+    error,
+  } = await supabase
+    .from("personagens")
+    .insert({
+      campanha_id: campanhaId,
+      user_id: user.id,
+      nome: personagem.nome,
+      nivel: personagem.nivel,
+      xp: 0,
+      dados: paraDados(personagem),
+    })
+    .select()
+    .single();
+
+  if (error || !data) {
+    throw new Error(
+      error?.message ||
+        "Não foi possível criar o personagem.",
+    );
+  }
+
+  const salvo = rowToCharacter(data as PersonagemRow);
+  if (!salvo) {
+    throw new Error("O personagem foi salvo, mas os dados da ficha estão vazios.");
+  }
+
+  return {
+    ...salvo,
+    campanhaId,
+  };
+}
+
+/* =========================================================
+   LOJA
+========================================================= */
+
+export interface ShopItem {
+  id: string;
+  lojaId: string;
+  itemId: string;
+  campanhaId: string;
+  nome: string;
+  descricao: string | null;
+  tipo: string | null;
+  raridade: string | null;
+  efeito: string | null;
+  imagemUrl: string | null;
+  bonusAtributos?: Partial<Record<BaseAttributeKey, number>>;
+  efeitoMecanico?: import("../types/character").ItemEffect | null;
+  cargasMaximas?: number | null;
+  precoCompra: number;
+  precoVenda: number | null;
+  estoque: number;
+  vendaPermitida: boolean;
+  ativo: boolean;
+}
+
+/**
+ * Lista as ofertas de TODAS as lojas ativas da campanha.
+ * Não usa .single()/.maybeSingle(): uma campanha pode ter 0, 1 ou várias lojas,
+ * e qualquer uma dessas situações precisa funcionar sem erro.
+ */
+
+export async function listarItensDaLoja(
+  campanhaId: string,
+): Promise<ShopItem[]> {
+  const { data, error } = await supabase
+    .from("lojas")
+    .select(`
+      id,
+      campanha_id,
+      ativa,
+      loja_itens (
+        id,
+        item_id,
+        preco_compra,
+        preco_venda,
+        estoque,
+        venda_permitida,
+        ativo,
+        itens (
+          id,
+          nome,
+          descricao,
+          tipo,
+          raridade,
+          efeito,
+          imagem_url,
+          bonus_atributos,
+          efeito_mecanico,
+          cargas_maximas
+        )
+      )
+    `)
+    .eq("campanha_id", campanhaId)
+    .eq("ativa", true);
+
+  if (error) {
+    throw new Error(
+      error.message || "Não foi possível carregar a loja.",
+    );
+  }
+
+  if (!data || data.length === 0) {
+    return [];
+  }
+
+  type LojaComItens = {
+    id: string;
+    campanha_id: string;
+    ativa: boolean;
+    loja_itens?: Array<{
+      id: string;
+      item_id: string;
+      preco_compra: number;
+      preco_venda: number | null;
+      estoque: number;
+      venda_permitida: boolean;
+      ativo: boolean;
+      itens:
+        | {
+            id: string;
+            nome: string;
+            descricao: string | null;
+            tipo: string | null;
+            raridade: string | null;
+            efeito: string | null;
+            imagem_url: string | null;
+            bonus_atributos:
+              | Partial<Record<BaseAttributeKey, number>>
+              | null;
+            efeito_mecanico:
+              | import("../types/character").ItemEffect
+              | null;
+            cargas_maximas: number | null;
+          }
+        | null;
+    }>;
+  };
+
+  const lojas = data as unknown as LojaComItens[];
+
+  return lojas.flatMap((loja) =>
+    (loja.loja_itens ?? [])
+      .filter(
+        (lojaItem) =>
+          lojaItem.ativo &&
+          lojaItem.itens !== null,
+      )
+      .map((lojaItem) => ({
+        id: lojaItem.id,
+        lojaId: loja.id,
+        campanhaId: loja.campanha_id,
+        itemId: lojaItem.item_id,
+        nome: lojaItem.itens!.nome,
+        descricao: lojaItem.itens!.descricao,
+        tipo: lojaItem.itens!.tipo,
+        raridade: lojaItem.itens!.raridade,
+        efeito: lojaItem.itens!.efeito,
+        imagemUrl: lojaItem.itens!.imagem_url,
+        bonusAtributos:
+          lojaItem.itens!.bonus_atributos ?? {},
+        efeitoMecanico:
+          lojaItem.itens!.efeito_mecanico ?? null,
+        cargasMaximas:
+          lojaItem.itens!.cargas_maximas ?? null,
+        precoCompra: Number(lojaItem.preco_compra),
+        precoVenda:
+          lojaItem.preco_venda === null
+            ? null
+            : Number(lojaItem.preco_venda),
+        estoque: Number(lojaItem.estoque),
+        vendaPermitida: lojaItem.venda_permitida,
+        ativo: lojaItem.ativo,
+      })),
+  );
+}
+
+export interface SaveShopItemInput {
+  campanhaId: string;
+  lojaItemId?: string;
+  nome: string;
+  descricao: string;
+  tipo: string;
+  raridade: string;
+  efeito: string;
+  imagemUrl: string | null;
+  bonusAtributos?: Partial<Record<BaseAttributeKey, number>>;
+  efeitoMecanico?: import("../types/character").ItemEffect | null;
+  cargasMaximas?: number | null;
+  precoCompra: number;
+  estoque: number;
+  ativo: boolean;
+}
+
+
+export async function salvarItemDaLoja(
+  item: SaveShopItemInput,
+): Promise<ShopItem> {
+  const { data, error } = await supabase.rpc("salvar_item_loja", {
+    p_campanha_id: item.campanhaId,
+    p_loja_item_id: item.lojaItemId ?? null,
+    p_nome: item.nome,
+    p_descricao: item.descricao,
+    p_tipo: item.tipo,
+    p_raridade: item.raridade,
+    p_efeito: item.efeito,
+    p_imagem_url: item.imagemUrl,
+    p_preco_compra: item.precoCompra,
+    p_estoque: item.estoque,
+    p_ativo: item.ativo,
+  });
+
+  if (error) {
+    throw new Error(error.message || "Não foi possível salvar o item da loja.");
+  }
+
+  if (!data || typeof data !== "object") {
+    throw new Error("O Supabase não confirmou o salvamento do item.");
+  }
+
+  const receipt = data as {
+    loja_id: string;
+    loja_item_id: string;
+    item_id: string;
+  };
+
+  return {
+    id: receipt.loja_item_id,
+    lojaId: receipt.loja_id,
+    itemId: receipt.item_id,
+    campanhaId: item.campanhaId,
+    nome: item.nome,
+    descricao: item.descricao,
+    tipo: item.tipo,
+    raridade: item.raridade,
+    efeito: item.efeito,
+    imagemUrl: item.imagemUrl,
+    bonusAtributos: item.bonusAtributos ?? {},
+    efeitoMecanico: item.efeitoMecanico ?? null,
+    cargasMaximas: item.cargasMaximas ?? null,
+    precoCompra: item.precoCompra,
+    precoVenda: null,
+    estoque: item.estoque,
+    vendaPermitida: true,
+    ativo: item.ativo,
+  };
+}
+
+export type CatalogItem = Pick<
+  ShopItem,
+  "itemId" | "nome" | "descricao" | "tipo" | "raridade" | "efeito" | "imagemUrl" |
+  "bonusAtributos" | "efeitoMecanico" | "cargasMaximas"
+>;
+
+export async function listarCatalogoItens(): Promise<CatalogItem[]> {
+  const { data, error } = await supabase
+    .from("itens")
+    .select("id, nome, descricao, tipo, raridade, efeito, imagem_url, bonus_atributos, efeito_mecanico, cargas_maximas")
+    .order("nome", { ascending: true });
+
+  if (error) {
+    throw new Error(error.message || "Não foi possível carregar o catálogo de cartas.");
+  }
+
+  return (data ?? []).map((item) => ({
+    itemId: item.id,
+    nome: item.nome,
+    descricao: item.descricao,
+    tipo: item.tipo,
+    raridade: item.raridade,
+    efeito: item.efeito,
+    imagemUrl: item.imagem_url,
+    bonusAtributos: item.bonus_atributos ?? {},
+    efeitoMecanico: item.efeito_mecanico ?? null,
+    cargasMaximas: item.cargas_maximas ?? null,
+  }));
+}
+
+export async function adicionarItemExistenteNaLoja(
+  campanhaId: string,
+  itemId: string,
+  precoCompra: number,
+  estoque: number,
+): Promise<string> {
+  const { data, error } = await supabase.rpc("adicionar_item_existente_loja", {
+    p_campanha_id: campanhaId,
+    p_item_id: itemId,
+    p_preco_compra: precoCompra,
+    p_estoque: estoque,
+  });
+
+  if (error) {
+    throw new Error(error.message || "Não foi possível adicionar a carta existente.");
+  }
+
+  if (typeof data !== "string") {
+    throw new Error("O Supabase não confirmou a inclusão da carta.");
+  }
+
+  return data;
+}
+
+export async function removerItemDaLoja(
+  campanhaId: string,
+  lojaItemId: string,
+): Promise<void> {
+  const { data, error } = await supabase.rpc("remover_item_loja", {
+    p_campanha_id: campanhaId,
+    p_loja_item_id: lojaItemId,
+  });
+
+  if (error) {
+    throw new Error(error.message || "Não foi possível remover a carta desta loja.");
+  }
+
+  if (data !== true) {
+    throw new Error("O Supabase não confirmou a remoção da carta.");
+  }
+}
+
+/* =========================================================
+   COMPRAR ITEM
+========================================================= */
+
+export async function comprarItem(
+  personagemId: string,
+  lojaItemId: string,
+  quantidade: number = 1,
+) {
+  return comprarCarrinho(personagemId, [
+    { lojaItemId, quantidade },
+  ]);
+}
+
+export interface CartPurchaseLine {
+  lojaItemId: string;
+  quantidade: number;
+}
+
+export interface PurchaseReceipt {
+  personagem_id: string;
+  saldo_po: number;
+  total_gasto: number;
+}
+
+export async function comprarCarrinho(
+  personagemId: string,
+  itens: CartPurchaseLine[],
+  requestId = criarIdempotencyKey(),
+): Promise<PurchaseReceipt> {
+  if (!personagemId) {
+    throw new Error("Personagem não informado.");
+  }
+
+  if (
+    itens.length === 0 ||
+    itens.some(
+      (item) =>
+        !item.lojaItemId ||
+        !Number.isSafeInteger(item.quantidade) ||
+        item.quantidade <= 0,
+    )
+  ) {
+    throw new Error("O carrinho contém itens ou quantidades inválidas.");
+  }
+
+  const { data, error } = await supabase.rpc(
+    "registrar_compra_carrinho",
+    {
+      p_personagem_id: personagemId,
+      p_itens: itens.map((item) => ({
+        loja_item_id: item.lojaItemId,
+        quantidade: item.quantidade,
+      })),
+      p_request_id: requestId,
+    },
+  );
+
+  if (error) {
+    throw new Error(error.message || "Não foi possível realizar a compra.");
+  }
+
+  if (!data) {
+    throw new Error("A compra não retornou uma confirmação.");
+  }
+
+  return data as PurchaseReceipt;
+}
+
+/* =========================================================
+   INVENTÁRIO
+========================================================= */
+
+export async function creditarOuroCampanha(
+  campanhaId: string,
+  quantidade: number,
+  personagemId?: string,
+  requestId = criarIdempotencyKey(),
+): Promise<number> {
+  if (!campanhaId || !Number.isSafeInteger(quantidade) || quantidade <= 0 || quantidade > 100000) {
+    throw new Error("A quantia deve estar entre 1 e 100000 PO.");
+  }
+  const { data, error } = await supabase.rpc("creditar_ouro_campanha", {
+    p_campanha_id: campanhaId,
+    p_quantia: quantidade,
+    p_personagem_id: personagemId ?? null,
+    p_request_id: requestId,
+  });
+  if (error) throw new Error(error.message || "Não foi possível creditar o ouro.");
+  if (typeof data !== "number") throw new Error("O Supabase não confirmou o crédito.");
+  return data;
+}
+
+function criarIdempotencyKey(): string {
+  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (token) => {
+    const value = Math.floor(Math.random() * 16);
+    return (token === "x" ? value : (value & 0x3) | 0x8).toString(16);
+  });
+}
+
+export async function creditarExperienciaCampanha(
+  campanhaId: string,
+  quantidade: number,
+  personagemId?: string,
+  requestId = criarIdempotencyKey(),
+): Promise<number> {
+  if (!campanhaId || !Number.isSafeInteger(quantidade) || quantidade <= 0 || quantidade > 2147483647) {
+    throw new Error("A quantidade de XP deve ser um inteiro entre 1 e 2147483647.");
+  }
+  const { data, error } = await supabase.rpc("creditar_experiencia_campanha", {
+    p_campanha_id: campanhaId,
+    p_quantia: quantidade,
+    p_personagem_id: personagemId ?? null,
+    p_request_id: requestId,
+  });
+  if (error) throw new Error(error.message || "Não foi possível creditar XP.");
+  if (typeof data !== "number") throw new Error("O Supabase não confirmou o crédito de XP.");
+  return data;
+}
+
+export async function entregarItemCampanha(
+  campanhaId: string,
+  itemId: string,
+  quantidade: number,
+  personagemId?: string,
+  requestId = criarIdempotencyKey(),
+): Promise<number> {
+  if (!campanhaId || !itemId || !Number.isSafeInteger(quantidade) || quantidade <= 0 || quantidade > 9999) {
+    throw new Error("Item e quantidade de entrega inválidos.");
+  }
+  const { data, error } = await supabase.rpc("entregar_item_campanha", {
+    p_campanha_id: campanhaId,
+    p_item_id: itemId,
+    p_quantidade: quantidade,
+    p_personagem_id: personagemId ?? null,
+    p_request_id: requestId,
+  });
+  if (error) throw new Error(error.message || "Não foi possível entregar o item.");
+  if (typeof data !== "number") throw new Error("O Supabase não confirmou a entrega do item.");
+  return data;
+}
+
+export interface CampaignRewardHistoryItem {
+  id: number;
+  campanha_id: string;
+  personagem_id: string | null;
+  item_id: string | null;
+  tipo: "OURO" | "XP" | "ITEM";
+  quantidade: number;
+  quantidade_item: number | null;
+  total_destinatarios: number;
+  created_at: string;
+}
+
+export async function listarRecompensasCampanha(campaignId: string): Promise<CampaignRewardHistoryItem[]> {
+  const { data, error } = await supabase
+    .from("campanha_recompensas")
+    .select("id, campanha_id, personagem_id, item_id, tipo, quantidade, quantidade_item, total_destinatarios, created_at")
+    .eq("campanha_id", campaignId)
+    .order("created_at", { ascending: false })
+    .limit(20);
+  if (error) throw new Error(error.message || "Não foi possível carregar o histórico de recompensas.");
+  return (data ?? []) as CampaignRewardHistoryItem[];
+}
+
+export async function listarCatalogoItensDaCampanha(): Promise<CatalogItem[]> {
+  return listarCatalogoItens();
+}
+
+export interface ItemUseReceipt {
+  personagem_id: string;
+  hp: { atual: number; temp?: number } | null;
+  mp: { atual: number; temp?: number } | null;
+  quantidade: number;
+  hp_max: number;
+  mp_max: number;
+}
+
+export async function usarItemPersonagem(
+  personagemId: string,
+  itemId: string,
+): Promise<ItemUseReceipt> {
+  const { data, error } = await supabase.rpc("usar_item_personagem", {
+    p_personagem_id: personagemId,
+    p_item_id: itemId,
+  });
+  if (error) throw new Error(error.message || "Não foi possível usar o item.");
+  if (!data || typeof data !== "object") throw new Error("O Supabase não confirmou o uso do item.");
+  return data as ItemUseReceipt;
+}
+
+export interface CampaignResourceMaximum {
+  personagem_id: string;
+  hp_atual: number;
+  hp_max: number;
+  mp_atual: number;
+  mp_max: number;
+}
+
+export async function getCampaignResourceMaximums(campaignId: string): Promise<CampaignResourceMaximum[]> {
+  const { data, error } = await supabase.rpc("listar_maximos_recursos_campanha", {
+    p_campanha_id: campaignId,
+  });
+  if (error) throw new Error(error.message || "Não foi possível carregar os máximos da campanha.");
+  return (data ?? []) as CampaignResourceMaximum[];
+}
+
+export async function getEquippedAttributeBonusesByCharacter(
+  characterIds: string[],
+): Promise<Record<string, Partial<Record<BaseAttributeKey, number>>>> {
+  const ids = [...new Set(characterIds.filter(Boolean))];
+  if (ids.length === 0) return {};
+
+  const { data, error } = await supabase
+    .from("inventarios")
+    .select("personagem_id, itens ( bonus_atributos )")
+    .in("personagem_id", ids)
+    .eq("equipado", true)
+    .gt("quantidade", 0);
+
+  if (error) {
+    throw new Error(error.message || "Não foi possível carregar os bônus de equipamento.");
+  }
+
+  const totals: Record<string, Partial<Record<BaseAttributeKey, number>>> = {};
+  for (const row of data ?? []) {
+    const item = Array.isArray(row.itens) ? row.itens[0] : row.itens;
+    const bonuses = item?.bonus_atributos as Partial<Record<BaseAttributeKey, number>> | null | undefined;
+    if (!bonuses) continue;
+    const characterBonuses = totals[row.personagem_id] ?? (totals[row.personagem_id] = {});
+    for (const attribute of ["forca", "destreza", "constituicao", "inteligencia", "carisma"] as const) {
+      const amount = bonuses[attribute];
+      if (typeof amount === "number" && Number.isFinite(amount)) {
+        characterBonuses[attribute] = (characterBonuses[attribute] ?? 0) + Math.trunc(amount);
+      }
+    }
+  }
+
+  return totals;
+}
+
+export interface AuthoritativeCharacterResources {
+  dados_version: number;
+  hp_atual: number;
+  mp_atual: number;
+  hp_max: number;
+  mp_max: number;
+}
+
+export async function getCharacterResourceMaximums(personagemId: string): Promise<AuthoritativeCharacterResources> {
+  const { data, error } = await supabase.rpc("get_character_resource_maximums", {
+    p_personagem_id: personagemId,
+  });
+  if (error) throw new Error(error.message || "Não foi possível carregar os máximos do servidor.");
+  if (!data || typeof data !== "object") throw new Error("O Supabase não retornou os máximos do personagem.");
+  return validateAuthoritativeCharacterResources(data);
+}
+
+function validateAuthoritativeCharacterResources(data: unknown): AuthoritativeCharacterResources {
+  const result = data as Record<string, unknown>;
+  if (
+    typeof result.dados_version !== "number" ||
+    typeof result.hp_atual !== "number" ||
+    typeof result.mp_atual !== "number" ||
+    typeof result.hp_max !== "number" ||
+    typeof result.mp_max !== "number"
+  ) throw new Error("A resposta de sincronização dos recursos é inválida.");
+  return {
+    dados_version: result.dados_version,
+    hp_atual: result.hp_atual,
+    mp_atual: result.mp_atual,
+    hp_max: result.hp_max,
+    mp_max: result.mp_max,
+  };
+}
+
+export async function reconciliarLimitesRecursosPersonagem(personagemId: string): Promise<AuthoritativeCharacterResources> {
+  const { data, error } = await supabase.rpc("reconciliar_limites_recursos_personagem", {
+    p_personagem_id: personagemId,
+  });
+  if (error) throw new Error(error.message || "Não foi possível sincronizar os recursos.");
+  if (!data || typeof data !== "object") {
+    throw new Error("O Supabase não confirmou a sincronização dos recursos.");
+  }
+  return validateAuthoritativeCharacterResources(data);
+}
+
+export async function getInventory(
+  personagemId: string,
+) {
+  const {
+    data,
+    error,
+  } = await supabase
+    .from("inventarios")
+    .select(`
+      personagem_id,
+      item_id,
+      quantidade,
+      equipado,
+      cargas_atuais,
+      comentario_pessoal,
+      updated_at,
+      itens (
+        id,
+        nome,
+        descricao,
+        tipo,
+        raridade,
+        efeito,
+        imagem_url,
+        bonus_atributos,
+        efeito_mecanico,
+        cargas_maximas
+      )
+    `)
+    .eq(
+      "personagem_id",
+      personagemId,
+    )
+    .order(
+      "updated_at",
+      { ascending: false },
+    );
+
+  if (error) {
+    console.error(
+      "Erro ao carregar inventário:",
+      error,
+    );
+
+    throw new Error(
+      error.message,
+    );
+  }
+
+  return data ?? [];
+}
+
+export async function alterarItemEquipado(
+  personagemId: string,
+  itemId: string,
+  equipado: boolean,
+): Promise<void> {
+  const { data, error } = await supabase.rpc("alterar_item_equipado", {
+    p_personagem_id: personagemId,
+    p_item_id: itemId,
+    p_equipado: equipado,
+  });
+
+  if (error) {
+    throw new Error(error.message || "Não foi possível atualizar o equipamento.");
+  }
+
+  if (!data) {
+    throw new Error("O equipamento não foi atualizado.");
+  }
+}
+
+export async function salvarComentarioInventario(
+  personagemId: string,
+  itemId: string,
+  comentario: string,
+): Promise<void> {
+  const { data, error } = await supabase.rpc("salvar_comentario_inventario", {
+    p_personagem_id: personagemId,
+    p_item_id: itemId,
+    p_comentario: comentario,
+  });
+
+  if (error) {
+    throw new Error(error.message || "Não foi possível salvar o comentário.");
+  }
+  if (data !== true) {
+    throw new Error("O Supabase não confirmou o salvamento do comentário.");
+  }
+}
+
+export async function excluirItemInventario(
+  personagemId: string,
+  itemId: string,
+): Promise<void> {
+  const { data, error } = await supabase.rpc("excluir_item_inventario", {
+    p_personagem_id: personagemId,
+    p_item_id: itemId,
+  });
+
+  if (error) {
+    throw new Error(error.message || "Não foi possível excluir o item.");
+  }
+  if (data !== true) {
+    throw new Error("O Supabase não confirmou a exclusão do item.");
+  }
+}
+
+
+========== src/types/character.ts ==========
+
+export interface Attributes {
+  forca: number;
+  destreza: number;
+  constituicao: number;
+  inteligencia: number;
+  carisma: number;
+}
+
+export interface Skill {
+  id: string;
+  nome: string;
+  atributo: keyof Attributes;
+  descricao?: string;
+  treinada: boolean;
+  bonus: number;
+  bonusManual?: number;
+}
+
+export interface InventoryItem {
+  id: string;
+  nome: string;
+  quantidade: number;
+  descricao?: string;
+  imagemUrl?: string;
+  equipado?: boolean;
+  bonusAtributos?: Partial<Record<keyof Attributes, number>>;
+  cargas?: number | null;
+  cargasMaximas?: number | null;
+  efeitoMecanico?: ItemEffect | null;
+}
+
+export type ItemEffect =
+  | { tipo: "ATRIBUTO"; atributo: keyof Attributes; valor: number }
+  | { tipo: "RECURSO"; recurso: "hp" | "mp"; valor: number }
+  | { tipo: "NENHUM" };
+
+export interface Spell {
+  id: string;
+  nome: string;
+  custo: number;
+  descricao: string;
+}
+
+/** Carteira no estilo D&D: cobre, prata, electro, ouro e platina. */
+export interface Wallet {
+  pc: number;
+  pp: number;
+  pe: number;
+  po: number;
+  pl: number;
+}
+
+export interface CharacterAbility {
+  id?: string;
+  nome: string;
+  descricao?: string;
+  nivel?: number;
+}
+
+export interface Character {
+  id: string;
+  /** Versão otimista da linha em `personagens`, não persistida dentro de `dados`. */
+  dataVersion?: number;
+  nome: string;
+  raca: string;
+  classe: string;
+  classeId?: string;
+  nivel: number;
+  /** XP vive na coluna relacional `personagens.xp`, não no JSON de ficha. */
+  xp?: number;
+  portraitUrl?: string;
+  /** null = personagem ainda sem campanha; vem da coluna campanha_id do banco. */
+  campanhaId?: string | null;
+  alinhamento?: string;
+  qualidades?: string;
+  origem?: string;
+  idade?: string;
+  historia?: string;
+  aparencia?: string;
+  objetivo?: string;
+  defeito?: string;
+  filiacao?: string;
+  altura?: number;
+  tracos?: string;
+  defeitos?: string;
+  hp: { atual: number; max: number; temp?: number };
+  mp: { atual: number; max: number; temp?: number };
+  attributes: Attributes;
+  skills: Skill[];
+  inventory: InventoryItem[];
+  spells: Spell[];
+  habilidades?: CharacterAbility[];
+  carteira?: Wallet;
+  notas: string;
+}
+
+export interface CharacterDataV1 extends Omit<Character, "id" | "campanhaId" | "dataVersion" | "xp" | "hp" | "mp"> {
+  schemaVersion: 1;
+  hp: { atual: number; max: number; temp?: number };
+  mp: { atual: number; max: number; temp?: number };
+  /** Campos futuros/legados fora do contrato conhecido são preservados. */
+  [key: string]: unknown;
+}
+
+export interface User {
+  id: string;
+  nome: string;
+  email?: string;
+}
+

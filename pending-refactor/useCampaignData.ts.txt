@@ -1,0 +1,79 @@
+import { useQuery, UseQueryResult } from '@tanstack/react-query';
+import {
+  getCatalogoGlobalClasses,
+  listarConteudosClasseCampanha,
+  listarPersonagensDaCampanha,
+  listarMinhasCampanhas,
+  getCampaignAccess,
+  getCampaignResourceMaximums,
+  listarCatalogoItens,
+  listarRecompensasCampanha,
+} from '../services/api';
+import type { Campaign, CampaignClassContent, ClassDefinition } from '../services/api';
+import type { Character } from '../types/character';
+
+type CampaignData = {
+  campaign: Campaign | null;
+  isMaster: boolean;
+  characters: Character[];
+  globalClasses: ClassDefinition[];
+  classContents: CampaignClassContent[];
+  catalogItems: any[]; // replace with proper type if available
+  rewardsHistory: any[]; // replace with proper type if available
+  maxResources: Record<string, { hp: number; mp: number; hpAtual: number; mpAtual: number }>;
+};
+
+export function useCampaignData(campaignId: string): UseQueryResult<CampaignData> {
+  return useQuery(['campaignData', campaignId], async () => {
+    const [campaigns, access, chars, globalClasses, classContents] = await Promise.all([
+      listarMinhasCampanhas(),
+      getCampaignAccess(campaignId),
+      listarPersonagensDaCampanha(campaignId),
+      getCatalogoGlobalClasses(),
+      listarConteudosClasseCampanha(campaignId),
+    ]);
+
+    const campaign = campaigns.find((c) => c.id === campaignId) ?? null;
+    const isMaster = !!access?.is_master; // assuming access contains this flag
+
+    const [catalogItemsResult, rewardsResult, maxResources] = await Promise.all([
+      listarCatalogoItens().catch(() => []),
+      listarRecompensasCampanha(campaignId).catch(() => []),
+      getCampaignResourceMaximums(campaignId).catch(() => []),
+    ]);
+
+    const maxResMap: Record<string, { hp: number; mp: number; hpAtual: number; mpAtual: number }> = {};
+    maxResources.forEach((row: any) => {
+      maxResMap[row.personagem_id] = {
+        hp: row.hp_max,
+        mp: row.mp_max,
+        hpAtual: row.hp_atual,
+        mpAtual: row.mp_atual,
+      };
+    });
+
+    return {
+      campaign,
+      isMaster,
+      characters: chars,
+      globalClasses,
+      classContents,
+      catalogItems: catalogItemsResult,
+      rewardsHistory: rewardsResult,
+      maxResources: maxResMap,
+    } as CampaignData;
+  }, {
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    retry: false,
+  });
+}
+
+export function useGlobalClassCatalog() {
+  return useQuery('globalClassCatalog', async () => {
+    const data = await getCatalogoGlobalClasses();
+    return data;
+  }, {
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    retry: false,
+  });
+}

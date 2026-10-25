@@ -1,39 +1,64 @@
-﻿.stat-bar {
+/* ==========================================================
+   RPG Platform — StatBar (Refinado)
+   Vida: Rubi brilhante
+   Mana: Azul arcano / Safira celestial
+   ========================================================== */
+
+.stat-bar {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 5px;
 }
 
 .stat-bar-head {
   display: flex;
   justify-content: space-between;
-  color: var(--muted);
-  font-size: 13px;
+  color: var(--ep-suave, #a8b8b0);
+  font-family: var(--font-title, "Cinzel", serif);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.stat-bar-head span:last-child {
+  font-weight: 600;
+  color: var(--ep-ouro, #f0dba2);
 }
 
 .stat-bar-track {
-  height: 10px;
+  height: 12px;
   overflow: hidden;
-  border: 1px solid var(--border-bronze);
-  border-radius: 999px;
-  background: var(--ink);
+  border: 1px solid rgba(199, 166, 108, 0.35);
+  border-radius: 4px;
+  background: rgba(4, 10, 9, 0.95);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.85);
+  padding: 1px;
 }
 
 .stat-bar-fill {
   height: 100%;
-  transition: width 0.3s ease;
+  border-radius: 2px;
+  transition: width 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+/* Tom Rubi para Vida */
 .stat-bar-fill--wine {
-  background: linear-gradient(90deg, var(--wine), var(--wine-bright));
+  background: linear-gradient(90deg, #6e1717 0%, #b82626 50%, #e84d4d 100%);
+  box-shadow: 
+    0 0 10px rgba(232, 77, 77, 0.65),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
 }
 
+/* Tom Azul Arcano / Safira para Mana */
 .stat-bar-fill--forest {
-  background: linear-gradient(90deg, var(--forest), var(--gold));
+  background: linear-gradient(90deg, #0f3552 0%, #1c6194 50%, #3ca0e0 100%);
+  box-shadow: 
+    0 0 10px rgba(60, 160, 224, 0.65),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
 }
 
 @media (prefers-reduced-motion: reduce) {
   .stat-bar-fill {
-    transition: none;
+    transition: none !important;
   }
 }
