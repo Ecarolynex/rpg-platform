@@ -1,111 +1,103 @@
 /* ==========================================================================
-   Área da Campanha
-   Base: Elementum (tokens globais de index.css e styles/elementum.css:
-   verde-floresta, ferro, dourado envelhecido, fontes do projeto).
-   Atmosfera: Taverna Entre Mundos — luz quente de vela, veio de madeira
-   discreto, pergaminho nas placas de leitura e metal envelhecido.
-   Somente apresentação: nenhuma regra de negócio depende deste arquivo.
-
-   A atmosfera é local à campanha; cada campanha pode trocar só o acento e a
-   luz (--camp-accent / --camp-glow) sem mexer na estrutura, por exemplo:
-   .campaign-detail-page[data-universo="ficcao"] {
-     --camp-accent: #4fd1c5;
-     --camp-glow: rgba(79, 209, 197, 0.14);
-   }
+   RPG Platform — Área da Campanha (Tela do Mestre Funcional e Elegante)
+   Direção: Clima épico de fantasia (pedra, bronze, ouro nobre), com ergonomia
+   máxima para o Mestre: menos ruído visual, mais clareza para listas, tabelas
+   e controles rápidos de administração.
    ========================================================================== */
 
+/* ── Container da Página ─────────────────────────────────────────────────── */
 .campaign-detail-page {
-  /* Superfícies: herdam do Elementum (valores após a vírgula são reserva) */
-  --tav-wood-950: var(--ink, #060d0b);
-  --tav-wood-900: var(--surface-panel, #0e211e);
-  --tav-wood-800: var(--surface-panel, #0e211e);
-  --tav-wood-700: var(--surface-panel-raised, #15302b);
-  --tav-stone-800: var(--iron-edge, #2b3230);
-  --tav-stone-700: var(--stone, #3a403c);
-  --tav-parchment: var(--parchment, #f4efe9);
-  --tav-parchment-dim: var(--parchment-dim, #d9cdb9);
-  --tav-amber: var(--gold-bright, #f0dba2);
-  --tav-amber-soft: rgba(199, 166, 108, 0.18);
-  --tav-bronze: var(--gold, #c7a66c);
-  --tav-bronze-line: var(--border-strong, rgba(199, 166, 108, 0.56));
-  --tav-moss: var(--moss, #6f8452);
-  --tav-wine: var(--bordo-bright, #8a3a40);
-  --tav-text: var(--parchment, #f4efe9);
-  --tav-muted: var(--muted, #a8b3ae);
-
-  /* Atmosfera da Taverna (locais à campanha) */
-  --tav-ink: #2b2014; /* tinta sobre as placas de pergaminho */
-  --camp-glow: rgba(227, 166, 60, 0.14); /* luz quente de vela */
-  --camp-accent: var(--tav-amber);
+  --camp-ouro: #f0dba2;
+  --camp-ouro-forte: #d4af37;
+  --camp-ouro-escuro: #8c733e;
+  --camp-bronze: #5a482b;
+  --camp-bronze-line: rgba(199, 166, 108, 0.32);
+  --camp-petroleo-fundo: #071210;
+  --camp-petroleo-card: #0c1a17;
+  --camp-petroleo-elevado: #122622;
+  --camp-marfim: #f4efe9;
+  --camp-suave: #9bb0a6;
+  --camp-muted: #758a80;
+  --camp-accent: var(--camp-ouro);
+  --camp-ruby: #9e2b36;
 
   position: relative;
   isolation: isolate;
-  max-width: 1100px;
+  max-width: 1220px;
   margin: 0 auto;
-  padding: 24px 16px 64px;
-  color: var(--tav-text);
+  padding: 20px 16px 64px;
+  color: var(--camp-marfim);
+  font-family: var(--font-body, "EB Garamond", serif);
+  min-height: calc(100vh - 70px);
 }
 
-/* Brilho de vela nos cantos da página (decorativo) */
-.campaign-detail-page::before {
-  content: "";
-  position: absolute;
+/* ── Cenário e Iluminação de Fundo (Sutil e Não Poluído) ─────────────────── */
+.campaign-atmosphere-backdrop {
+  position: fixed;
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  background:
-    radial-gradient(520px 320px at 8% 0%, var(--camp-glow), transparent 70%),
-    radial-gradient(460px 300px at 96% 6%, var(--camp-glow), transparent 72%);
+  background-image:
+    radial-gradient(ellipse 70% 45% at 50% 10%, rgba(200, 150, 60, 0.08) 0%, transparent 65%),
+    radial-gradient(circle at 12% 40%, rgba(26, 61, 53, 0.16) 0%, transparent 55%),
+    radial-gradient(circle at 88% 50%, rgba(35, 75, 65, 0.14) 0%, transparent 55%),
+    linear-gradient(180deg, rgba(6, 14, 12, 0.82) 0%, rgba(4, 9, 8, 0.98) 100%),
+    url('/Portão de Moria.png');
+  background-size: cover;
+  background-position: center 30%;
+  background-repeat: no-repeat;
+  filter: contrast(1.05) saturate(1.02);
+  opacity: 0.22;
 }
 
 .campaign-detail-page :focus-visible {
-  outline: 2px solid var(--camp-accent);
+  outline: 2px solid var(--camp-ouro);
   outline-offset: 2px;
 }
 
+/* Mensagens de Alerta e Status */
 .campaign-status-message {
-  margin: 0 0 14px;
-  padding: 10px 14px;
-  border: 1px solid rgba(214, 138, 130, 0.6);
+  margin: 0 0 16px;
+  padding: 10px 16px;
+  border: 1px solid rgba(214, 138, 130, 0.5);
   border-left-width: 4px;
   border-radius: 4px;
-  background: rgba(88, 26, 30, 0.45);
-  color: #f2c4bd;
+  background: rgba(65, 20, 24, 0.7);
+  color: #f7d2cb;
+  font-size: 0.95rem;
 }
 
 /* -------------------------------------------------------------------------
-   Cabeçalho: tábua de madeira com ferragens e luz de lareira
+   CABEÇALHO DA CAMPANHA (Direto, Claro e Imersivo)
    ------------------------------------------------------------------------- */
 .campaign-detail-header {
   position: relative;
-  margin-bottom: 18px;
-  padding: 24px 28px 22px;
-  border: 1px solid var(--tav-bronze);
-  border-radius: var(--radius-panel, 8px);
+  margin-bottom: 20px;
+  padding: 22px 26px 20px;
+  border-radius: 8px;
+  border: 1px solid var(--camp-bronze-line);
   background:
-    radial-gradient(420px 180px at 50% 118%, var(--camp-glow), transparent 70%),
-    repeating-linear-gradient(92deg, rgba(0, 0, 0, 0.1) 0 2px, transparent 2px 9px),
-    linear-gradient(180deg, var(--tav-wood-700), var(--tav-wood-900) 70%, var(--tav-wood-950));
-  box-shadow:
-    0 12px 30px rgba(0, 0, 0, 0.45),
-    inset 0 0 0 1px rgba(234, 219, 182, 0.07),
-    inset 0 -3px 0 rgba(0, 0, 0, 0.35);
+    radial-gradient(ellipse 70% 50% at 50% 0%, rgba(212, 175, 95, 0.1) 0%, transparent 70%),
+    linear-gradient(180deg, #122622 0%, #0a1715 100%);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(240, 219, 162, 0.15);
 }
 
-/* Rebites de metal envelhecido nos cantos superiores */
-.campaign-detail-header::before,
-.campaign-detail-header::after {
-  content: "";
-  position: absolute;
-  top: 10px;
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 35% 30%, #c9a469, #6b4f28 70%);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+.campaign-header-top-runes {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-family: var(--font-title, "Cinzel", serif);
+  font-size: 10px;
+  letter-spacing: 0.3em;
+  color: rgba(212, 175, 95, 0.75);
+  user-select: none;
 }
-.campaign-detail-header::before { left: 10px; }
-.campaign-detail-header::after { right: 10px; }
+
+.campaign-header-top-runes .keystone-glyph {
+  color: var(--camp-ouro);
+  font-size: 9px;
+}
 
 .campaign-detail-nav {
   display: flex;
@@ -113,44 +105,46 @@
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 12px;
-  margin-bottom: 14px;
+  margin-bottom: 12px;
 }
 
 .campaign-back-link {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-height: 36px;
+  min-height: 34px;
   padding: 4px 12px;
-  border: 1px solid var(--tav-bronze-line);
+  border: 1px solid rgba(199, 166, 108, 0.4);
   border-radius: 4px;
-  background: rgba(0, 0, 0, 0.28);
-  color: var(--camp-accent);
-  font-size: 0.88rem;
-  font-weight: 600;
+  background: rgba(6, 16, 14, 0.65);
+  color: var(--camp-ouro);
+  font-family: var(--font-title, "Cinzel", serif);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
   text-decoration: none;
-  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+  transition: all 0.2s ease;
 }
 
 .campaign-back-link:hover {
-  border-color: var(--camp-accent);
-  background: var(--tav-amber-soft);
+  border-color: var(--camp-ouro);
+  background: rgba(212, 175, 95, 0.15);
   transform: translateX(-2px);
 }
 
 .campaign-header-badges {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
   gap: 8px;
 }
 
 .campaign-badge {
   padding: 4px 10px;
-  border: 1px solid var(--tav-bronze-line);
-  border-radius: 999px;
-  background: rgba(0, 0, 0, 0.3);
-  color: var(--tav-parchment);
+  border: 1px solid rgba(199, 166, 108, 0.4);
+  border-radius: 4px;
+  background: rgba(7, 16, 14, 0.8);
+  color: var(--camp-marfim);
+  font-family: var(--font-title, "Cinzel", serif);
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -158,29 +152,33 @@
 }
 
 .campaign-badge-master {
-  border-color: var(--camp-accent);
-  background: var(--tav-amber-soft);
-  color: var(--camp-accent);
+  border-color: var(--camp-ouro);
+  background: rgba(212, 175, 95, 0.2);
+  color: var(--camp-ouro);
 }
 
 .campaign-detail-title {
-  margin: 0 0 8px;
-  color: var(--tav-parchment);
-  font-family: var(--font-title, Georgia, "Times New Roman", serif);
-  font-size: clamp(1.9rem, 4.6vw, 2.8rem);
-  line-height: 1.1;
-  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.55), 0 0 22px rgba(227, 166, 60, 0.28);
+  margin: 0 0 6px;
+  font-family: var(--font-title, "Cinzel", Georgia, serif);
+  font-size: clamp(1.8rem, 4vw, 2.6rem);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--camp-ouro);
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.9);
   overflow-wrap: anywhere;
 }
 
 .campaign-detail-desc {
-  max-width: 70ch;
+  max-width: 78ch;
   margin: 0 0 18px;
-  color: var(--tav-muted);
-  line-height: 1.55;
+  color: var(--camp-suave);
+  font-size: 1.02rem;
+  line-height: 1.5;
 }
 
-/* Salões: acesso às ferramentas da campanha (rotas existentes) */
+/* -------------------------------------------------------------------------
+   ATALHOS PRINCIPAIS DE ÁREAS (Mapa, Bestiário, Loja, Dados)
+   ------------------------------------------------------------------------- */
 .campaign-context-nav {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -189,91 +187,184 @@
 
 .tav-lounge {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-height: 56px;
+  align-items: center;
+  gap: 12px;
+  min-height: 54px;
   padding: 10px 14px;
-  border: 1px solid rgba(199, 166, 108, 0.6);
+  border: 1px solid rgba(199, 166, 108, 0.35);
   border-radius: 6px;
-  background:
-    radial-gradient(circle at 20% 15%, rgba(255, 255, 255, 0.05), transparent 55%),
-    linear-gradient(180deg, var(--tav-stone-700), var(--tav-stone-800));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 3px 8px rgba(0, 0, 0, 0.35);
-  color: var(--tav-parchment);
+  background: linear-gradient(180deg, #142a25 0%, #0d1e1a 100%);
+  color: var(--camp-marfim);
   text-decoration: none;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+  transition: all 0.2s ease;
 }
 
-.tav-lounge:hover {
-  border-color: var(--camp-accent);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 0 16px rgba(227, 166, 60, 0.25);
-  transform: translateY(-1px);
+.tav-lounge-icon {
+  font-size: 1.5rem;
+  line-height: 1;
 }
 
 .tav-lounge-nome {
-  font-family: var(--font-display, Georgia, serif);
-  font-size: 1rem;
+  display: block;
+  font-family: var(--font-title, "Cinzel", serif);
+  font-size: 0.95rem;
   font-weight: 700;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.04em;
+  color: var(--camp-ouro);
 }
 
 .tav-lounge-desc {
-  color: var(--tav-muted);
-  font-size: 0.76rem;
+  display: block;
+  color: var(--camp-muted);
+  font-size: 0.78rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tav-lounge:hover {
+  border-color: var(--camp-ouro);
+  background: linear-gradient(180deg, #1a3831 0%, #112622 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 
 /* -------------------------------------------------------------------------
-   Navegação compacta entre seções
+   COCKPIT DO MESTRE (Ações Rápidas na Visão Geral)
+   ------------------------------------------------------------------------- */
+.dm-cockpit-shortcuts {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 14px;
+  padding: 12px 14px;
+  border: 1px solid rgba(199, 166, 108, 0.35);
+  border-radius: 6px;
+  background: rgba(8, 18, 16, 0.75);
+}
+
+.dm-cockpit-label {
+  font-family: var(--font-title, "Cinzel", serif);
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--camp-ouro);
+  text-transform: uppercase;
+}
+
+.dm-cockpit-btns {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.dm-cockpit-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 4px 12px;
+  border: 1px solid rgba(199, 166, 108, 0.4);
+  border-radius: 4px;
+  background: rgba(14, 30, 26, 0.85);
+  color: var(--camp-marfim);
+  font-family: var(--font-title, "Cinzel", serif);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.dm-cockpit-btn:hover {
+  border-color: var(--camp-ouro);
+  color: var(--camp-ouro);
+  background: rgba(212, 175, 95, 0.18);
+}
+
+/* -------------------------------------------------------------------------
+   NAVEGAÇÃO DAS SEÇÕES / ABAS
    ------------------------------------------------------------------------- */
 .tav-section-nav {
   display: flex;
   gap: 8px;
-  margin-bottom: 16px;
-  padding: 2px 2px 6px;
+  margin: 16px 0 20px;
+  padding: 4px;
+  border: 1px solid rgba(199, 166, 108, 0.25);
+  border-radius: 6px;
+  background: rgba(6, 14, 12, 0.75);
   overflow-x: auto;
   scrollbar-width: thin;
 }
 
 .tav-section-nav button {
   flex: 0 0 auto;
-  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 38px;
   padding: 6px 14px;
-  border: 1px solid var(--tav-bronze-line);
-  border-radius: 999px;
-  background: rgba(0, 0, 0, 0.32);
-  color: var(--tav-parchment);
-  font: inherit;
-  font-size: 0.85rem;
-  font-weight: 600;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--camp-suave);
+  font-family: var(--font-title, "Cinzel", serif);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease;
+  transition: all 0.15s ease;
 }
 
 .tav-section-nav button:hover {
-  border-color: var(--camp-accent);
-  background: var(--tav-amber-soft);
+  color: var(--camp-ouro);
+  background: rgba(212, 175, 95, 0.1);
+}
+
+.tav-section-nav button.is-active {
+  color: #ffffff;
+  background: rgba(212, 175, 95, 0.22);
+  border-color: rgba(212, 175, 95, 0.5);
 }
 
 .tav-section-nav .tav-section-nav-perigo {
-  border-color: rgba(172, 80, 74, 0.6);
-  color: #e8b0a6;
+  color: #e59999;
+}
+
+.tav-section-nav .tav-section-nav-perigo:hover {
+  color: #ffcccc;
+  background: rgba(180, 40, 50, 0.2);
+}
+
+.tav-section-nav .tav-section-nav-perigo.is-active {
+  color: #ffffff;
+  background: rgba(180, 40, 50, 0.35);
+  border-color: rgba(220, 80, 90, 0.6);
 }
 
 /* -------------------------------------------------------------------------
-   Seções expansíveis
+   SEÇÕES EXPANSÍVEIS (Painéis Compactos de Trabalho)
    ------------------------------------------------------------------------- */
 .campaign-section {
+  position: relative;
   margin-bottom: 14px;
-  border: 1px solid var(--tav-bronze-line);
-  border-radius: var(--radius-panel, 8px);
-  background:
-    repeating-linear-gradient(92deg, rgba(0, 0, 0, 0.06) 0 2px, transparent 2px 10px),
-    linear-gradient(180deg, rgba(21, 48, 43, 0.96), rgba(14, 33, 30, 0.97));
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.32), inset 0 0 0 1px rgba(234, 219, 182, 0.04);
+  border: 1px solid var(--camp-bronze-line);
+  border-radius: 6px;
+  background: rgba(10, 22, 19, 0.92);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+  transition: border-color 0.2s ease;
 }
 
 .tav-secao.is-open {
-  border-color: var(--tav-bronze);
+  border-color: rgba(199, 166, 108, 0.6);
+}
+
+.secao-corner-accents {
+  display: none; /* remove ornamentos pesados repetidos */
 }
 
 .tav-secao-titulo {
@@ -286,35 +377,36 @@
   align-items: center;
   gap: 12px;
   width: 100%;
-  min-height: 52px;
+  min-height: 50px;
   padding: 12px 18px;
   border: 0;
   border-radius: inherit;
   background: transparent;
-  color: var(--tav-parchment);
+  color: var(--camp-marfim);
   font: inherit;
   text-align: left;
   cursor: pointer;
+  transition: background 0.15s ease;
 }
 
 .tav-secao-toggle:hover {
-  background: rgba(199, 166, 108, 0.07);
+  background: rgba(212, 175, 95, 0.06);
 }
 
 .tav-secao-rotulo {
   flex: 0 1 auto;
-  font-family: var(--font-title, Georgia, "Times New Roman", serif);
+  font-family: var(--font-title, "Cinzel", serif);
   font-size: 1.15rem;
   font-weight: 700;
-  letter-spacing: 0.01em;
+  letter-spacing: 0.04em;
+  color: var(--camp-ouro);
 }
 
 .tav-secao-resumo {
   flex: 1 1 auto;
   min-width: 0;
-  overflow: hidden;
-  color: var(--tav-muted);
-  font-size: 0.82rem;
+  color: var(--camp-muted);
+  font-size: 0.88rem;
   text-align: right;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -322,13 +414,13 @@
 
 .tav-secao-seta {
   flex: 0 0 auto;
-  width: 9px;
-  height: 9px;
-  margin-left: 4px;
-  border-right: 2px solid var(--camp-accent);
-  border-bottom: 2px solid var(--camp-accent);
+  width: 8px;
+  height: 8px;
+  margin-left: 6px;
+  border-right: 2px solid var(--camp-ouro);
+  border-bottom: 2px solid var(--camp-ouro);
   transform: rotate(45deg) translateY(-2px);
-  transition: transform 0.15s ease;
+  transition: transform 0.2s ease;
 }
 
 .tav-secao.is-open .tav-secao-seta {
@@ -336,8 +428,8 @@
 }
 
 .tav-secao-corpo {
-  padding: 4px 18px 20px;
-  border-top: 1px solid rgba(75, 92, 84, 0.7);
+  padding: 14px 18px 22px;
+  border-top: 1px solid rgba(199, 166, 108, 0.2);
 }
 
 .tav-secao-corpo[hidden] {
@@ -345,15 +437,11 @@
 }
 
 .tav-secao--perigo {
-  border-color: rgba(163, 39, 60, 0.55);
+  border-color: rgba(180, 40, 50, 0.45);
 }
 
 .tav-secao--perigo .tav-secao-rotulo {
-  color: #e5a29a;
-}
-
-.campaign-section-header {
-  margin-bottom: 14px;
+  color: #ffb3b3;
 }
 
 .campaign-section-title {
@@ -361,24 +449,26 @@
   align-items: center;
   flex-wrap: wrap;
   gap: 10px;
-  margin-top: 14px;
+  margin-top: 10px;
 }
 
 .campaign-section-title h2,
 .campaign-section-title h3 {
   margin: 0;
-  color: var(--tav-parchment);
-  font-family: var(--font-title, Georgia, serif);
-  font-size: 1.1rem;
+  font-family: var(--font-title, "Cinzel", serif);
+  font-size: 1.12rem;
+  font-weight: 700;
+  color: var(--camp-ouro);
 }
 
 .campaign-section-badge {
-  padding: 3px 10px;
-  border: 1px solid var(--tav-bronze-line);
-  border-radius: 999px;
-  background: rgba(0, 0, 0, 0.3);
-  color: var(--camp-accent);
-  font-size: 0.74rem;
+  padding: 3px 8px;
+  border: 1px solid rgba(199, 166, 108, 0.4);
+  border-radius: 4px;
+  background: rgba(6, 14, 12, 0.8);
+  color: var(--camp-ouro);
+  font-family: var(--font-title, "Cinzel", serif);
+  font-size: 0.72rem;
   font-weight: 700;
 }
 
@@ -387,87 +477,68 @@
 }
 
 .tav-bloco + .tav-bloco {
-  margin-top: 22px;
-  padding-top: 18px;
-  border-top: 1px dashed rgba(75, 92, 84, 0.7);
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px dashed rgba(199, 166, 108, 0.25);
 }
 
 .tav-subtitulo {
-  margin: 14px 0 10px;
-  color: var(--tav-parchment);
-  font-family: var(--font-title, Georgia, serif);
+  margin: 12px 0 10px;
+  font-family: var(--font-title, "Cinzel", serif);
   font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--camp-ouro);
 }
 
 .tav-texto-apoio {
-  margin: 8px 0 14px;
-  color: var(--tav-muted);
+  margin: 6px 0 14px;
+  color: var(--camp-suave);
+  font-size: 0.95rem;
+  line-height: 1.45;
 }
 
 .tav-mensagem {
-  margin: 12px 0 0;
-  color: var(--camp-accent);
+  margin: 10px 0 0;
+  color: var(--camp-ouro);
+  font-family: var(--font-title, "Cinzel", serif);
+  font-size: 0.9rem;
   font-weight: 600;
 }
 
-.tav-detalhes {
-  margin-top: 12px;
-}
-
-.tav-detalhes summary {
-  min-height: 36px;
-  color: var(--camp-accent);
-  font-size: 0.9rem;
-  cursor: pointer;
-}
-
-.tav-form-vinculo {
-  display: grid;
-  gap: 10px;
-  max-width: 460px;
-  margin-top: 12px;
-}
-
-.tav-form-vinculo .btn-primary {
-  justify-self: start;
-}
-
 /* -------------------------------------------------------------------------
-   Placas de pergaminho (metadados da campanha)
+   METADADOS DA CAMPANHA (Cartões Compactos)
    ------------------------------------------------------------------------- */
 .campaign-meta-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
-  gap: 12px;
-  margin-top: 14px;
+  gap: 10px;
 }
 
 .campaign-meta-card {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding: 12px 16px;
-  border: 1px solid #a98a55;
-  border-radius: 4px;
-  background:
-    radial-gradient(circle at 12% 10%, rgba(255, 255, 255, 0.35), transparent 55%),
-    linear-gradient(180deg, #eadbb6, #d6c28f);
-  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.35), inset 0 0 14px rgba(120, 84, 30, 0.22);
-  color: var(--tav-ink);
+  padding: 12px 14px;
+  border: 1px solid rgba(199, 166, 108, 0.35);
+  border-radius: 6px;
+  background: rgba(8, 18, 16, 0.85);
+  color: var(--camp-marfim);
 }
 
 .campaign-meta-card span {
-  color: #5e4723;
-  font-size: 0.7rem;
+  font-family: var(--font-title, "Cinzel", serif);
+  font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+  color: rgba(212, 175, 95, 0.85);
 }
 
 .campaign-meta-card strong {
-  color: var(--tav-ink);
-  font-family: var(--font-display, Georgia, serif);
-  font-size: 1.1rem;
+  font-family: var(--font-title, "Cinzel", serif);
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--camp-ouro);
   overflow-wrap: anywhere;
 }
 
@@ -475,66 +546,102 @@
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 10px;
-}
-
-.campaign-code-highlight strong {
-  letter-spacing: 0.1em;
+  gap: 8px;
 }
 
 .campaign-detail-page .campaign-copy-btn {
-  min-height: 34px;
-  padding: 4px 12px;
-  border: 1px solid #6b4f28;
+  min-height: 30px;
+  padding: 2px 10px;
+  border: 1px solid rgba(199, 166, 108, 0.5);
   border-radius: 4px;
-  background: rgba(60, 40, 16, 0.12);
-  color: var(--tav-ink);
+  background: rgba(14, 30, 26, 0.9);
+  color: var(--camp-ouro);
+  font-family: var(--font-title, "Cinzel", serif);
+  font-size: 0.74rem;
   font-weight: 700;
   cursor: pointer;
+  transition: all 0.15s ease;
 }
 
 .campaign-detail-page .campaign-copy-btn:hover {
-  background: rgba(60, 40, 16, 0.24);
+  background: rgba(212, 175, 95, 0.2);
+  border-color: var(--camp-ouro);
 }
 
 .campaign-copy-feedback {
   margin: 2px 0 0;
-  color: #2f5a22;
+  color: #79d68c;
   font-size: 0.8rem;
   font-weight: 700;
 }
 
 .campaign-copy-feedback--error {
-  color: #8a1f2b;
+  color: #f78c8c;
 }
 
 /* -------------------------------------------------------------------------
-   Mesa: personagens da campanha (visão do Mestre)
+   JOGADORES E MESA (Toolbar, Filtros e Ações Rápidas)
    ------------------------------------------------------------------------- */
+.party-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.party-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.party-search-input {
+  min-width: 240px;
+  height: 36px;
+  padding: 6px 12px;
+  border: 1px solid rgba(199, 166, 108, 0.35);
+  border-radius: 4px;
+  background: rgba(6, 14, 12, 0.9);
+  color: var(--camp-marfim);
+  font-family: inherit;
+  font-size: 0.92rem;
+}
+
+.party-search-input:focus {
+  border-color: var(--camp-ouro);
+  outline: none;
+}
+
+.party-reward-all-btn {
+  height: 36px;
+  padding: 6px 12px;
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
 .party-overview-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
-  gap: 16px;
+  gap: 14px;
   margin-top: 14px;
 }
 
 .party-char-card {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 16px;
-  border: 1px solid var(--tav-bronze-line);
+  gap: 10px;
+  padding: 14px 16px;
+  border: 1px solid rgba(199, 166, 108, 0.35);
   border-radius: 6px;
-  background:
-    radial-gradient(circle at 15% 0%, rgba(255, 255, 255, 0.05), transparent 50%),
-    linear-gradient(180deg, var(--tav-stone-700), var(--tav-stone-800));
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.4);
-  transition: transform 0.15s ease, border-color 0.15s ease;
+  background: linear-gradient(180deg, #122420 0%, #0a1614 100%);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  transition: border-color 0.15s ease;
 }
 
 .party-char-card:hover {
-  transform: translateY(-2px);
-  border-color: var(--camp-accent);
+  border-color: var(--camp-ouro);
 }
 
 .party-char-head {
@@ -548,15 +655,16 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  width: 52px;
-  height: 52px;
+  width: 48px;
+  height: 48px;
   overflow: hidden;
-  border: 2px solid var(--tav-bronze);
+  border: 1.5px solid var(--camp-ouro);
   border-radius: 50%;
-  background: rgba(4, 12, 10, 0.8);
-  color: var(--camp-accent);
-  font-size: 1.3rem;
-  font-weight: bold;
+  background: #1a160f;
+  color: var(--camp-ouro);
+  font-family: var(--font-title, "Cinzel", serif);
+  font-size: 1.2rem;
+  font-weight: 700;
 }
 
 .party-char-portrait img {
@@ -571,47 +679,48 @@
 
 .party-char-info h3 {
   margin: 0;
-  color: var(--tav-parchment);
-  font-family: var(--font-display, Georgia, serif);
-  font-size: 1.05rem;
-  overflow-wrap: anywhere;
+  color: var(--camp-ouro);
+  font-family: var(--font-title, "Cinzel", serif);
+  font-size: 1.1rem;
+  font-weight: 700;
 }
 
 .party-char-meta {
   margin: 2px 0 0;
-  color: var(--tav-muted);
-  font-size: 0.82rem;
+  color: var(--camp-suave);
+  font-size: 0.85rem;
 }
 
 .party-char-stats-row {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
+  gap: 6px;
 }
 
 .party-stat-mini {
-  padding: 6px 8px;
-  border: 1px solid rgba(75, 92, 84, 0.7);
+  padding: 5px 6px;
+  border: 1px solid rgba(199, 166, 108, 0.25);
   border-radius: 4px;
-  background: rgba(0, 0, 0, 0.3);
+  background: rgba(6, 14, 12, 0.8);
   text-align: center;
 }
 
 .party-stat-mini span {
   display: block;
-  color: var(--tav-muted);
-  font-size: 0.68rem;
-  letter-spacing: 0.06em;
+  color: var(--camp-muted);
+  font-family: var(--font-title, "Cinzel", serif);
+  font-size: 0.65rem;
   text-transform: uppercase;
 }
 
 .party-stat-mini strong {
-  color: var(--tav-parchment);
+  display: block;
+  color: var(--camp-marfim);
   font-size: 0.92rem;
 }
 
 .party-stat-mini .party-stat-gold {
-  color: var(--camp-accent);
+  color: var(--camp-ouro);
 }
 
 .party-char-vitals {
@@ -619,214 +728,248 @@
   gap: 6px;
 }
 
+.party-char-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
 .party-char-actions .btn-primary {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  min-height: 42px;
+  flex: 1;
+  min-height: 36px;
+  padding: 6px 10px;
+  font-size: 0.8rem;
   text-align: center;
+  justify-content: center;
   text-decoration: none;
 }
 
+.party-char-quick-reward {
+  flex: 0 0 auto;
+  min-height: 36px;
+  padding: 6px 10px;
+  font-size: 0.8rem;
+}
+
 /* -------------------------------------------------------------------------
-   Entrega de recompensas (Mestre)
+   GERENCIADOR DE CLASSES E HABILIDADES (Estrutura Funcional Completa)
    ------------------------------------------------------------------------- */
-.master-reward-box {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 14px;
-  margin-top: 14px;
-  padding: 16px 18px;
-  border: 1px dashed rgba(199, 166, 108, 0.5);
-  border-radius: 6px;
-  background: linear-gradient(180deg, rgba(21, 48, 43, 0.55), rgba(6, 16, 14, 0.6));
+.campaign-classes-header-intro {
+  margin-bottom: 16px;
 }
 
-.master-reward-info h4 {
-  margin: 0 0 4px;
-  color: var(--camp-accent);
-  font-family: var(--font-title, Georgia, serif);
-  font-size: 1.05rem;
-}
-
-.master-reward-info p {
-  margin: 0;
-  color: var(--tav-muted);
-  font-size: 0.85rem;
-}
-
-.master-reward-form {
-  display: flex;
-  align-items: flex-end;
-  flex-wrap: wrap;
-  gap: 12px;
-}
-
-.master-reward-field {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.master-reward-field label {
-  color: var(--tav-muted);
+.classes-exclusive-tag {
+  display: inline-block;
+  margin-bottom: 6px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: rgba(212, 175, 95, 0.15);
+  border: 1px solid rgba(212, 175, 95, 0.4);
+  color: var(--camp-ouro);
+  font-family: var(--font-title, "Cinzel", serif);
   font-size: 0.72rem;
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
-.master-reward-amount-wrap {
+.campaign-classes-mgmt-block {
+  margin-top: 14px;
+  padding: 16px;
+  border: 1px solid rgba(199, 166, 108, 0.3);
+  border-radius: 6px;
+  background: rgba(7, 16, 14, 0.6);
+}
+
+.campaign-class-filter-bar {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 12px 0 16px;
+}
+
+.campaign-class-search-input {
+  flex: 1;
+  min-width: 220px;
+  height: 38px;
+  padding: 6px 12px;
+  border: 1px solid rgba(199, 166, 108, 0.35);
+  border-radius: 4px;
+  background: rgba(6, 14, 12, 0.9);
+  color: var(--camp-marfim);
+  font-family: inherit;
+  font-size: 0.92rem;
+}
+
+.campaign-class-filter-pills {
+  display: flex;
   gap: 6px;
 }
 
-.master-reward-input {
-  width: 96px;
-  height: 40px;
-  padding: 8px 10px;
-  border: 1px solid rgba(199, 166, 108, 0.45);
+.campaign-class-filter-pills button {
+  min-height: 32px;
+  padding: 4px 10px;
+  border: 1px solid rgba(199, 166, 108, 0.3);
   border-radius: 4px;
-  background: rgba(4, 12, 10, 0.85);
-  color: var(--camp-accent);
-  font-size: 1rem;
+  background: rgba(10, 22, 19, 0.8);
+  color: var(--camp-suave);
+  font-family: var(--font-title, "Cinzel", serif);
+  font-size: 0.74rem;
   font-weight: 700;
-  text-align: right;
-}
-
-.master-reward-unit {
-  color: var(--camp-accent);
-  font-size: 0.95rem;
-  font-weight: bold;
-}
-
-.master-reward-select {
-  min-width: 220px;
-  height: 40px;
-  padding: 8px 12px;
-  border: 1px solid rgba(199, 166, 108, 0.45);
-  border-radius: 4px;
-  background: rgba(6, 16, 14, 0.92);
-  color: var(--tav-parchment);
-  font-size: 0.9rem;
-  font-weight: 600;
   cursor: pointer;
+  transition: all 0.15s ease;
 }
 
-.master-reward-input:focus,
-.master-reward-select:focus {
-  border-color: var(--camp-accent);
-  outline: none;
-  box-shadow: 0 0 8px rgba(227, 166, 60, 0.35);
+.campaign-class-filter-pills button:hover {
+  color: var(--camp-ouro);
+  border-color: var(--camp-ouro);
 }
 
-.master-reward-submit {
-  height: 40px;
-  padding: 8px 16px;
-  font-size: 0.85rem;
+.campaign-class-filter-pills button.is-active {
+  background: rgba(212, 175, 95, 0.22);
+  border-color: var(--camp-ouro);
+  color: #ffffff;
+}
+
+/* Tabela de Classes Limpa e Legível */
+.campaign-classes-table-wrap {
+  overflow-x: auto;
+  border: 1px solid rgba(199, 166, 108, 0.25);
+  border-radius: 4px;
+  background: rgba(6, 14, 12, 0.85);
+}
+
+.campaign-classes-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+  text-align: left;
+}
+
+.campaign-classes-table th {
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(199, 166, 108, 0.35);
+  background: rgba(12, 26, 23, 0.9);
+  color: var(--camp-ouro);
+  font-family: var(--font-title, "Cinzel", serif);
+  font-size: 0.74rem;
   font-weight: 700;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  white-space: nowrap;
 }
 
-/* -------------------------------------------------------------------------
-   Bônus de classe da campanha (Mestre)
-   ------------------------------------------------------------------------- */
-.campaign-class-bonuses {
-  margin: 20px 0 6px;
-  padding: 18px;
-  border: 1px solid rgba(75, 92, 84, 0.7);
-  border-radius: 8px;
-  background: rgba(4, 12, 10, 0.45);
+.campaign-classes-table td {
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  vertical-align: middle;
 }
 
-.campaign-class-bonuses-heading {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 16px;
+.campaign-classes-table tr:hover {
+  background: rgba(212, 175, 95, 0.04);
 }
 
-.campaign-class-bonuses-heading h3 {
-  margin: 0 0 5px;
-  color: var(--camp-accent);
-  font-family: var(--font-title, Georgia, serif);
+.campaign-classes-table tr.row-blocked {
+  background: rgba(40, 20, 15, 0.2);
 }
 
-.campaign-class-bonuses-heading p {
-  margin: 0;
-  color: var(--tav-muted);
+.class-name-cell {
+  font-family: var(--font-title, "Cinzel", serif);
+  color: var(--camp-ouro);
+  font-size: 1rem;
+}
+
+.class-origin-pill {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.origin-global {
+  background: rgba(25, 45, 55, 0.7);
+  border: 1px solid rgba(70, 130, 160, 0.4);
+  color: #bde0f5;
+}
+
+.origin-campaign {
+  background: rgba(50, 25, 60, 0.7);
+  border: 1px solid rgba(160, 90, 190, 0.4);
+  color: #eccbf8;
+}
+
+.class-bonus-cell,
+.class-resources-cell {
+  color: var(--camp-suave);
   font-size: 0.88rem;
 }
 
-.campaign-class-bonus-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 330px), 1fr));
-  gap: 12px;
-}
-
-.campaign-class-bonus-card {
-  min-width: 0;
-  margin: 0;
-  padding: 12px;
-  border: 1px solid rgba(75, 92, 84, 0.7);
-  border-radius: 6px;
-}
-
-.campaign-class-bonus-card legend {
-  padding: 0 6px;
-  color: var(--camp-accent);
-  font-family: var(--font-display, Georgia, serif);
+.class-status-badge {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 0.76rem;
   font-weight: 700;
 }
 
-.campaign-class-bonus-fields {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 9px;
+.status-available {
+  background: rgba(20, 50, 35, 0.8);
+  border: 1px solid rgba(60, 150, 90, 0.5);
+  color: #8ee8a2;
 }
 
-.campaign-class-bonus-fields label {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  color: var(--tav-muted);
-  font-size: 0.76rem;
+.status-blocked {
+  background: rgba(60, 30, 15, 0.8);
+  border: 1px solid rgba(190, 100, 40, 0.5);
+  color: #f5b878;
 }
 
-.campaign-class-bonus-fields input {
-  width: 100%;
-  min-width: 0;
-  min-height: 36px;
-  padding: 7px 8px;
-  border: 1px solid rgba(199, 166, 108, 0.35);
+.btn-action-availability {
+  padding: 4px 10px;
   border-radius: 4px;
-  background: rgba(4, 12, 10, 0.85);
-  color: var(--tav-parchment);
+  font-family: var(--font-title, "Cinzel", serif);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.15s ease;
 }
 
-.campaign-class-bonus-fields input:focus {
-  border-color: var(--camp-accent);
-  outline: none;
+.btn-lock {
+  border: 1px solid rgba(190, 80, 80, 0.5);
+  background: rgba(50, 18, 20, 0.8);
+  color: #fca5a5;
 }
 
-.campaign-class-bonuses-message {
-  margin: 12px 0 0;
-  color: var(--camp-accent);
+.btn-lock:hover:not(:disabled) {
+  background: rgba(80, 25, 28, 0.95);
+  border-color: #f87171;
 }
 
-/* -------------------------------------------------------------------------
-   Classes, perícias e habilidades; histórico de entregas
-   ------------------------------------------------------------------------- */
-.campaign-content-intro {
-  margin: 14px 0 16px;
-  color: var(--tav-muted);
+.btn-unlock {
+  border: 1px solid rgba(60, 150, 90, 0.5);
+  background: rgba(18, 45, 30, 0.8);
+  color: #86efac;
+}
+
+.btn-unlock:hover:not(:disabled) {
+  background: rgba(25, 65, 42, 0.95);
+  border-color: #4ade80;
+}
+
+.btn-action-availability:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+
+/* Criador de Conteúdo e Formulário de Classes */
+.campaign-classes-content-creator {
+  margin-top: 24px;
+  padding-top: 18px;
+  border-top: 1px dashed rgba(199, 166, 108, 0.25);
 }
 
 .campaign-content-form {
@@ -834,35 +977,38 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
   padding: 16px;
-  border: 1px solid rgba(75, 92, 84, 0.7);
+  border: 1px solid rgba(199, 166, 108, 0.3);
   border-radius: 6px;
-  background: rgba(4, 12, 10, 0.42);
+  background: rgba(6, 14, 12, 0.7);
 }
 
 .campaign-content-form > label {
   display: grid;
-  gap: 5px;
-  color: var(--tav-muted);
-  font-size: 0.8rem;
+  gap: 4px;
+  color: var(--camp-suave);
+  font-family: var(--font-title, "Cinzel", serif);
+  font-size: 0.74rem;
+  font-weight: 700;
+  text-transform: uppercase;
 }
 
 .campaign-content-form input,
 .campaign-content-form select,
 .campaign-content-form textarea {
   width: 100%;
-  min-width: 0;
-  padding: 8px 9px;
+  padding: 8px 10px;
   border: 1px solid rgba(199, 166, 108, 0.35);
   border-radius: 4px;
-  background: rgba(8, 10, 9, 0.9);
-  color: var(--tav-parchment);
-  font: inherit;
+  background: rgba(6, 14, 12, 0.9);
+  color: var(--camp-marfim);
+  font-family: inherit;
+  font-size: 0.95rem;
 }
 
 .campaign-content-form input:focus,
 .campaign-content-form select:focus,
 .campaign-content-form textarea:focus {
-  border-color: var(--camp-accent);
+  border-color: var(--camp-ouro);
   outline: none;
 }
 
@@ -880,8 +1026,11 @@
 .campaign-new-class-attributes label {
   display: grid;
   gap: 4px;
-  color: var(--tav-muted);
-  font-size: 0.76rem;
+  color: var(--camp-suave);
+  font-family: var(--font-title, "Cinzel", serif);
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
 }
 
 .campaign-content-form > button {
@@ -889,7 +1038,10 @@
 }
 
 .campaign-content-message {
-  color: var(--camp-accent);
+  color: var(--camp-ouro);
+  font-family: var(--font-title, "Cinzel", serif);
+  font-size: 0.9rem;
+  margin-top: 10px;
 }
 
 .campaign-content-list {
@@ -906,119 +1058,324 @@
   justify-content: space-between;
   gap: 14px;
   padding: 12px 14px;
-  border: 1px solid rgba(75, 92, 84, 0.7);
-  border-left: 3px solid var(--tav-bronze);
-  border-radius: 5px;
-  background: rgba(14, 33, 30, 0.7);
+  border: 1px solid rgba(199, 166, 108, 0.3);
+  border-left: 3px solid var(--camp-ouro);
+  border-radius: 4px;
+  background: rgba(8, 18, 16, 0.85);
 }
 
 .campaign-content-card h3 {
-  margin: 3px 0 5px;
-  color: var(--tav-parchment);
+  margin: 2px 0 4px;
+  color: var(--camp-ouro);
+  font-family: var(--font-title, "Cinzel", serif);
+  font-size: 1.05rem;
 }
 
 .campaign-content-card p {
   margin: 3px 0;
-  color: var(--tav-muted);
-  font-size: 0.86rem;
+  color: var(--camp-suave);
+  font-size: 0.9rem;
 }
 
 .campaign-content-kind {
-  color: var(--camp-accent);
-  font-size: 0.7rem;
-  letter-spacing: 0.08em;
+  color: var(--camp-ouro);
+  font-family: var(--font-title, "Cinzel", serif);
+  font-size: 0.72rem;
+  font-weight: 700;
   text-transform: uppercase;
 }
 
 .campaign-content-remove {
   flex: 0 0 auto;
-  min-height: 36px;
-  padding: 5px 10px;
-  border: 1px solid rgba(172, 80, 74, 0.55);
+  min-height: 32px;
+  padding: 4px 10px;
+  border: 1px solid rgba(180, 50, 60, 0.5);
   border-radius: 4px;
-  background: rgba(63, 24, 23, 0.5);
-  color: #eab8ae;
+  background: rgba(50, 18, 20, 0.7);
+  color: #ffb5b5;
+  font-family: var(--font-title, "Cinzel", serif);
+  font-size: 0.74rem;
+  font-weight: 700;
   cursor: pointer;
+  transition: all 0.15s ease;
 }
 
 .campaign-content-remove:hover {
-  background: rgba(98, 34, 32, 0.65);
+  background: rgba(85, 22, 26, 0.9);
+  border-color: #ff7373;
 }
 
 .campaign-content-empty {
-  color: var(--tav-muted);
-}
-
-.campaign-empty-banner {
-  padding: 28px 16px;
-  border: 1px dashed rgba(199, 166, 108, 0.5);
-  border-radius: 6px;
-  background: rgba(0, 0, 0, 0.25);
-  color: var(--tav-muted);
-  text-align: center;
-}
-
-.campaign-empty-banner p {
-  margin: 0 0 12px;
+  color: var(--camp-muted);
+  font-size: 0.95rem;
+  font-style: italic;
 }
 
 /* -------------------------------------------------------------------------
-   Zona de perigo
+   ENTREGA DE RECOMPENSAS (Formulário e Histórico)
+   ------------------------------------------------------------------------- */
+.master-reward-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 12px;
+  padding: 16px 18px;
+  border: 1px solid rgba(199, 166, 108, 0.35);
+  border-radius: 6px;
+  background: rgba(8, 18, 16, 0.8);
+}
+
+.master-reward-info h4 {
+  margin: 0 0 4px;
+  color: var(--camp-ouro);
+  font-family: var(--font-title, "Cinzel", serif);
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.master-reward-info p {
+  margin: 0;
+  color: var(--camp-suave);
+  font-size: 0.9rem;
+}
+
+.master-reward-form {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.master-reward-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.master-reward-field label {
+  color: var(--camp-suave);
+  font-family: var(--font-title, "Cinzel", serif);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.master-reward-amount-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.master-reward-input {
+  width: 90px;
+  height: 38px;
+  padding: 6px 10px;
+  border: 1px solid rgba(199, 166, 108, 0.35);
+  border-radius: 4px;
+  background: rgba(6, 14, 12, 0.9);
+  color: var(--camp-ouro);
+  font-family: var(--font-title, "Cinzel", serif);
+  font-size: 1rem;
+  font-weight: 700;
+  text-align: right;
+}
+
+.master-reward-unit {
+  color: var(--camp-ouro);
+  font-family: var(--font-title, "Cinzel", serif);
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.master-reward-select {
+  min-width: 220px;
+  height: 38px;
+  padding: 6px 10px;
+  border: 1px solid rgba(199, 166, 108, 0.35);
+  border-radius: 4px;
+  background: rgba(6, 14, 12, 0.95);
+  color: var(--camp-marfim);
+  font-size: 0.92rem;
+  cursor: pointer;
+}
+
+.master-reward-input:focus,
+.master-reward-select:focus {
+  border-color: var(--camp-ouro);
+  outline: none;
+}
+
+.master-reward-submit {
+  height: 38px;
+  padding: 6px 16px;
+  font-size: 0.82rem;
+}
+
+/* -------------------------------------------------------------------------
+   BÔNUS DE CLASSE (Configuração Numérica)
+   ------------------------------------------------------------------------- */
+.campaign-class-bonuses {
+  margin: 16px 0 6px;
+  padding: 16px;
+  border: 1px solid rgba(199, 166, 108, 0.3);
+  border-radius: 6px;
+  background: rgba(6, 14, 12, 0.55);
+}
+
+.campaign-class-bonuses-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.campaign-class-bonuses-heading h3 {
+  margin: 0 0 4px;
+  color: var(--camp-ouro);
+  font-family: var(--font-title, "Cinzel", serif);
+  font-size: 1.15rem;
+}
+
+.campaign-class-bonuses-heading p {
+  margin: 0;
+  color: var(--camp-suave);
+  font-size: 0.9rem;
+}
+
+.campaign-class-bonus-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+  gap: 12px;
+}
+
+.campaign-class-bonus-card {
+  min-width: 0;
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px solid rgba(199, 166, 108, 0.3);
+  border-radius: 4px;
+  background: rgba(8, 18, 16, 0.85);
+}
+
+.campaign-class-bonus-card legend {
+  padding: 0 6px;
+  color: var(--camp-ouro);
+  font-family: var(--font-title, "Cinzel", serif);
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.campaign-class-bonus-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.campaign-class-bonus-fields label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  color: var(--camp-suave);
+  font-family: var(--font-title, "Cinzel", serif);
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.campaign-class-bonus-fields input {
+  width: 100%;
+  min-width: 0;
+  min-height: 34px;
+  padding: 4px 8px;
+  border: 1px solid rgba(199, 166, 108, 0.3);
+  border-radius: 4px;
+  background: rgba(4, 12, 10, 0.9);
+  color: var(--camp-ouro);
+  font-family: var(--font-title, "Cinzel", serif);
+  font-size: 0.95rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.campaign-class-bonus-fields input:focus {
+  border-color: var(--camp-ouro);
+  outline: none;
+}
+
+.campaign-class-bonuses-message {
+  margin: 10px 0 0;
+  color: var(--camp-ouro);
+  font-family: var(--font-title, "Cinzel", serif);
+  font-size: 0.88rem;
+}
+
+/* -------------------------------------------------------------------------
+   ZONA DE PERIGO (Exclusão da Campanha)
    ------------------------------------------------------------------------- */
 .campaign-danger-zone {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 18px;
-  margin-top: 14px;
-  padding: 16px;
-  border: 1px solid rgba(163, 39, 60, 0.55);
+  gap: 16px;
+  margin-top: 12px;
+  padding: 16px 20px;
+  border: 1px solid rgba(180, 40, 50, 0.5);
   border-radius: 6px;
-  background: linear-gradient(120deg, rgba(122, 22, 38, 0.14), rgba(10, 22, 20, 0.55));
+  background: rgba(20, 8, 10, 0.8);
 }
 
 .campaign-danger-zone p {
   margin: 0;
-  color: var(--tav-muted);
-  font-size: 0.88rem;
+  color: #ffcccc;
+  font-size: 0.95rem;
 }
 
 .campaign-delete-trigger,
 .campaign-delete-confirm-button {
-  min-height: 42px;
-  padding: 10px 14px;
-  border: 1px solid #a43d45;
-  background: linear-gradient(180deg, #822d37, #4b1b22);
-  color: #fff0cc;
-  font-family: var(--font-display, Georgia, serif);
-  font-weight: 600;
+  min-height: 40px;
+  padding: 8px 16px;
+  border: 1px solid #d16a70;
+  border-radius: 4px;
+  background: linear-gradient(180deg, #8f242e 0%, #52151b 100%);
+  color: #ffffff;
+  font-family: var(--font-title, "Cinzel", serif);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   cursor: pointer;
+  transition: all 0.15s ease;
 }
 
 .campaign-delete-trigger:hover,
 .campaign-delete-confirm-button:hover:not(:disabled) {
-  border-color: #d16a70;
-  background: linear-gradient(180deg, #a43d45, #63232c);
+  background: linear-gradient(180deg, #a82e39 0%, #661c23 100%);
+  border-color: #ff9999;
 }
 
 .campaign-delete-confirmation {
   display: grid;
   gap: 12px;
-  width: min(100%, 490px);
-  padding: 14px;
-  border: 1px solid rgba(209, 106, 112, 0.65);
-  background: rgba(30, 14, 15, 0.96);
+  width: min(100%, 500px);
+  padding: 16px 18px;
+  border: 1px solid rgba(220, 80, 90, 0.7);
+  border-radius: 6px;
+  background: rgba(24, 9, 11, 0.98);
 }
 
 .campaign-delete-confirmation h3 {
-  margin: 0 0 5px;
-  color: #e5a29a;
-  font-size: 17px;
+  margin: 0 0 4px;
+  color: #ffb5b5;
+  font-family: var(--font-title, "Cinzel", serif);
+  font-size: 1.1rem;
+  font-weight: 700;
 }
 
 .campaign-delete-error {
-  color: #ffaaa5 !important;
+  color: #ff9999 !important;
 }
 
 .campaign-delete-confirm-actions {
@@ -1027,15 +1384,121 @@
   gap: 8px;
 }
 
-.campaign-delete-confirm-actions button:disabled {
-  cursor: wait;
-  opacity: 0.65;
+/* -------------------------------------------------------------------------
+   BOTÕES GLOBAIS DA PÁGINA
+   ------------------------------------------------------------------------- */
+.campaign-detail-page .btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  padding: 6px 16px;
+  border: 1px solid var(--camp-ouro);
+  border-radius: 4px;
+  background: linear-gradient(180deg, #c7a66c 0%, #8a6c38 100%);
+  color: #081210;
+  font-family: var(--font-title, "Cinzel", serif);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.4);
+  transition: all 0.15s ease;
+}
+
+.campaign-detail-page .btn-primary:hover:not(:disabled) {
+  background: linear-gradient(180deg, #dfc288 0%, #a28148 100%);
+  border-color: #ffffff;
+}
+
+.campaign-detail-page .btn-primary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  filter: grayscale(0.5);
+}
+
+.campaign-detail-page .btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 5px 12px;
+  border: 1px solid rgba(199, 166, 108, 0.4);
+  border-radius: 4px;
+  background: rgba(6, 14, 12, 0.7);
+  color: var(--camp-marfim);
+  font-family: var(--font-title, "Cinzel", serif);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.campaign-detail-page .btn-ghost:hover:not(:disabled) {
+  border-color: var(--camp-ouro);
+  color: var(--camp-ouro);
+  background: rgba(212, 175, 95, 0.12);
 }
 
 /* -------------------------------------------------------------------------
-   Responsivo
+   RODAPÉ DE RELÍQUIAS
    ------------------------------------------------------------------------- */
-@media (max-width: 900px) {
+.campaign-pedestal-relics {
+  margin-top: 36px;
+  padding-top: 18px;
+  border-top: 1px solid rgba(199, 166, 108, 0.2);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  user-select: none;
+}
+
+.pedestal-glyph-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.pedestal-glyph {
+  font-size: 15px;
+  opacity: 0.5;
+}
+
+.pedestal-glyph-crest {
+  font-size: 18px;
+  color: var(--camp-ouro);
+}
+
+.campaign-pedestal-tag {
+  margin: 0;
+  font-family: var(--font-title, "Cinzel", serif);
+  font-size: 0.74rem;
+  letter-spacing: 0.18em;
+  color: rgba(212, 175, 95, 0.6);
+  text-transform: uppercase;
+}
+
+.campaign-empty-banner {
+  padding: 24px 16px;
+  border: 1px dashed rgba(199, 166, 108, 0.35);
+  border-radius: 6px;
+  background: rgba(6, 14, 12, 0.5);
+  color: var(--camp-suave);
+  text-align: center;
+}
+
+.campaign-empty-banner p {
+  margin: 0 0 10px;
+}
+
+/* -------------------------------------------------------------------------
+   RESPONSIVIDADE
+   ------------------------------------------------------------------------- */
+@media (max-width: 960px) {
   .campaign-context-nav {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -1043,52 +1506,47 @@
 
 @media (max-width: 760px) {
   .campaign-detail-page {
-    padding: 8px 10px 40px;
+    padding: 12px 10px 48px;
   }
 
   .campaign-detail-header {
-    padding: 22px 16px 16px;
+    padding: 18px 14px 16px;
   }
 
-  .campaign-detail-nav {
-    align-items: flex-start;
+  .campaign-context-nav {
+    grid-template-columns: 1fr;
   }
 
   .tav-secao-toggle {
     flex-wrap: wrap;
-    padding: 12px 14px;
+    padding: 10px 14px;
   }
 
   .tav-secao-resumo {
     order: 3;
     flex-basis: 100%;
     text-align: left;
-  }
-
-  .tav-secao-seta {
-    margin-left: auto;
+    margin-top: 4px;
   }
 
   .tav-secao-corpo {
-    padding: 4px 14px 18px;
+    padding: 10px 14px 18px;
   }
 
   .party-overview-grid {
     grid-template-columns: 1fr;
   }
 
-  .campaign-content-card {
-    flex-direction: column;
+  .party-toolbar {
+    width: 100%;
   }
 
-  .campaign-content-card > div {
-    min-width: 0;
-    overflow-wrap: anywhere;
+  .party-search-input {
+    width: 100%;
   }
 
-  .campaign-content-remove {
-    align-self: flex-start;
-    min-height: 40px;
+  .party-reward-all-btn {
+    width: 100%;
   }
 
   .campaign-content-form {
@@ -1102,10 +1560,6 @@
 
   .campaign-class-bonuses-heading {
     flex-direction: column;
-  }
-
-  .campaign-class-bonuses-heading .btn-primary {
-    width: 100%;
   }
 
   .master-reward-form,
@@ -1128,10 +1582,6 @@
   .campaign-delete-trigger {
     width: 100%;
   }
-
-  .campaign-delete-confirm-actions > button {
-    flex: 1;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1139,5 +1589,6 @@
   .campaign-detail-page *::before,
   .campaign-detail-page *::after {
     transition: none !important;
+    animation: none !important;
   }
 }

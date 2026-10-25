@@ -70,6 +70,12 @@ function Secao({ id, titulo, resumo, aberta, aoAlternar, variante, children }: S
         (variante === "perigo" ? " tav-secao--perigo" : "")
       }
     >
+      <div className="secao-corner-accents" aria-hidden="true">
+        <span className="secao-corner-dot secao-corner-dot--tl" />
+        <span className="secao-corner-dot secao-corner-dot--tr" />
+        <span className="secao-corner-dot secao-corner-dot--bl" />
+        <span className="secao-corner-dot secao-corner-dot--br" />
+      </div>
       <h2 className="tav-secao-titulo">
         <button
           type="button"
@@ -156,6 +162,66 @@ export default function Campaign() {
   // Feedback de cópia do código
   const [copiado, setCopiado] = useState(false);
   const [erroCopiarConvite, setErroCopiarConvite] = useState("");
+
+  // Filtros e controles ergonômicos da Área do Mestre
+  const [buscaPersonagem, setBuscaPersonagem] = useState("");
+  const [filtroClasses, setFiltroClasses] = useState("");
+  const [filtroClasseCat, setFiltroClasseCat] = useState<"TODAS" | "DISPONIVEIS" | "BLOQUEADAS">("TODAS");
+  const [bloqueandoClasse, setBloqueandoClasse] = useState<string | null>(null);
+
+  function abrirRecompensaPara(personagemId?: string) {
+    if (personagemId) {
+      setDestinatarioOuro(personagemId);
+    }
+    setOuroMensagem("");
+    setSecoesAbertas((atuais) =>
+      atuais.includes("secao-entregas") ? atuais : [...atuais, "secao-entregas"],
+    );
+    setTimeout(() => {
+      const el = document.getElementById("secao-entregas");
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 50);
+  }
+
+  async function handleToggleBloqueioClasse(nomeClasse: string) {
+    if (!id || !isMaster || salvandoBonusClasses) return;
+    const classeDef = classesDisponiveis.find((item) => item.nome === nomeClasse);
+    const bonusAtual = bonusClasses[nomeClasse] ?? classeDef;
+    if (!bonusAtual) return;
+
+    const novoBloqueio = !bonusAtual.bloqueada;
+    const novosBonus = {
+      ...bonusClasses,
+      [nomeClasse]: {
+        ...bonusAtual,
+        bloqueada: novoBloqueio,
+      },
+    };
+
+    setBloqueandoClasse(nomeClasse);
+    setSalvandoBonusClasses(true);
+    setBonusClassesMensagem("");
+
+    try {
+      const salvo = await salvarBonusClassesCampanha(id, novosBonus);
+      setBonusClasses(salvo);
+      setCampaign((camp) => (camp ? { ...camp, bonus_classes: salvo } : camp));
+      setBonusClassesMensagem(
+        novoBloqueio
+          ? `A classe “${nomeClasse}” foi bloqueada para novos personagens. Fichas existentes não são afetadas.`
+          : `A classe “${nomeClasse}” foi liberada para novos personagens nesta campanha.`,
+      );
+    } catch (error) {
+      setBonusClassesMensagem(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível alterar a disponibilidade da classe.",
+      );
+    } finally {
+      setBloqueandoClasse(null);
+      setSalvandoBonusClasses(false);
+    }
+  }
 
   async function atualizarMaximosServidor(campanhaId: string) {
     try {
@@ -301,6 +367,45 @@ export default function Campaign() {
         habilidades: [],
       })),
   ];
+
+  const classesComOrigem = classesDisponiveis.map((classe) => {
+    const isExclusiva = conteudosClasses.some(
+      (c) => c.tipo === "CLASSE" && c.nome === classe.nome,
+    );
+    const bonusAtual = bonusClasses[classe.nome] ?? classe;
+    const isBloqueada = Boolean(bonusAtual.bloqueada);
+    return {
+      ...classe,
+      origem: isExclusiva ? ("CAMPANHA" as const) : ("GLOBAL" as const),
+      origemLabel: isExclusiva ? "Exclusiva da Campanha" : "Catálogo Global",
+      bloqueada: isBloqueada,
+    };
+  });
+
+  const totalClassesBloqueadas = classesComOrigem.filter((c) => c.bloqueada).length;
+  const totalClassesDisponiveis = classesComOrigem.filter((c) => !c.bloqueada).length;
+
+  const classesFiltradas = classesComOrigem.filter((c) => {
+    if (filtroClasseCat === "DISPONIVEIS" && c.bloqueada) return false;
+    if (filtroClasseCat === "BLOQUEADAS" && !c.bloqueada) return false;
+    if (!filtroClasses.trim()) return true;
+    return c.nome.toLowerCase().includes(filtroClasses.toLowerCase());
+  });
+
+  const personagensFiltrados = todosDaCampanha.filter((char) => {
+    if (!buscaPersonagem.trim()) return true;
+    const termo = buscaPersonagem.toLowerCase();
+    return (
+      char.nome.toLowerCase().includes(termo) ||
+      (char.classe && char.classe.toLowerCase().includes(termo)) ||
+      (char.raca && char.raca.toLowerCase().includes(termo))
+    );
+  });
+
+  const totalOuroMesa = todosDaCampanha.reduce(
+    (acc, c) => acc + (c.carteira?.po ?? 0),
+    0,
+  );
 
   const classeNovoConteudoSelecionada = classesDisponiveis.some(
     (classe) => classe.id === classeNovoConteudo,
@@ -629,13 +734,23 @@ export default function Campaign() {
 
   return (
     <div className="campaign-detail-page tav-page">
+      {/* Cenário imersivo e iluminação atmosférica de fundo */}
+      <div className="campaign-atmosphere-backdrop" aria-hidden="true" />
+
       {erroBonusEquipamentos && <p className="campaign-status-message" role="alert">{erroBonusEquipamentos}</p>}
 
-      {/* Identificação da campanha */}
+      {/* Identificação da campanha (Arquitetura Monumental) */}
       <header className="campaign-detail-header tav-header">
+        <div className="campaign-header-top-runes" aria-hidden="true">
+          <span className="keystone-glyph">✦</span>
+          <span className="keystone-text">CRÔNICAS & RITUAIS DA MESA</span>
+          <span className="keystone-glyph">✦</span>
+        </div>
+
         <div className="campaign-detail-nav">
           <Link to="/campanhas" className="campaign-back-link">
-            ← Minhas Campanhas
+            <span className="campaign-back-arrow" aria-hidden="true">‹</span>
+            <span>Minhas Campanhas</span>
           </Link>
 
           <div className="campaign-header-badges">
@@ -656,51 +771,98 @@ export default function Campaign() {
 
         <nav className="campaign-context-nav tav-lounges" aria-label="Áreas da campanha">
           <Link className="tav-lounge" to={"/campanha/" + campaign.id + "/mapa"}>
-            <span className="tav-lounge-nome">Mapa</span>
-            <span className="tav-lounge-desc">Terras e marcadores</span>
+            <span className="tav-lounge-icon" aria-hidden="true">🗺️</span>
+            <div className="tav-lounge-content">
+              <span className="tav-lounge-nome">Mapa</span>
+              <span className="tav-lounge-desc">Terras e marcadores</span>
+            </div>
+            <span className="tav-lounge-glow" aria-hidden="true" />
           </Link>
           <Link className="tav-lounge" to={"/campanha/" + campaign.id + "/bestiario"}>
-            <span className="tav-lounge-nome">Bestiário</span>
-            <span className="tav-lounge-desc">Criaturas da mesa</span>
+            <span className="tav-lounge-icon" aria-hidden="true">🐉</span>
+            <div className="tav-lounge-content">
+              <span className="tav-lounge-nome">Bestiário</span>
+              <span className="tav-lounge-desc">Criaturas da mesa</span>
+            </div>
+            <span className="tav-lounge-glow" aria-hidden="true" />
           </Link>
           <Link className="tav-lounge" to={"/campanha/" + campaign.id + "/loja"}>
-            <span className="tav-lounge-nome">Loja</span>
-            <span className="tav-lounge-desc">Itens e estoque</span>
+            <span className="tav-lounge-icon" aria-hidden="true">🪙</span>
+            <div className="tav-lounge-content">
+              <span className="tav-lounge-nome">Loja</span>
+              <span className="tav-lounge-desc">Itens e estoque</span>
+            </div>
+            <span className="tav-lounge-glow" aria-hidden="true" />
           </Link>
           <Link className="tav-lounge" to={"/campanha/" + campaign.id + "/dados"}>
-            <span className="tav-lounge-nome">Dados</span>
-            <span className="tav-lounge-desc">Role e registre</span>
+            <span className="tav-lounge-icon" aria-hidden="true">🎲</span>
+            <div className="tav-lounge-content">
+              <span className="tav-lounge-nome">Dados</span>
+              <span className="tav-lounge-desc">Role e registre</span>
+            </div>
+            <span className="tav-lounge-glow" aria-hidden="true" />
           </Link>
         </nav>
       </header>
 
-      {/* Navegação compacta entre as seções desta página */}
+      {/* Navegação entre ritos e seções da página */}
       <nav className="tav-section-nav" aria-label="Seções desta página">
-        <button type="button" aria-controls="secao-visao-corpo" onClick={() => irParaSecao("secao-visao")}>
-          Visão geral
+        <button
+          type="button"
+          className={aberta("secao-visao") ? "is-active" : ""}
+          aria-controls="secao-visao-corpo"
+          onClick={() => irParaSecao("secao-visao")}
+        >
+          <span className="tav-nav-glyph" aria-hidden="true">📜</span>
+          <span>Visão geral</span>
         </button>
-        <button type="button" aria-controls="secao-jogadores-corpo" onClick={() => irParaSecao("secao-jogadores")}>
-          Jogadores
+        <button
+          type="button"
+          className={aberta("secao-jogadores") ? "is-active" : ""}
+          aria-controls="secao-jogadores-corpo"
+          onClick={() => irParaSecao("secao-jogadores")}
+        >
+          <span className="tav-nav-glyph" aria-hidden="true">⚔️</span>
+          <span>Jogadores</span>
         </button>
-        <button type="button" aria-controls="secao-regras-corpo" onClick={() => irParaSecao("secao-regras")}>
-          Regras
+        <button
+          type="button"
+          className={aberta("secao-regras") ? "is-active" : ""}
+          aria-controls="secao-regras-corpo"
+          onClick={() => irParaSecao("secao-regras")}
+        >
+          <span className="tav-nav-glyph" aria-hidden="true">⚖️</span>
+          <span>Regras</span>
         </button>
-        <button type="button" aria-controls="secao-classes-corpo" onClick={() => irParaSecao("secao-classes")}>
-          Classes
+        <button
+          type="button"
+          className={aberta("secao-classes") ? "is-active" : ""}
+          aria-controls="secao-classes-corpo"
+          onClick={() => irParaSecao("secao-classes")}
+        >
+          <span className="tav-nav-glyph" aria-hidden="true">🛡️</span>
+          <span>Classes</span>
         </button>
         {mostrarEntregas && (
-          <button type="button" aria-controls="secao-entregas-corpo" onClick={() => irParaSecao("secao-entregas")}>
-            Entregas
+          <button
+            type="button"
+            className={aberta("secao-entregas") ? "is-active" : ""}
+            aria-controls="secao-entregas-corpo"
+            onClick={() => irParaSecao("secao-entregas")}
+          >
+            <span className="tav-nav-glyph" aria-hidden="true">🎁</span>
+            <span>Entregas</span>
           </button>
         )}
         {isMaster && (
           <button
             type="button"
-            className="tav-section-nav-perigo"
+            className={"tav-section-nav-perigo" + (aberta("secao-perigo") ? " is-active" : "")}
             aria-controls="secao-perigo-corpo"
             onClick={() => irParaSecao("secao-perigo")}
           >
-            Zona de perigo
+            <span className="tav-nav-glyph" aria-hidden="true">⚠️</span>
+            <span>Zona de perigo</span>
           </button>
         )}
       </nav>
@@ -713,6 +875,33 @@ export default function Campaign() {
         aberta={aberta("secao-visao")}
         aoAlternar={alternarSecao}
       >
+        {/* Cockpit de Atalhos Rápidos do Mestre */}
+        <div className="dm-cockpit-shortcuts">
+          <span className="dm-cockpit-label">Ações Rápidas:</span>
+          <div className="dm-cockpit-btns">
+            <button
+              type="button"
+              className="dm-cockpit-btn"
+              onClick={() => abrirRecompensaPara()}
+            >
+              🎁 Entregar Recompensa
+            </button>
+            <button
+              type="button"
+              className="dm-cockpit-btn"
+              onClick={() => irParaSecao("secao-classes")}
+            >
+              🛡️ Gerenciar Classes ({totalClassesDisponiveis} ativas)
+            </button>
+            <Link className="dm-cockpit-btn" to={"/campanha/" + campaign.id + "/mapa"}>
+              🗺️ Ver Mapa
+            </Link>
+            <Link className="dm-cockpit-btn" to={"/campanha/" + campaign.id + "/loja"}>
+              🪙 Abrir Loja
+            </Link>
+          </div>
+        </div>
+
         <div className="campaign-meta-grid">
           <div className="campaign-meta-card">
             <span>Código de Convite</span>
@@ -744,6 +933,16 @@ export default function Campaign() {
           </div>
 
           <div className="campaign-meta-card">
+            <span>Classes da Campanha</span>
+            <strong>{totalClassesDisponiveis} liberadas · {totalClassesBloqueadas} bloqueadas</strong>
+          </div>
+
+          <div className="campaign-meta-card">
+            <span>Tesouro Acumulado</span>
+            <strong>{totalOuroMesa} PO</strong>
+          </div>
+
+          <div className="campaign-meta-card">
             <span>Seu papel</span>
             <strong>{isMaster ? "Mestre" : "Jogador"}</strong>
           </div>
@@ -761,20 +960,41 @@ export default function Campaign() {
         {/* PAINEL DO MESTRE: Visível apenas se o usuário for o Mestre */}
         {isMaster && (
           <div className="tav-bloco">
-            <div className="campaign-section-title">
-              <h3>👑 Painel de Controle do Mestre</h3>
-              <span className="campaign-section-badge">
-                {todosDaCampanha.length} {todosDaCampanha.length === 1 ? "Personagem" : "Personagens"} na Mesa
-              </span>
+            <div className="party-panel-header">
+              <div className="campaign-section-title">
+                <h3>👑 Painel de Controle do Mestre</h3>
+                <span className="campaign-section-badge">
+                  {todosDaCampanha.length} {todosDaCampanha.length === 1 ? "Personagem" : "Personagens"} na Mesa
+                </span>
+              </div>
+
+              {/* Barra de Busca e Atalho de Recompensa */}
+              <div className="party-toolbar">
+                <input
+                  type="search"
+                  placeholder="Buscar personagem por nome, raça ou classe..."
+                  value={buscaPersonagem}
+                  onChange={(e) => setBuscaPersonagem(e.target.value)}
+                  className="party-search-input"
+                  aria-label="Buscar personagens na mesa"
+                />
+                <button
+                  type="button"
+                  className="btn-primary party-reward-all-btn"
+                  onClick={() => abrirRecompensaPara()}
+                >
+                  🎁 Recompensar Grupo
+                </button>
+              </div>
             </div>
 
             <p className="tav-texto-apoio">
               Como Mestre, você pode visualizar e alterar livremente a vida, mana, dinheiro e atributos de todos os personagens da aventura.
             </p>
 
-            {todosDaCampanha.length > 0 ? (
+            {personagensFiltrados.length > 0 ? (
               <div className="party-overview-grid">
-                {todosDaCampanha.map((personagem) => {
+                {personagensFiltrados.map((personagem) => {
                   const po = personagem.carteira?.po ?? 0;
                   const maximosAutoritativos = maximosServidor[personagem.id];
                   const hpMax = personagem.hp?.max ?? maximosAutoritativos?.hp ?? 200;
@@ -837,10 +1057,28 @@ export default function Campaign() {
                         >
                           Abrir / Alterar Ficha
                         </Link>
+                        <button
+                          type="button"
+                          className="btn-ghost party-char-quick-reward"
+                          onClick={() => abrirRecompensaPara(personagem.id)}
+                        >
+                          🎁 Recompensar
+                        </button>
                       </div>
                     </article>
                   );
                 })}
+              </div>
+            ) : todosDaCampanha.length > 0 ? (
+              <div className="campaign-empty-banner">
+                <p>Nenhum personagem corresponde ao filtro “{buscaPersonagem}”.</p>
+                <button
+                  type="button"
+                  className="btn-ghost"
+                  onClick={() => setBuscaPersonagem("")}
+                >
+                  Limpar busca
+                </button>
               </div>
             ) : (
               <div className="campaign-empty-banner">
@@ -1107,19 +1345,157 @@ export default function Campaign() {
       <Secao
         id="secao-classes"
         titulo="Classes e habilidades"
-        resumo={`${conteudosClasses.length} ${conteudosClasses.length === 1 ? "conteúdo da campanha" : "conteúdos da campanha"}`}
+        resumo={`${classesDisponiveis.length} classes · ${conteudosClasses.length} conteúdos exclusivos`}
         aberta={aberta("secao-classes")}
         aoAlternar={alternarSecao}
       >
-        <p className="campaign-content-intro">
-          O catálogo global está disponível para todos. Somente o Mestre pode
-          adicionar ou remover classes, perícias e habilidades desta aventura.
-        </p>
-        {isMaster && (
-        <form
-          className="campaign-content-form"
-          onSubmit={handleAdicionarConteudoClasse}
-        >
+        <div className="campaign-classes-header-intro">
+          <span className="classes-exclusive-tag">Configurações exclusivas desta campanha</span>
+          <p className="campaign-content-intro">
+            O catálogo global está disponível para consulta e uso. Como Mestre, você pode liberar ou bloquear classes para novos personagens nesta campanha, bem como cadastrar perícias, habilidades e classes exclusivas sem afetar o catálogo global.
+          </p>
+        </div>
+
+        {/* 1. Catálogo de Classes e Gestão de Disponibilidade */}
+        <div className="campaign-classes-mgmt-block">
+          <div className="campaign-section-title">
+            <h3>Catálogo e Disponibilidade de Classes</h3>
+            <span className="campaign-section-badge">
+              {classesFiltradas.length} de {classesComOrigem.length}
+            </span>
+          </div>
+
+          <p className="tav-texto-apoio">
+            <strong>Regra fundamental:</strong> Bloquear uma classe impede que ela seja escolhida em novos personagens, mas nunca altera nem apaga personagens existentes na mesa.
+          </p>
+
+          <div className="campaign-class-filter-bar">
+            <input
+              type="search"
+              placeholder="Filtrar classes pelo nome..."
+              value={filtroClasses}
+              onChange={(e) => setFiltroClasses(e.target.value)}
+              className="campaign-class-search-input"
+              aria-label="Filtrar classes pelo nome"
+            />
+            <div className="campaign-class-filter-pills">
+              <button
+                type="button"
+                className={filtroClasseCat === "TODAS" ? "is-active" : ""}
+                onClick={() => setFiltroClasseCat("TODAS")}
+              >
+                Todas ({classesComOrigem.length})
+              </button>
+              <button
+                type="button"
+                className={filtroClasseCat === "DISPONIVEIS" ? "is-active" : ""}
+                onClick={() => setFiltroClasseCat("DISPONIVEIS")}
+              >
+                Disponíveis ({totalClassesDisponiveis})
+              </button>
+              <button
+                type="button"
+                className={filtroClasseCat === "BLOQUEADAS" ? "is-active" : ""}
+                onClick={() => setFiltroClasseCat("BLOQUEADAS")}
+              >
+                Bloqueadas ({totalClassesBloqueadas})
+              </button>
+            </div>
+          </div>
+
+          <div className="campaign-classes-table-wrap">
+            <table className="campaign-classes-table">
+              <thead>
+                <tr>
+                  <th>Classe</th>
+                  <th>Origem</th>
+                  <th>Bônus de Atributos</th>
+                  <th>Recursos</th>
+                  <th>Disponibilidade</th>
+                  {isMaster && <th>Ação do Mestre</th>}
+                </tr>
+              </thead>
+              <tbody>
+                {classesFiltradas.map((classe) => {
+                  const bonusAtual = bonusClasses[classe.nome] ?? classe;
+                  const bloqueada = Boolean(bonusAtual.bloqueada);
+                  return (
+                    <tr key={classe.id || classe.nome} className={bloqueada ? "row-blocked" : ""}>
+                      <td>
+                        <strong className="class-name-cell">{classe.nome}</strong>
+                      </td>
+                      <td>
+                        <span
+                          className={`class-origin-pill ${
+                            classe.origem === "GLOBAL" ? "origin-global" : "origin-campaign"
+                          }`}
+                        >
+                          {classe.origemLabel}
+                        </span>
+                      </td>
+                      <td className="class-bonus-cell">
+                        {ATTRIBUTE_CONFIG.map(({ key, abbr }) => {
+                          const val = bonusAtual.atributoBonus?.[key] ?? 0;
+                          return val !== 0 ? `${abbr} ${val > 0 ? `+${val}` : val}` : null;
+                        })
+                          .filter(Boolean)
+                          .join(" · ") || "Padrão"}
+                      </td>
+                      <td className="class-resources-cell">
+                        PV {bonusAtual.hpBonus > 0 ? `+${bonusAtual.hpBonus}` : bonusAtual.hpBonus || 0} · PM{" "}
+                        {bonusAtual.mpBonus > 0 ? `+${bonusAtual.mpBonus}` : bonusAtual.mpBonus || 0}
+                      </td>
+                      <td>
+                        <span
+                          className={`class-status-badge ${
+                            bloqueada ? "status-blocked" : "status-available"
+                          }`}
+                        >
+                          {bloqueada ? "🚫 Bloqueada na Criação" : "✓ Disponível"}
+                        </span>
+                      </td>
+                      {isMaster && (
+                        <td>
+                          <button
+                            type="button"
+                            className={`btn-action-availability ${
+                              bloqueada ? "btn-unlock" : "btn-lock"
+                            }`}
+                            disabled={salvandoBonusClasses && bloqueandoClasse === classe.nome}
+                            onClick={() => void handleToggleBloqueioClasse(classe.nome)}
+                          >
+                            {bloqueandoClasse === classe.nome
+                              ? "Salvando..."
+                              : bloqueada
+                                ? "Liberar na Criação"
+                                : "Bloquear na Criação"}
+                          </button>
+                        </td>
+                      )}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* 2. Criação de Classe Exclusiva ou Personalização de Perícias/Habilidades */}
+        <div className="campaign-classes-content-creator">
+          <div className="campaign-section-title">
+            <h3>Adicionar Conteúdo à Campanha</h3>
+            <span className="campaign-section-badge">Exclusivo Desta Mesa</span>
+          </div>
+
+          <p className="tav-texto-apoio">
+            Cadastre classes exclusivas desta aventura (sem alterar o catálogo global) ou personalize novas perícias e habilidades de classe.
+          </p>
+
+          {isMaster && (
+            <form
+              className="campaign-content-form"
+              onSubmit={handleAdicionarConteudoClasse}
+            >
           <label>
             <span>O que deseja adicionar?</span>
             <select
@@ -1298,6 +1674,7 @@ export default function Campaign() {
             </p>
           )}
         </div>
+      </div>
       </Secao>
 
       {/* Inventário e entregas: recompensas do Mestre e histórico */}
@@ -1490,6 +1867,18 @@ export default function Campaign() {
           </div>
         </Secao>
       )}
+
+      {/* Rodapé Arquitetônico de Relíquias (idêntico ao estilo monumental do portal) */}
+      <footer className="campaign-pedestal-relics" aria-hidden="true">
+        <div className="pedestal-glyph-row">
+          <span className="pedestal-glyph">🛡️</span>
+          <span className="pedestal-glyph">💰</span>
+          <span className="pedestal-glyph-crest">⚜️</span>
+          <span className="pedestal-glyph">⚔️</span>
+          <span className="pedestal-glyph">✨</span>
+        </div>
+        <p className="campaign-pedestal-tag">RPG Platform · Mesa de Aventuras do Reino</p>
+      </footer>
     </div>
   );
 }
