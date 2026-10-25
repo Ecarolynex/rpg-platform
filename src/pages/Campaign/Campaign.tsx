@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   creditarOuroCampanha,
@@ -47,6 +47,49 @@ function criarRequestId(): string {
   });
 }
 
+interface SecaoProps {
+  id: string;
+  titulo: string;
+  resumo?: string;
+  aberta: boolean;
+  aoAlternar: (id: string) => void;
+  variante?: "perigo";
+  children: ReactNode;
+}
+
+// Seção expansível. O conteúdo permanece montado (apenas oculto) para que
+// formulários e mensagens preservem o estado ao alternar entre seções.
+function Secao({ id, titulo, resumo, aberta, aoAlternar, variante, children }: SecaoProps) {
+  return (
+    <section
+      id={id}
+      aria-labelledby={id + "-rotulo"}
+      className={
+        "campaign-section tav-secao" +
+        (aberta ? " is-open" : "") +
+        (variante === "perigo" ? " tav-secao--perigo" : "")
+      }
+    >
+      <h2 className="tav-secao-titulo">
+        <button
+          type="button"
+          className="tav-secao-toggle"
+          aria-expanded={aberta}
+          aria-controls={id + "-corpo"}
+          onClick={() => aoAlternar(id)}
+        >
+          <span className="tav-secao-rotulo" id={id + "-rotulo"}>{titulo}</span>
+          {resumo && <span className="tav-secao-resumo">{resumo}</span>}
+          <span className="tav-secao-seta" aria-hidden="true" />
+        </button>
+      </h2>
+      <div className="tav-secao-corpo" id={id + "-corpo"} hidden={!aberta}>
+        {children}
+      </div>
+    </section>
+  );
+}
+
 export default function Campaign() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -90,6 +133,14 @@ export default function Campaign() {
   const [erroExclusao, setErroExclusao] = useState("");
   const [mensagem, setMensagem] = useState("");
   const [versao, setVersao] = useState(0);
+
+  // Seções expansíveis da página. Começam abertas a visão geral e os
+  // jogadores/personagens (o conteúdo mais usado por Mestre e jogadores);
+  // as demais abrem sob demanda e cada uma alterna de forma independente.
+  const [secoesAbertas, setSecoesAbertas] = useState<string[]>([
+    "secao-visao",
+    "secao-jogadores",
+  ]);
 
   // Ferramenta do Mestre: Distribuição de Ouro
   const [tipoRecompensa, setTipoRecompensa] = useState<"OURO" | "XP" | "ITEM">("OURO");
@@ -525,6 +576,27 @@ export default function Campaign() {
     }
   }
 
+  function alternarSecao(secaoId: string) {
+    setSecoesAbertas((atuais) =>
+      atuais.includes(secaoId)
+        ? atuais.filter((item) => item !== secaoId)
+        : [...atuais, secaoId],
+    );
+  }
+
+  function irParaSecao(secaoId: string) {
+    setSecoesAbertas((atuais) =>
+      atuais.includes(secaoId) ? atuais : [...atuais, secaoId],
+    );
+    window.requestAnimationFrame(() => {
+      const reduzir = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+      document.getElementById(secaoId)?.scrollIntoView({
+        behavior: reduzir ? "auto" : "smooth",
+        block: "start",
+      });
+    });
+  }
+
   if (loading) {
     return (
       <div className="campaign-detail-page">
@@ -547,12 +619,20 @@ export default function Campaign() {
     );
   }
 
+  const resumoJogadores = isMaster
+    ? `${todosDaCampanha.length} ${todosDaCampanha.length === 1 ? "personagem" : "personagens"} na mesa`
+    : meusNaCampanha.length > 0
+      ? "Seu personagem e o grupo"
+      : "Escolha seu personagem";
+  const mostrarEntregas = isMaster || historicoRecompensas.length > 0;
+  const aberta = (secaoId: string) => secoesAbertas.includes(secaoId);
+
   return (
-    <div className="campaign-detail-page">
-      {/* Cabeçalho da Campanha */}
+    <div className="campaign-detail-page tav-page">
       {erroBonusEquipamentos && <p className="campaign-status-message" role="alert">{erroBonusEquipamentos}</p>}
 
-      <header className="campaign-detail-header">
+      {/* Identificação da campanha */}
+      <header className="campaign-detail-header tav-header">
         <div className="campaign-detail-nav">
           <Link to="/campanhas" className="campaign-back-link">
             ← Minhas Campanhas
@@ -574,71 +654,463 @@ export default function Campaign() {
           {campaign.descricao || "Nenhuma descrição cadastrada para esta aventura."}
         </p>
 
-        <nav className="campaign-context-nav" aria-label="Áreas da campanha">
-          <span className="campaign-context-current" aria-current="page">Visão geral</span>
-          <Link className="btn-ghost" to={"/campanha/" + campaign.id + "/mapa"}>
-            Mapa
+        <nav className="campaign-context-nav tav-lounges" aria-label="Áreas da campanha">
+          <Link className="tav-lounge" to={"/campanha/" + campaign.id + "/mapa"}>
+            <span className="tav-lounge-nome">Mapa</span>
+            <span className="tav-lounge-desc">Terras e marcadores</span>
           </Link>
-          <Link className="btn-ghost" to={"/campanha/" + campaign.id + "/bestiario"}>
-            Bestiário
+          <Link className="tav-lounge" to={"/campanha/" + campaign.id + "/bestiario"}>
+            <span className="tav-lounge-nome">Bestiário</span>
+            <span className="tav-lounge-desc">Criaturas da mesa</span>
           </Link>
-          <Link className="btn-ghost" to={"/campanha/" + campaign.id + "/loja"}>
-            Loja
+          <Link className="tav-lounge" to={"/campanha/" + campaign.id + "/loja"}>
+            <span className="tav-lounge-nome">Loja</span>
+            <span className="tav-lounge-desc">Itens e estoque</span>
           </Link>
-          <Link className="btn-ghost" to={"/campanha/" + campaign.id + "/dados"}>
-            Dados
+          <Link className="tav-lounge" to={"/campanha/" + campaign.id + "/dados"}>
+            <span className="tav-lounge-nome">Dados</span>
+            <span className="tav-lounge-desc">Role e registre</span>
           </Link>
         </nav>
       </header>
 
-      {/* Grid de Metadados da Campanha */}
-      <div className="campaign-meta-grid">
-        <div className="campaign-meta-card">
-          <span>Sistema de Regras</span>
-          <strong>{campaign.sistema || "D&D 5e / Custom"}</strong>
-        </div>
+      {/* Navegação compacta entre as seções desta página */}
+      <nav className="tav-section-nav" aria-label="Seções desta página">
+        <button type="button" aria-controls="secao-visao-corpo" onClick={() => irParaSecao("secao-visao")}>
+          Visão geral
+        </button>
+        <button type="button" aria-controls="secao-jogadores-corpo" onClick={() => irParaSecao("secao-jogadores")}>
+          Jogadores
+        </button>
+        <button type="button" aria-controls="secao-regras-corpo" onClick={() => irParaSecao("secao-regras")}>
+          Regras
+        </button>
+        <button type="button" aria-controls="secao-classes-corpo" onClick={() => irParaSecao("secao-classes")}>
+          Classes
+        </button>
+        {mostrarEntregas && (
+          <button type="button" aria-controls="secao-entregas-corpo" onClick={() => irParaSecao("secao-entregas")}>
+            Entregas
+          </button>
+        )}
+        {isMaster && (
+          <button
+            type="button"
+            className="tav-section-nav-perigo"
+            aria-controls="secao-perigo-corpo"
+            onClick={() => irParaSecao("secao-perigo")}
+          >
+            Zona de perigo
+          </button>
+        )}
+      </nav>
 
-        <div className="campaign-meta-card">
-          <span>Moeda Principal</span>
-          <strong>{campaign.moeda_principal || "Ouro (PO)"}</strong>
-        </div>
-
-        <div className="campaign-meta-card">
-          <span>Ouro Inicial por Jogador</span>
-          <strong>{campaign.ouro_inicial ?? 1250} PO</strong>
-        </div>
-
-        <div className="campaign-meta-card">
-          <span>Código de Convite</span>
-          <div className="campaign-code-highlight">
-            <strong>{campaign.codigo_convite}</strong>
-            <button
-              type="button"
-              className="btn-ghost campaign-copy-btn"
-              onClick={handleCopiarCodigo}
-            >
-              {copiado ? "Copiado!" : "Copiar"}
-            </button>
+      {/* Visão geral e convite */}
+      <Secao
+        id="secao-visao"
+        titulo="Visão geral"
+        resumo={`Convite ${campaign.codigo_convite}`}
+        aberta={aberta("secao-visao")}
+        aoAlternar={alternarSecao}
+      >
+        <div className="campaign-meta-grid">
+          <div className="campaign-meta-card">
+            <span>Código de Convite</span>
+            <div className="campaign-code-highlight">
+              <strong>{campaign.codigo_convite}</strong>
+              <button
+                type="button"
+                className="btn-ghost campaign-copy-btn"
+                onClick={handleCopiarCodigo}
+              >
+                {copiado ? "Copiado!" : "Copiar"}
+              </button>
+            </div>
+            {copiado && (
+              <p className="campaign-copy-feedback" role="status">
+                Convite copiado!
+              </p>
+            )}
+            {erroCopiarConvite && (
+              <p className="campaign-copy-feedback campaign-copy-feedback--error" role="alert">
+                {erroCopiarConvite}
+              </p>
+            )}
           </div>
-          {copiado && (
-            <p className="campaign-copy-feedback" role="status">
-              Convite copiado!
+
+          <div className="campaign-meta-card">
+            <span>Personagens na mesa</span>
+            <strong>{todosDaCampanha.length}</strong>
+          </div>
+
+          <div className="campaign-meta-card">
+            <span>Seu papel</span>
+            <strong>{isMaster ? "Mestre" : "Jogador"}</strong>
+          </div>
+        </div>
+      </Secao>
+
+      {/* Jogadores e personagens */}
+      <Secao
+        id="secao-jogadores"
+        titulo="Jogadores e personagens"
+        resumo={resumoJogadores}
+        aberta={aberta("secao-jogadores")}
+        aoAlternar={alternarSecao}
+      >
+        {/* PAINEL DO MESTRE: Visível apenas se o usuário for o Mestre */}
+        {isMaster && (
+          <div className="tav-bloco">
+            <div className="campaign-section-title">
+              <h3>👑 Painel de Controle do Mestre</h3>
+              <span className="campaign-section-badge">
+                {todosDaCampanha.length} {todosDaCampanha.length === 1 ? "Personagem" : "Personagens"} na Mesa
+              </span>
+            </div>
+
+            <p className="tav-texto-apoio">
+              Como Mestre, você pode visualizar e alterar livremente a vida, mana, dinheiro e atributos de todos os personagens da aventura.
+            </p>
+
+            {todosDaCampanha.length > 0 ? (
+              <div className="party-overview-grid">
+                {todosDaCampanha.map((personagem) => {
+                  const po = personagem.carteira?.po ?? 0;
+                  const maximosAutoritativos = maximosServidor[personagem.id];
+                  const hpMax = personagem.hp?.max ?? maximosAutoritativos?.hp ?? 200;
+                  const mpMax = personagem.mp?.max ?? maximosAutoritativos?.mp ?? 200;
+                  const hpAtual = Math.min(personagem.hp?.atual ?? 200, hpMax);
+                  const mpAtual = Math.min(personagem.mp?.atual ?? 200, mpMax);
+                  return (
+                    <article key={personagem.id} className="party-char-card">
+                      <div className="party-char-head">
+                        <div className="party-char-portrait">
+                          {personagem.portraitUrl ? (
+                            <img src={personagem.portraitUrl} alt={personagem.nome} />
+                          ) : (
+                            personagem.nome.charAt(0)
+                          )}
+                        </div>
+
+                        <div className="party-char-info">
+                          <h3>{personagem.nome}</h3>
+                          <p className="party-char-meta">
+                            {personagem.raca} · {personagem.classe} · Nvl {personagem.nivel}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="party-char-stats-row">
+                        <div className="party-stat-mini">
+                          <span>Vida</span>
+                          <strong>{hpAtual} / {hpMax}</strong>
+                        </div>
+                        <div className="party-stat-mini">
+                          <span>Mana</span>
+                          <strong>{mpAtual} / {mpMax}</strong>
+                        </div>
+                        <div className="party-stat-mini">
+                          <span>Ouro</span>
+                          <strong className="party-stat-gold">{po} PO</strong>
+                        </div>
+                      </div>
+
+                      <div className="party-char-vitals">
+                        <StatBar
+                          label="Vida"
+                          atual={hpAtual}
+                          max={hpMax}
+                          tone="wine"
+                        />
+                        <StatBar
+                          label="Mana"
+                          atual={mpAtual}
+                          max={mpMax}
+                          tone="forest"
+                        />
+                      </div>
+
+                      <div className="party-char-actions">
+                        <Link
+                          className="btn-primary"
+                          to={"/personagem/" + personagem.id}
+                        >
+                          Abrir / Alterar Ficha
+                        </Link>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="campaign-empty-banner">
+                <p>Nenhum personagem de jogador entrou na campanha ainda.</p>
+                <p>
+                  Compartilhe o código <strong>{campaign.codigo_convite}</strong> com seus jogadores para que eles possam vincular seus personagens.
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ÁREA DO JOGADOR: Meu Personagem na Campanha */}
+        <div className="tav-bloco">
+          <h3 className="tav-subtitulo">Meu personagem nesta aventura</h3>
+
+          {meusNaCampanha.length > 0 ? (
+            <div className="dashboard-grid">
+              {meusNaCampanha.map((personagem) => (
+                <CharacterCard
+                  key={personagem.id}
+                  character={personagem}
+                  rulesContext={{
+                    classCatalog: catalogoClasses,
+                    campaignClassBonuses: bonusClasses,
+                    campaignClassContents: conteudosClasses,
+                    equippedItemBonuses: bonusEquipamentos[personagem.id]
+                      ? [bonusEquipamentos[personagem.id]]
+                      : [],
+                    serverResourceMaximums: maximosServidor[personagem.id]
+                      ? { hpMax: maximosServidor[personagem.id].hp, mpMax: maximosServidor[personagem.id].mp }
+                      : undefined,
+                  }}
+                />
+              ))}
+            </div>
+          ) : isMaster ? (
+            <div>
+              <p className="tav-texto-apoio">
+                Você está atuando como <strong>Mestre</strong> nesta campanha. Mestres não precisam de um personagem de jogador para narrar.
+              </p>
+              {semCampanha.length > 0 && (
+                <details className="tav-detalhes">
+                  <summary>
+                    Deseja vincular um personagem ou NPC próprio a esta campanha?
+                  </summary>
+                  <form onSubmit={handleVincular} className="tav-form-vinculo">
+                    <label className="field">
+                      <span>Escolher personagem</span>
+                      <select
+                        value={escolhido}
+                        onChange={(event) => setEscolhido(event.target.value)}
+                      >
+                        {semCampanha.map((personagem) => (
+                          <option key={personagem.id} value={personagem.id}>
+                            {personagem.nome} · {personagem.raca} · {personagem.classe}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <button
+                      type="submit"
+                      className="btn-primary"
+                      disabled={vinculando || !escolhido}
+                    >
+                      {vinculando ? "Vinculando..." : "Vincular à campanha"}
+                    </button>
+                  </form>
+                </details>
+              )}
+            </div>
+          ) : semCampanha.length > 0 ? (
+            <form onSubmit={handleVincular} className="tav-form-vinculo">
+              <p>Escolha qual personagem vai participar desta campanha.</p>
+
+              <label className="field">
+                <span>Personagem</span>
+                <select
+                  value={escolhido}
+                  onChange={(event) => setEscolhido(event.target.value)}
+                >
+                  {semCampanha.map((personagem) => (
+                    <option key={personagem.id} value={personagem.id}>
+                      {personagem.nome} · {personagem.raca} · {personagem.classe}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <button
+                type="submit"
+                className="btn-primary"
+                disabled={vinculando || !escolhido}
+              >
+                {vinculando ? "Vinculando..." : "Vincular à campanha"}
+              </button>
+            </form>
+          ) : (
+            <p>
+              Você ainda não tem um personagem livre para esta campanha.{" "}
+              <Link to="/">Crie um em Meus personagens</Link> e volte aqui.
             </p>
           )}
-          {erroCopiarConvite && (
-            <p className="campaign-copy-feedback campaign-copy-feedback--error" role="alert">
-              {erroCopiarConvite}
-            </p>
-          )}
-        </div>
-      </div>
 
-      <section className="campaign-section campaign-content-section">
-        <div className="campaign-section-header">
-          <div className="campaign-section-title">
-            <h2>Classes e conteúdos desta campanha</h2>
+          {mensagem && <p className="tav-mensagem">{mensagem}</p>}
+        </div>
+
+        {/* Companheiros de Aventura (visão para jogadores quando não são mestre) */}
+        {!isMaster && outrosPersonagens.length > 0 && (
+          <div className="tav-bloco">
+            <div className="campaign-section-title">
+              <h3>Companheiros de Grupo</h3>
+              <span className="campaign-section-badge">
+                {outrosPersonagens.length} Aventureiros
+              </span>
+            </div>
+
+            <div className="dashboard-grid">
+              {outrosPersonagens.map((personagem) => (
+                <CharacterCard
+                  key={personagem.id}
+                  character={personagem}
+                  rulesContext={{
+                    classCatalog: catalogoClasses,
+                    campaignClassBonuses: bonusClasses,
+                    campaignClassContents: conteudosClasses,
+                    equippedItemBonuses: bonusEquipamentos[personagem.id]
+                      ? [bonusEquipamentos[personagem.id]]
+                      : [],
+                    serverResourceMaximums: maximosServidor[personagem.id]
+                      ? { hpMax: maximosServidor[personagem.id].hp, mpMax: maximosServidor[personagem.id].mp }
+                      : undefined,
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+      </Secao>
+
+      {/* Sistema de regras e bônus de classe */}
+      <Secao
+        id="secao-regras"
+        titulo="Sistema de regras"
+        resumo={campaign.sistema || "D&D 5e / Custom"}
+        aberta={aberta("secao-regras")}
+        aoAlternar={alternarSecao}
+      >
+        <div className="campaign-meta-grid">
+          <div className="campaign-meta-card">
+            <span>Sistema de Regras</span>
+            <strong>{campaign.sistema || "D&D 5e / Custom"}</strong>
+          </div>
+
+          <div className="campaign-meta-card">
+            <span>Moeda Principal</span>
+            <strong>{campaign.moeda_principal || "Ouro (PO)"}</strong>
+          </div>
+
+          <div className="campaign-meta-card">
+            <span>Ouro Inicial por Jogador</span>
+            <strong>{campaign.ouro_inicial ?? 1250} PO</strong>
           </div>
         </div>
+
+        {isMaster && (
+          <form
+            className="campaign-class-bonuses"
+            onSubmit={handleSalvarBonusClasses}
+          >
+            <div className="campaign-class-bonuses-heading">
+              <div>
+                <h3>Bônus de classe desta campanha</h3>
+                <p>
+                  Defina bônus dos atributos disponíveis, vida e mana. Estes
+                  valores substituem os padrões e são usados na criação
+                  de personagens vinculados a esta campanha.
+                </p>
+              </div>
+              <button
+                type="submit"
+                className="btn-primary"
+                disabled={salvandoBonusClasses}
+              >
+                {salvandoBonusClasses ? "Salvando..." : "Salvar bônus"}
+              </button>
+            </div>
+
+            <div className="campaign-class-bonus-grid">
+              {classesDisponiveis.map((classe) => {
+                const bonusAtual = bonusClasses[classe.nome] ?? classe;
+                return (
+                <fieldset className="campaign-class-bonus-card" key={classe.id}>
+                  <legend>{classe.nome}</legend>
+                  <div className="campaign-class-bonus-fields">
+                    {ATTRIBUTE_CONFIG.map((atributo) => (
+                      <label key={atributo.key}>
+                        <span>{atributo.label}</span>
+                        <input
+                          type="number"
+                          step="1"
+                          aria-label={`${classe.nome} - ${atributo.label}`}
+                          value={bonusAtual.atributoBonus[atributo.key]}
+                          disabled={salvandoBonusClasses}
+                          onChange={(event) =>
+                            atualizarBonusAtributo(
+                              classe.nome,
+                              atributo.key,
+                              Number(event.target.value) || 0,
+                            )
+                          }
+                        />
+                      </label>
+                    ))}
+                    <label>
+                      <span>Vida (PV)</span>
+                      <input
+                        type="number"
+                        step="1"
+                        aria-label={`${classe.nome} - Bônus de vida`}
+                        value={bonusAtual.hpBonus}
+                        disabled={salvandoBonusClasses}
+                        onChange={(event) =>
+                          atualizarBonusRecurso(
+                            classe.nome,
+                            "hpBonus",
+                            Number(event.target.value) || 0,
+                          )
+                        }
+                      />
+                    </label>
+                    <label>
+                      <span>Mana (PM)</span>
+                      <input
+                        type="number"
+                        step="1"
+                        aria-label={`${classe.nome} - Bônus de mana`}
+                        value={bonusAtual.mpBonus}
+                        disabled={salvandoBonusClasses}
+                        onChange={(event) =>
+                          atualizarBonusRecurso(
+                            classe.nome,
+                            "mpBonus",
+                            Number(event.target.value) || 0,
+                          )
+                        }
+                      />
+                    </label>
+                  </div>
+                </fieldset>
+                );
+              })}
+            </div>
+            {bonusClassesMensagem && (
+              <p className="campaign-class-bonuses-message" role="status">
+                {bonusClassesMensagem}
+              </p>
+            )}
+          </form>
+        )}
+      </Secao>
+
+      {/* Classes e habilidades */}
+      <Secao
+        id="secao-classes"
+        titulo="Classes e habilidades"
+        resumo={`${conteudosClasses.length} ${conteudosClasses.length === 1 ? "conteúdo da campanha" : "conteúdos da campanha"}`}
+        aberta={aberta("secao-classes")}
+        aoAlternar={alternarSecao}
+      >
         <p className="campaign-content-intro">
           O catálogo global está disponível para todos. Somente o Mestre pode
           adicionar ou remover classes, perícias e habilidades desta aventura.
@@ -826,199 +1298,19 @@ export default function Campaign() {
             </p>
           )}
         </div>
-      </section>
+      </Secao>
 
-      {/* PAINEL DO MESTRE: Visível apenas se o usuário for o Mestre */}
-      {isMaster && (
-        <section className="campaign-section">
-          <div className="campaign-section-header">
-            <div className="campaign-section-title">
-              <h2>👑 Painel de Controle do Mestre</h2>
-              <span className="campaign-section-badge">
-                {todosDaCampanha.length} {todosDaCampanha.length === 1 ? "Personagem" : "Personagens"} na Mesa
-              </span>
-            </div>
-          </div>
-
-          <p style={{ color: "var(--muted)", margin: "0 0 16px" }}>
-            Como Mestre, você pode visualizar e alterar livremente a vida, mana, dinheiro e atributos de todos os personagens da aventura.
-          </p>
-
-          <form
-            className="campaign-class-bonuses"
-            onSubmit={handleSalvarBonusClasses}
-          >
-            <div className="campaign-class-bonuses-heading">
-              <div>
-                <h3>Bônus de classe desta campanha</h3>
-                <p>
-                  Defina bônus dos atributos disponíveis, vida e mana. Estes
-                  valores substituem os padrões e são usados na criação
-                  de personagens vinculados a esta campanha.
-                </p>
-              </div>
-              <button
-                type="submit"
-                className="btn-primary"
-                disabled={salvandoBonusClasses}
-              >
-                {salvandoBonusClasses ? "Salvando..." : "Salvar bônus"}
-              </button>
-            </div>
-
-            <div className="campaign-class-bonus-grid">
-              {classesDisponiveis.map((classe) => {
-                const bonusAtual = bonusClasses[classe.nome] ?? classe;
-                return (
-                <fieldset className="campaign-class-bonus-card" key={classe.id}>
-                  <legend>{classe.nome}</legend>
-                  <div className="campaign-class-bonus-fields">
-                    {ATTRIBUTE_CONFIG.map((atributo) => (
-                      <label key={atributo.key}>
-                        <span>{atributo.label}</span>
-                        <input
-                          type="number"
-                          step="1"
-                          aria-label={`${classe.nome} - ${atributo.label}`}
-                          value={bonusAtual.atributoBonus[atributo.key]}
-                          disabled={salvandoBonusClasses}
-                          onChange={(event) =>
-                            atualizarBonusAtributo(
-                              classe.nome,
-                              atributo.key,
-                              Number(event.target.value) || 0,
-                            )
-                          }
-                        />
-                      </label>
-                    ))}
-                    <label>
-                      <span>Vida (PV)</span>
-                      <input
-                        type="number"
-                        step="1"
-                        aria-label={`${classe.nome} - Bônus de vida`}
-                        value={bonusAtual.hpBonus}
-                        disabled={salvandoBonusClasses}
-                        onChange={(event) =>
-                          atualizarBonusRecurso(
-                            classe.nome,
-                            "hpBonus",
-                            Number(event.target.value) || 0,
-                          )
-                        }
-                      />
-                    </label>
-                    <label>
-                      <span>Mana (PM)</span>
-                      <input
-                        type="number"
-                        step="1"
-                        aria-label={`${classe.nome} - Bônus de mana`}
-                        value={bonusAtual.mpBonus}
-                        disabled={salvandoBonusClasses}
-                        onChange={(event) =>
-                          atualizarBonusRecurso(
-                            classe.nome,
-                            "mpBonus",
-                            Number(event.target.value) || 0,
-                          )
-                        }
-                      />
-                    </label>
-                  </div>
-                </fieldset>
-                );
-              })}
-            </div>
-            {bonusClassesMensagem && (
-              <p className="campaign-class-bonuses-message" role="status">
-                {bonusClassesMensagem}
-              </p>
-            )}
-          </form>
-
-          {todosDaCampanha.length > 0 ? (
-            <div className="party-overview-grid">
-              {todosDaCampanha.map((personagem) => {
-                const po = personagem.carteira?.po ?? 0;
-                const maximosAutoritativos = maximosServidor[personagem.id];
-                const hpMax = personagem.hp?.max ?? maximosAutoritativos?.hp ?? 200;
-                const mpMax = personagem.mp?.max ?? maximosAutoritativos?.mp ?? 200;
-                const hpAtual = Math.min(personagem.hp?.atual ?? 200, hpMax);
-                const mpAtual = Math.min(personagem.mp?.atual ?? 200, mpMax);
-                return (
-                  <article key={personagem.id} className="party-char-card">
-                    <div className="party-char-head">
-                      <div className="party-char-portrait">
-                        {personagem.portraitUrl ? (
-                          <img src={personagem.portraitUrl} alt={personagem.nome} />
-                        ) : (
-                          personagem.nome.charAt(0)
-                        )}
-                      </div>
-
-                      <div className="party-char-info">
-                        <h3>{personagem.nome}</h3>
-                        <p className="party-char-meta">
-                          {personagem.raca} · {personagem.classe} · Nvl {personagem.nivel}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="party-char-stats-row">
-                      <div className="party-stat-mini">
-                        <span>Vida</span>
-                        <strong>{hpAtual} / {hpMax}</strong>
-                      </div>
-                      <div className="party-stat-mini">
-                        <span>Mana</span>
-                        <strong>{mpAtual} / {mpMax}</strong>
-                      </div>
-                      <div className="party-stat-mini">
-                        <span>Ouro</span>
-                        <strong style={{ color: "var(--gold-bright)" }}>{po} PO</strong>
-                      </div>
-                    </div>
-
-                    <div className="party-char-vitals">
-                      <StatBar
-                        label="Vida"
-                        atual={hpAtual}
-                        max={hpMax}
-                        tone="wine"
-                      />
-                      <StatBar
-                        label="Mana"
-                        atual={mpAtual}
-                        max={mpMax}
-                        tone="forest"
-                      />
-                    </div>
-
-                    <div className="party-char-actions">
-                      <Link
-                        className="btn-primary"
-                        to={"/personagem/" + personagem.id}
-                      >
-                        Abrir / Alterar Ficha
-                      </Link>
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="campaign-empty-banner">
-              <p>Nenhum personagem de jogador entrou na campanha ainda.</p>
-              <p>
-                Compartilhe o código <strong>{campaign.codigo_convite}</strong> com seus jogadores para que eles possam vincular seus personagens.
-              </p>
-            </div>
-          )}
-
+      {/* Inventário e entregas: recompensas do Mestre e histórico */}
+      {mostrarEntregas && (
+        <Secao
+          id="secao-entregas"
+          titulo="Inventário e entregas"
+          resumo={`${historicoRecompensas.length} ${historicoRecompensas.length === 1 ? "entrega registrada" : "entregas registradas"}`}
+          aberta={aberta("secao-entregas")}
+          aoAlternar={alternarSecao}
+        >
           {/* Ferramenta de Recompensa do Mestre: Distribuir Ouro */}
-          {todosDaCampanha.length > 0 && (
+          {isMaster && todosDaCampanha.length > 0 && (
             <div className="master-reward-box">
               <div className="master-reward-info">
                 <h4>Entregar recompensa</h4>
@@ -1106,234 +1398,97 @@ export default function Campaign() {
             </div>
           )}
 
-          {ouroMensagem && (
-            <p style={{ marginTop: 12, color: "var(--gold-bright)", fontWeight: 600 }}>
-              {ouroMensagem}
-            </p>
+          {isMaster && ouroMensagem && <p className="tav-mensagem">{ouroMensagem}</p>}
+
+          {historicoRecompensas.length > 0 && (
+            <section className="tav-bloco" aria-labelledby="reward-history-title">
+              <h3 id="reward-history-title" className="tav-subtitulo">Histórico de recompensas</h3>
+              <ul className="campaign-content-list">
+                {historicoRecompensas.map((reward) => {
+                  const item = reward.item_id ? catalogoItens.find((entry) => entry.itemId === reward.item_id) : undefined;
+                  const recipient = reward.personagem_id
+                    ? todosDaCampanha.find((character) => character.id === reward.personagem_id)?.nome ?? "Personagem removido"
+                    : `${reward.total_destinatarios} personagens`;
+                  const description = reward.tipo === "OURO"
+                    ? `${reward.quantidade} PO`
+                    : reward.tipo === "XP"
+                      ? `${reward.quantidade} XP`
+                      : `${reward.quantidade_item ?? reward.quantidade} × ${item?.nome ?? "item removido"}`;
+                  return (
+                    <li key={reward.id} className="campaign-content-card">
+                      <strong>{description}</strong>
+                      <span> para {recipient}</span>
+                      <time dateTime={reward.created_at}>{new Date(reward.created_at).toLocaleString()}</time>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
           )}
-        </section>
+        </Secao>
       )}
 
-      {historicoRecompensas.length > 0 && (
-        <section className="campaign-section" aria-labelledby="reward-history-title">
-          <div className="campaign-section-header">
-            <div className="campaign-section-title">
-              <h2 id="reward-history-title">Histórico de recompensas</h2>
+      {isMaster && (
+        <Secao
+          id="secao-perigo"
+          titulo="Zona de perigo"
+          resumo="Exclusão da campanha"
+          variante="perigo"
+          aberta={aberta("secao-perigo")}
+          aoAlternar={alternarSecao}
+        >
+          <div className="campaign-danger-zone">
+            <div>
+              <p>A exclusão remove a campanha e não pode ser desfeita.</p>
             </div>
-          </div>
-          <ul className="campaign-content-list">
-            {historicoRecompensas.map((reward) => {
-              const item = reward.item_id ? catalogoItens.find((entry) => entry.itemId === reward.item_id) : undefined;
-              const recipient = reward.personagem_id
-                ? todosDaCampanha.find((character) => character.id === reward.personagem_id)?.nome ?? "Personagem removido"
-                : `${reward.total_destinatarios} personagens`;
-              const description = reward.tipo === "OURO"
-                ? `${reward.quantidade} PO`
-                : reward.tipo === "XP"
-                  ? `${reward.quantidade} XP`
-                  : `${reward.quantidade_item ?? reward.quantidade} × ${item?.nome ?? "item removido"}`;
-              return (
-                <li key={reward.id} className="campaign-content-card">
-                  <strong>{description}</strong>
-                  <span> para {recipient}</span>
-                  <time dateTime={reward.created_at}>{new Date(reward.created_at).toLocaleString()}</time>
-                </li>
-              );
-            })}
-          </ul>
-        </section>
-      )}
 
-      {/* ÁREA DO JOGADOR: Meu Personagem na Campanha */}
-      <section className="campaign-section">
-        <div className="campaign-section-header">
-          <div className="campaign-section-title">
-            <h2>Meu personagem nesta aventura</h2>
-          </div>
-        </div>
-
-        {meusNaCampanha.length > 0 ? (
-          <div className="dashboard-grid">
-            {meusNaCampanha.map((personagem) => (
-              <CharacterCard
-                key={personagem.id}
-                character={personagem}
-                rulesContext={{
-                  classCatalog: catalogoClasses,
-                  campaignClassBonuses: bonusClasses,
-                  campaignClassContents: conteudosClasses,
-                  equippedItemBonuses: bonusEquipamentos[personagem.id]
-                    ? [bonusEquipamentos[personagem.id]]
-                    : [],
-                  serverResourceMaximums: maximosServidor[personagem.id]
-                    ? { hpMax: maximosServidor[personagem.id].hp, mpMax: maximosServidor[personagem.id].mp }
-                    : undefined,
+            {!confirmandoExclusao ? (
+              <button
+                type="button"
+                className="campaign-delete-trigger"
+                onClick={() => {
+                  setErroExclusao("");
+                  setConfirmandoExclusao(true);
                 }}
-              />
-            ))}
-          </div>
-        ) : isMaster ? (
-          <div>
-            <p style={{ color: "var(--muted)" }}>
-              Você está atuando como <strong>Mestre</strong> nesta campanha. Mestres não precisam de um personagem de jogador para narrar.
-            </p>
-            {semCampanha.length > 0 && (
-              <details style={{ marginTop: 12, cursor: "pointer" }}>
-                <summary style={{ color: "var(--gold-bright)", fontSize: "0.9rem" }}>
-                  Deseja vincular um personagem ou NPC próprio a esta campanha?
-                </summary>
-                <form onSubmit={handleVincular} style={{ marginTop: 12 }}>
-                  <label className="field">
-                    <span>Escolher personagem</span>
-                    <select
-                      value={escolhido}
-                      onChange={(event) => setEscolhido(event.target.value)}
-                    >
-                      {semCampanha.map((personagem) => (
-                        <option key={personagem.id} value={personagem.id}>
-                          {personagem.nome} · {personagem.raca} · {personagem.classe}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
+              >
+                Excluir campanha
+              </button>
+            ) : (
+              <div
+                className="campaign-delete-confirmation"
+                role="alertdialog"
+                aria-labelledby="campaign-delete-confirm-title"
+                aria-describedby="campaign-delete-confirm-description"
+              >
+                <div>
+                  <h3 id="campaign-delete-confirm-title">Excluir “{campaign.nome}”?</h3>
+                  <p id="campaign-delete-confirm-description">
+                    Esta ação é permanente. Confirme somente se deseja apagar esta campanha.
+                  </p>
+                </div>
+                {erroExclusao && <p className="campaign-delete-error" role="alert">{erroExclusao}</p>}
+                <div className="campaign-delete-confirm-actions">
                   <button
-                    type="submit"
-                    className="btn-primary"
-                    style={{ marginTop: 8 }}
-                    disabled={vinculando || !escolhido}
+                    type="button"
+                    className="btn-ghost"
+                    onClick={() => setConfirmandoExclusao(false)}
+                    disabled={excluindo}
                   >
-                    {vinculando ? "Vinculando..." : "Vincular à campanha"}
+                    Cancelar
                   </button>
-                </form>
-              </details>
+                  <button
+                    type="button"
+                    className="campaign-delete-confirm-button"
+                    onClick={() => void handleExcluirCampanha()}
+                    disabled={excluindo}
+                  >
+                    {excluindo ? "Excluindo..." : "Confirmar exclusão"}
+                  </button>
+                </div>
+              </div>
             )}
           </div>
-        ) : semCampanha.length > 0 ? (
-          <form onSubmit={handleVincular}>
-            <p>Escolha qual personagem vai participar desta campanha.</p>
-
-            <label className="field">
-              <span>Personagem</span>
-              <select
-                value={escolhido}
-                onChange={(event) => setEscolhido(event.target.value)}
-              >
-                {semCampanha.map((personagem) => (
-                  <option key={personagem.id} value={personagem.id}>
-                    {personagem.nome} · {personagem.raca} · {personagem.classe}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <button
-              type="submit"
-              className="btn-primary"
-              disabled={vinculando || !escolhido}
-            >
-              {vinculando ? "Vinculando..." : "Vincular à campanha"}
-            </button>
-          </form>
-        ) : (
-          <p>
-            Você ainda não tem um personagem livre para esta campanha.{" "}
-            <Link to="/">Crie um em Meus personagens</Link> e volte aqui.
-          </p>
-        )}
-
-        {mensagem && (
-          <p style={{ marginTop: 12, color: "var(--gold-bright)" }}>
-            {mensagem}
-          </p>
-        )}
-      </section>
-
-      {/* Companheiros de Aventura (visão para jogadores quando não são mestre) */}
-      {!isMaster && outrosPersonagens.length > 0 && (
-        <section className="campaign-section">
-          <div className="campaign-section-header">
-            <div className="campaign-section-title">
-              <h2>Companheiros de Grupo</h2>
-              <span className="campaign-section-badge">
-                {outrosPersonagens.length} Aventureiros
-              </span>
-            </div>
-          </div>
-
-          <div className="dashboard-grid">
-            {outrosPersonagens.map((personagem) => (
-              <CharacterCard
-                key={personagem.id}
-                character={personagem}
-                rulesContext={{
-                  classCatalog: catalogoClasses,
-                  campaignClassBonuses: bonusClasses,
-                  campaignClassContents: conteudosClasses,
-                  equippedItemBonuses: bonusEquipamentos[personagem.id]
-                    ? [bonusEquipamentos[personagem.id]]
-                    : [],
-                  serverResourceMaximums: maximosServidor[personagem.id]
-                    ? { hpMax: maximosServidor[personagem.id].hp, mpMax: maximosServidor[personagem.id].mp }
-                    : undefined,
-                }}
-              />
-            ))}
-          </div>
-        </section>
-      )}
-      {isMaster && (
-        <section className="campaign-danger-zone" aria-labelledby="campaign-danger-title">
-          <div>
-            <h2 id="campaign-danger-title">Zona de perigo</h2>
-            <p>A exclusão remove a campanha e não pode ser desfeita.</p>
-          </div>
-
-          {!confirmandoExclusao ? (
-            <button
-              type="button"
-              className="campaign-delete-trigger"
-              onClick={() => {
-                setErroExclusao("");
-                setConfirmandoExclusao(true);
-              }}
-            >
-              Excluir campanha
-            </button>
-          ) : (
-            <div
-              className="campaign-delete-confirmation"
-              role="alertdialog"
-              aria-labelledby="campaign-delete-confirm-title"
-              aria-describedby="campaign-delete-confirm-description"
-            >
-              <div>
-                <h3 id="campaign-delete-confirm-title">Excluir “{campaign.nome}”?</h3>
-                <p id="campaign-delete-confirm-description">
-                  Esta ação é permanente. Confirme somente se deseja apagar esta campanha.
-                </p>
-              </div>
-              {erroExclusao && <p className="campaign-delete-error" role="alert">{erroExclusao}</p>}
-              <div className="campaign-delete-confirm-actions">
-                <button
-                  type="button"
-                  className="btn-ghost"
-                  onClick={() => setConfirmandoExclusao(false)}
-                  disabled={excluindo}
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="button"
-                  className="campaign-delete-confirm-button"
-                  onClick={() => void handleExcluirCampanha()}
-                  disabled={excluindo}
-                >
-                  {excluindo ? "Excluindo..." : "Confirmar exclusão"}
-                </button>
-              </div>
-            </div>
-          )}
-        </section>
+        </Secao>
       )}
     </div>
   );

@@ -82,6 +82,22 @@ function renderCampaign() {
   );
 }
 
+// As seções da página são expansíveis: abre a seção (se estiver fechada)
+// antes de procurar os controles que moram dentro dela.
+async function abrirSecao(secaoId: string) {
+  const alternador = await waitFor(() => {
+    const el = document.querySelector<HTMLButtonElement>(
+      `button[aria-expanded][aria-controls="${secaoId}-corpo"]`,
+    );
+    if (!el) throw new Error(`Seção ${secaoId} ainda não foi renderizada.`);
+    return el;
+  });
+  if (alternador.getAttribute("aria-expanded") === "false") {
+    fireEvent.click(alternador);
+  }
+  await waitFor(() => expect(alternador).toHaveAttribute("aria-expanded", "true"));
+}
+
 describe("exclusão da campanha", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -98,6 +114,7 @@ describe("exclusão da campanha", () => {
 
     it("permite ao Mestre adicionar habilidades exclusivas a uma classe da campanha", async () => {
       renderCampaign();
+      await abrirSecao("secao-classes");
 
       fireEvent.change(await screen.findByLabelText("Nome"), {
         target: { value: "Passo das sombras" },
@@ -134,6 +151,7 @@ describe("exclusão da campanha", () => {
 
     it("permite ao mestre configurar os cinco atributos do sistema", async () => {
       renderCampaign();
+      await abrirSecao("secao-regras");
 
       const forcaGuerreiro = await screen.findByRole("spinbutton", {
         name: "Guerreiro - Força",
@@ -170,6 +188,7 @@ describe("exclusão da campanha", () => {
   it("distribui ouro ao personagem selecionado com a fixture de campanha", async () => {
     vi.mocked(listarPersonagensDaCampanha).mockResolvedValueOnce([makeCampaignCharacter()]);
     renderCampaign();
+    await abrirSecao("secao-entregas");
 
     fireEvent.change(await screen.findByLabelText("Tipo de recompensa"), { target: { value: "OURO" } });
     fireEvent.change(screen.getByLabelText("Quantidade"), { target: { value: "50" } });
@@ -192,6 +211,7 @@ describe("exclusão da campanha", () => {
   it("aplica XP ao personagem selecionado e confirma a operação", async () => {
     vi.mocked(listarPersonagensDaCampanha).mockResolvedValueOnce([makeCampaignCharacter()]);
     renderCampaign();
+    await abrirSecao("secao-entregas");
 
     fireEvent.change(await screen.findByLabelText("Tipo de recompensa"), { target: { value: "XP" } });
     fireEvent.change(screen.getByLabelText("Quantidade"), { target: { value: "150" } });
@@ -213,6 +233,7 @@ describe("exclusão da campanha", () => {
       makeCatalogItemFixture({ nome: "Poção" }),
     ]);
     renderCampaign();
+    await abrirSecao("secao-entregas");
 
     fireEvent.change(await screen.findByLabelText("Tipo de recompensa"), { target: { value: "ITEM" } });
     fireEvent.change(screen.getByLabelText("Quantidade"), { target: { value: "2" } });
@@ -242,6 +263,7 @@ describe("exclusão da campanha", () => {
       .mockResolvedValueOnce(1);
 
     renderCampaign();
+    await abrirSecao("secao-entregas");
     fireEvent.change(await screen.findByLabelText("Tipo de recompensa"), {
       target: { value: "ITEM" },
     });
@@ -279,6 +301,7 @@ describe("exclusão da campanha", () => {
       makeRewardHistoryFixture({ quantidade: 25 }),
     ]);
     renderCampaign();
+    await abrirSecao("secao-entregas");
 
     const history = await screen.findByRole("region", { name: "Histórico de recompensas" });
     expect(history).toHaveTextContent("25 PO");
@@ -355,6 +378,7 @@ describe("exclusão da campanha", () => {
 
   it("pede confirmação antes de chamar a exclusão", async () => {
     renderCampaign();
+    await abrirSecao("secao-perigo");
 
     const dangerZone = await screen.findByRole("region", { name: "Zona de perigo" });
     expect(dangerZone).toHaveTextContent("A exclusão remove a campanha e não pode ser desfeita.");
@@ -371,6 +395,7 @@ describe("exclusão da campanha", () => {
 
   it("exclui a campanha e retorna à lista após confirmação", async () => {
     renderCampaign();
+    await abrirSecao("secao-perigo");
 
     fireEvent.click(await screen.findByRole("button", { name: "Excluir campanha" }));
     fireEvent.click(screen.getByRole("button", { name: "Confirmar exclusão" }));
