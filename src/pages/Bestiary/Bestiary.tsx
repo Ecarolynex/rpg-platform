@@ -1,12 +1,16 @@
-import { useCallback, useEffect, useState } from "react";
-import type { FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { ChangeEvent, FormEvent } from "react";
 import { Link, useParams } from "react-router-dom";
 import { getCampaignAccess, listarMinhasCampanhas } from "../../services/api";
 import type { Campaign } from "../../services/api";
 import {
+  IMAGEM_TAMANHO_MAX,
+  IMAGEM_TIPOS_ACEITOS,
   alternarVisibilidadeCriatura,
+  enviarImagemCriatura,
   excluirCriatura,
   listarBestiario,
+  removerImagemCriatura,
   salvarCriatura,
 } from "../../services/bestiario";
 import type { Criatura, CriaturaInput, CriaturaTipo } from "../../services/bestiario";
@@ -26,6 +30,7 @@ const VAZIO: CriaturaInput = {
   descricao: "",
   ataques: "",
   fraquezas: "",
+  imagem_url: null,
   visivel: false,
 };
 
@@ -48,6 +53,19 @@ export default function Bestiary() {
   const [form, setForm] = useState<CriaturaInput>(VAZIO);
   const [editandoId, setEditandoId] = useState<string | null>(null);
   const [salvando, setSalvando] = useState(false);
+
+  // Imagem: arquivo novo escolhido, prévia local e flag de remoção
+  const [arquivo, setArquivo] = useState<File | null>(null);
+  const [previa, setPrevia] = useState<string | null>(null);
+  const [removerImagem, setRemoverImagem] = useState(false);
+  const inputArquivoRef = useRef<HTMLInputElement>(null);
+
+  // Libera a URL temporária da prévia quando ela muda ou o componente sai da tela
+  useEffect(() => {
+    return () => {
+      if (previa) URL.revokeObjectURL(previa);
+    };
+  }, [previa]);
 
   useEffect(() => {
     if (rotaCampanhaId) return;
@@ -97,13 +115,22 @@ export default function Bestiary() {
     void carregar();
   }, [carregar]);
 
+  function limparImagemSelecionada() {
+    setArquivo(null);
+    setPrevia(null);
+    setRemoverImagem(false);
+    if (inputArquivoRef.current) inputArquivoRef.current.value = "";
+  }
+
   function limparFormulario() {
     setForm(VAZIO);
     setEditandoId(null);
+    limparImagemSelecionada();
   }
 
   function editar(c: Criatura) {
     setEditandoId(c.id);
+    limparImagemSelecionada();
     setForm({
       nome: c.nome,
       tipo: c.tipo,
@@ -112,9 +139,39 @@ export default function Bestiary() {
       descricao: c.descricao ?? "",
       ataques: c.ataques ?? "",
       fraquezas: c.fraquezas ?? "",
+      imagem_url: c.imagem_url,
       visivel: c.visivel,
     });
     window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function aoEscolherImagem(event: ChangeEvent<HTMLInputElement>) {
+    const escolhido = event.target.files?.[0];
+    if (!escolhido) return;
+
+    if (!IMAGEM_TIPOS_ACEITOS.includes(escolhido.type)) {
+      setErro("Formato inválido. Use JPG, PNG, WEBP ou GIF.");
+      event.target.value = "";
+      return;
+    }
+    if (escolhido.size > IMAGEM_TAMANHO_MAX) {
+      setErro("A imagem deve ter no máximo 2 MB.");
+      event.target.value = "";
+      return;
+    }
+
+    setErro("");
+    setArquivo(escolhido);
+    setPrevia(URL.createObjectURL(escolhido));
+    setRemoverImagem(false);
+  }
+
+  function aoRemoverImagem() {
+    // Descarta a nova seleção e marca a imagem salva para remoção
+    setArquivo(null);
+    setPrevia(null);
+    setRemoverImagem(true);
+    if (inputArquivoRef.current) inputArquivoRef.current.value = "";
   }
 
   async function enviar(event: FormEvent) {
@@ -125,7 +182,17 @@ export default function Bestiary() {
     }
     setSalvando(true);
     setErro("");
+
+    const imagemAntiga = form.imagem_url;
+    let imagemFinal: string | null = removerImagem ? null : imagemAntiga;
+    let imagemNovaEnviada: string | null = null;
+
     try {
+      if (arquivo) {
+        imagemNovaEnviada = await enviarImagemCriatura(campanhaId, arquivo);
+        imagemFinal = imagemNovaEnviada;
+      }
+
       await salvarCriatura(
         campanhaId,
         {
@@ -135,12 +202,23 @@ export default function Bestiary() {
           descricao: form.descricao?.trim() || null,
           ataques: form.ataques?.trim() || null,
           fraquezas: form.fraquezas?.trim() || null,
+          imagem_url: imagemFinal,
         },
         editandoId ?? undefined,
       );
+
+      // Salvou: apaga a imagem antiga que foi trocada ou removida
+      if (imagemAntiga && imagemAntiga !== imagemFinal) {
+        void removerImagemCriatura(imagemAntiga).catch(() => undefined);
+      }
+
       limparFormulario();
       await carregar();
     } catch (error) {
+      // Falhou depois do upload: não deixa arquivo órfão no bucket
+      if (imagemNovaEnviada) {
+        void removerImagemCriatura(imagemNovaEnviada).catch(() => undefined);
+      }
       setErro(msg(error, "Não foi possível salvar a criatura."));
     } finally {
       setSalvando(false);
@@ -162,6 +240,7 @@ export default function Bestiary() {
     }
     try {
       await excluirCriatura(c.id);
+      void removerImagemCriatura(c.imagem_url).catch(() => undefined);
       await carregar();
     } catch (error) {
       setErro(msg(error, "Não foi possível excluir a criatura."));
@@ -198,6 +277,8 @@ export default function Bestiary() {
       </main>
     );
   }
+
+  const imagemExibida = previa ?? (removerImagem ? null : form.imagem_url);
 
   return (
     <main className="bestiary-page">
@@ -309,6 +390,26 @@ export default function Bestiary() {
               />
             </label>
           </div>
+
+          <div className="bestiary-image-field">
+            <label htmlFor="bestiary-imagem">Imagem (JPG, PNG, WEBP ou GIF · até 2 MB)</label>
+            <input
+              id="bestiary-imagem"
+              ref={inputArquivoRef}
+              type="file"
+              accept={IMAGEM_TIPOS_ACEITOS.join(",")}
+              onChange={aoEscolherImagem}
+            />
+            {imagemExibida && (
+              <div className="bestiary-image-preview">
+                <img src={imagemExibida} alt="Prévia da criatura" />
+                <button type="button" className="bestiary-button danger" onClick={aoRemoverImagem}>
+                  Remover imagem
+                </button>
+              </div>
+            )}
+          </div>
+
           <label className="bestiary-check">
             <input
               type="checkbox"
@@ -340,6 +441,14 @@ export default function Bestiary() {
         <ul className="bestiary-list">
           {criaturas.map((c) => (
             <li key={c.id} className={`bestiary-card tipo-${c.tipo}`}>
+              {c.imagem_url && (
+                <img
+                  className="bestiary-card-img"
+                  src={c.imagem_url}
+                  alt={`Imagem de ${c.nome}`}
+                  loading="lazy"
+                />
+              )}
               <header>
                 <h3>{c.nome}</h3>
                 <span>

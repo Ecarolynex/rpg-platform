@@ -55,6 +55,8 @@ type Armado =
   | { kind: "criatura"; criatura: Criatura }
   | { kind: "livre" };
 
+type Aba = "jogadores" | "bestiario" | "marcadores";
+
 const LIVRE_OPTIONS: { type: MarkerType; label: string }[] = [
   { type: "local", label: "Local" },
   { type: "tesouro", label: "Tesouro" },
@@ -72,6 +74,14 @@ const TIPO_LABEL: Record<MarkerType, string> = {
   secreto: "Segredo",
 };
 
+// Ícone de cada tipo de marcador livre (peças de criatura/personagem usam foto ou inicial)
+const ICONE_TIPO: Partial<Record<MarkerType, string>> = {
+  local: "📍",
+  tesouro: "💰",
+  portal: "🌀",
+  secreto: "❓",
+};
+
 const DRAG_THRESHOLD_PX = 4;
 
 function inicial(nome: string) {
@@ -80,6 +90,36 @@ function inicial(nome: string) {
 
 function erroMensagem(error: unknown, padrao: string) {
   return error instanceof Error && error.message ? error.message : padrao;
+}
+
+// Foto dentro do aro; sem foto (ou se falhar), mostra o ícone do tipo ou a inicial.
+function TokenFace({
+  nome,
+  imagemUrl,
+  icone,
+}: {
+  nome: string;
+  imagemUrl?: string | null;
+  icone?: string;
+}) {
+  const [falhou, setFalhou] = useState(false);
+
+  useEffect(() => {
+    setFalhou(false);
+  }, [imagemUrl]);
+
+  if (imagemUrl && !falhou) {
+    return (
+      <img
+        src={imagemUrl}
+        alt=""
+        draggable={false}
+        loading="lazy"
+        onError={() => setFalhou(true)}
+      />
+    );
+  }
+  return <>{icone ?? inicial(nome)}</>;
 }
 
 export default function CampaignMap() {
@@ -106,9 +146,7 @@ export default function CampaignMap() {
   const [mensagem, setMensagem] = useState("");
   const [erro, setErro] = useState("");
 
-  const [aba, setAba] = useState<"jogadores" | "bestiario" | "marcadores">(
-    "jogadores",
-  );
+  const [aba, setAba] = useState<Aba>("jogadores");
   const [armado, setArmado] = useState<Armado | null>(null);
   const [selecionadoId, setSelecionadoId] = useState<string | null>(null);
   const [posLocal, setPosLocal] = useState<Record<string, { x: number; y: number }>>({});
@@ -128,6 +166,18 @@ export default function CampaignMap() {
   );
 
   const selecionado = visiveis.find((m) => m.id === selecionadoId) ?? null;
+
+  // Acesso rápido à criatura de cada peça (para exibir a foto)
+  const criaturaPorId = useMemo(() => {
+    const mapaCriaturas = new Map<string, Criatura>();
+    criaturas.forEach((c) => mapaCriaturas.set(c.id, c));
+    return mapaCriaturas;
+  }, [criaturas]);
+
+  function imagemDoMarcador(marker: Marker) {
+    if (!marker.criatura_id) return null;
+    return criaturaPorId.get(marker.criatura_id)?.imagem_url ?? null;
+  }
 
   const recarregarMarcadores = useCallback(
     async (mapaId: string, mestre: boolean) => {
@@ -178,9 +228,9 @@ export default function CampaignMap() {
         if (personagensError) throw personagensError;
         setPersonagens((personagensData ?? []) as Character[]);
 
-        if (mestre) {
-          setCriaturas(await listarBestiario(campanhaId!));
-        }
+        // Mestre vê todas as criaturas; jogadores só as reveladas (RLS).
+        // Falhar aqui não pode derrubar o mapa: sem a lista, as peças mostram a inicial.
+        setCriaturas(await listarBestiario(campanhaId!).catch(() => []));
 
         const { data: mapaData, error: mapaError } = await supabase
           .from("mapas")
@@ -229,13 +279,19 @@ export default function CampaignMap() {
         () => {
           if (dragRef.current) return; // não interrompe um arraste em andamento
           void recarregarMarcadores(mapa.id, isMaster).catch(() => undefined);
+          // Uma criatura pode ter acabado de ser revelada: atualiza as fotos também
+          if (campanhaId) {
+            void listarBestiario(campanhaId)
+              .then(setCriaturas)
+              .catch(() => undefined);
+          }
         },
       )
       .subscribe();
     return () => {
       void supabase.removeChannel(canal);
     };
-  }, [mapa, isMaster, recarregarMarcadores]);
+  }, [mapa, isMaster, campanhaId, recarregarMarcadores]);
 
   /* ---------- Utilidades ---------- */
   function posicaoDoPonteiro(clientX: number, clientY: number) {
@@ -530,6 +586,8 @@ export default function CampaignMap() {
     marcadores.filter((m) => m.tipo === "personagem").map((m) => m.personagem_id),
   );
 
+  const imagemSelecionado = selecionado ? imagemDoMarcador(selecionado) : null;
+
   return (
     <main className="campaign-map-page">
       <header className="campaign-map-header">
@@ -647,6 +705,7 @@ export default function CampaignMap() {
               {visiveis.map((marker) => {
                 const pos = posLocal[marker.id] ?? { x: marker.pos_x, y: marker.pos_y };
                 const movel = podeMover(marker);
+                const fotoMarcador = imagemDoMarcador(marker);
                 const classes = [
                   "map-marker",
                   `marker-${marker.tipo}`,
@@ -671,7 +730,21 @@ export default function CampaignMap() {
                       setPosLocal({});
                     }}
                   >
-                    <span className="map-marker-token">{inicial(marker.nome)}</span>
+                    <span
+                      className={
+                        fotoMarcador
+                          ? "map-marker-token has-image"
+                          : ICONE_TIPO[marker.tipo]
+                            ? "map-marker-token has-icon"
+                            : "map-marker-token"
+                      }
+                    >
+                      <TokenFace
+                        nome={marker.nome}
+                        imagemUrl={fotoMarcador}
+                        icone={ICONE_TIPO[marker.tipo]}
+                      />
+                    </span>
                     <span className="map-marker-name">{marker.nome}</span>
                   </div>
                 );
@@ -680,13 +753,23 @@ export default function CampaignMap() {
 
             {selecionado && (
               <aside className="map-selected" aria-label="Peça selecionada">
-                <div>
-                  <strong>{selecionado.nome}</strong>
-                  <small>
-                    {TIPO_LABEL[selecionado.tipo]}
-                    {isMaster && !selecionado.visivel && " · oculto dos jogadores"}
-                  </small>
-                  {selecionado.descricao && <p>{selecionado.descricao}</p>}
+                <div className="map-selected-info">
+                  {imagemSelecionado && (
+                    <img
+                      className="map-selected-img"
+                      src={imagemSelecionado}
+                      alt={`Imagem de ${selecionado.nome}`}
+                    />
+                  )}
+                  <div>
+                    <strong>{selecionado.nome}</strong>
+                    <small>
+                      {ICONE_TIPO[selecionado.tipo] ? `${ICONE_TIPO[selecionado.tipo]} ` : ""}
+                      {TIPO_LABEL[selecionado.tipo]}
+                      {isMaster && !selecionado.visivel && " · oculto dos jogadores"}
+                    </small>
+                    {selecionado.descricao && <p>{selecionado.descricao}</p>}
+                  </div>
                 </div>
                 {isMaster && (
                   <div className="map-selected-actions">
@@ -758,40 +841,42 @@ export default function CampaignMap() {
               )}
 
               {aba === "bestiario" && (
-                <>
-                  <ul className="map-list">
-                    {criaturas.length === 0 && (
-                      <li className="map-empty">
-                        Nenhuma criatura cadastrada.{" "}
-                        <Link to={`/campanha/${campaign.id}/bestiario`}>Abrir Bestiário</Link>
-                      </li>
-                    )}
-                    {criaturas.map((c) => (
-                      <li key={c.id}>
-                        <button
-                          type="button"
-                          className={
-                            armado?.kind === "criatura" && armado.criatura.id === c.id
-                              ? "map-list-item armed"
-                              : "map-list-item"
-                          }
-                          onClick={() => setArmado({ kind: "criatura", criatura: c })}
+                <ul className="map-list">
+                  {criaturas.length === 0 && (
+                    <li className="map-empty">
+                      Nenhuma criatura cadastrada.{" "}
+                      <Link to={`/campanha/${campaign.id}/bestiario`}>Abrir Bestiário</Link>
+                    </li>
+                  )}
+                  {criaturas.map((c) => (
+                    <li key={c.id}>
+                      <button
+                        type="button"
+                        className={
+                          armado?.kind === "criatura" && armado.criatura.id === c.id
+                            ? "map-list-item armed"
+                            : "map-list-item"
+                        }
+                        onClick={() => setArmado({ kind: "criatura", criatura: c })}
+                      >
+                        <span
+                          className={`map-marker-token small tipo-${c.tipo}${
+                            c.imagem_url ? " has-image" : ""
+                          }`}
                         >
-                          <span className={`map-marker-token small tipo-${c.tipo}`}>
-                            {inicial(c.nome)}
-                          </span>
-                          <span>
-                            <strong>{c.nome}</strong>
-                            <small>
-                              {c.tipo === "boss" ? "Chefe" : c.tipo === "npc" ? "NPC" : "Inimigo"}
-                              {c.nivel_ameaca ? ` · ameaça ${c.nivel_ameaca}` : ""}
-                            </small>
-                          </span>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                </>
+                          <TokenFace nome={c.nome} imagemUrl={c.imagem_url} />
+                        </span>
+                        <span>
+                          <strong>{c.nome}</strong>
+                          <small>
+                            {c.tipo === "boss" ? "Chefe" : c.tipo === "npc" ? "NPC" : "Inimigo"}
+                            {c.nivel_ameaca ? ` · ameaça ${c.nivel_ameaca}` : ""}
+                          </small>
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
               )}
 
               {aba === "marcadores" && (
@@ -804,7 +889,7 @@ export default function CampaignMap() {
                     >
                       {LIVRE_OPTIONS.map((o) => (
                         <option key={o.type} value={o.type}>
-                          {o.label}
+                          {ICONE_TIPO[o.type]} {o.label}
                         </option>
                       ))}
                     </select>

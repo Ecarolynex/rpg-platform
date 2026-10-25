@@ -16,6 +16,10 @@ vi.mock("../../services/bestiario", () => ({
   salvarCriatura: vi.fn(),
   alternarVisibilidadeCriatura: vi.fn(),
   excluirCriatura: vi.fn(),
+  enviarImagemCriatura: vi.fn(),
+  removerImagemCriatura: vi.fn(),
+  IMAGEM_TIPOS_ACEITOS: ["image/jpeg", "image/png", "image/webp", "image/gif"],
+  IMAGEM_TAMANHO_MAX: 2 * 1024 * 1024,
 }));
 
 const criatura = {
@@ -28,6 +32,7 @@ const criatura = {
   descricao: "Caça nas clareiras.",
   ataques: "Mordida",
   fraquezas: "Fogo",
+  imagem_url: null,
   visivel: true,
   criado_em: "2026-10-11",
 };
@@ -55,12 +60,13 @@ function abrirGeral() {
 describe("Bestiário", () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it("mostra o formulário de cadastro apenas ao Mestre", async () => {
+  it("mostra o formulário de cadastro, com o campo de imagem, apenas ao Mestre", async () => {
     getCampaignAccess.mockResolvedValue({ isMaster: true, startingGold: 0 });
     listarBestiario.mockResolvedValue([criatura]);
     abrir();
     expect(await screen.findByText("Lobo Sombrio")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Cadastrar criatura" })).toBeInTheDocument();
+    expect(screen.getByLabelText(/^Imagem/)).toBeInTheDocument();
   });
 
   it("jogador vê as criaturas reveladas sem controles de edição", async () => {
@@ -71,6 +77,7 @@ describe("Bestiário", () => {
     await waitFor(() => {
       expect(screen.queryByRole("button", { name: "Cadastrar criatura" })).toBeNull();
       expect(screen.queryByRole("button", { name: "Excluir" })).toBeNull();
+      expect(screen.queryByLabelText(/^Imagem/)).toBeNull();
     });
   });
 

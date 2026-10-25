@@ -221,3 +221,41 @@
   margin: 0;
   color: var(--parchment-dim);
 }
+.bestiary-image-field {
+  display: grid;
+  gap: 8px;
+  font-size: 0.88rem;
+  color: var(--parchment-dim);
+}
+.bestiary-image-field input[type="file"] {
+  padding: 8px 10px;
+  border: 1px dashed var(--border-subtle);
+  border-radius: var(--radius-control);
+  background: var(--surface-inset);
+  color: var(--parchment);
+  font: inherit;
+}
+.bestiary-image-preview {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+}
+.bestiary-image-preview img {
+  width: 140px;
+  height: 140px;
+  object-fit: cover;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-control);
+  background: var(--surface-inset);
+}
+.bestiary-card-img {
+  display: block;
+  width: 100%;
+  max-height: 220px;
+  margin-bottom: 12px;
+  object-fit: cover;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-control);
+  background: var(--surface-inset);
+}

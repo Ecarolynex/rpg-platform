@@ -366,3 +366,16 @@
   color: var(--parchment);
   font: inherit;
 }
+/* Foto dentro do aro da peça */
+.map-marker-token {
+  overflow: hidden;
+}
+.map-marker-token.has-image {
+  background: #050d0b;
+}
+.campaign-map .map-marker-token img,
+.map-list-item .map-marker-token img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
