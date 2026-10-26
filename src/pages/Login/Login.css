@@ -1,11 +1,10 @@
-/* ==========================================================
-   RPG Platform — Portal Monumental Integrado
-   Sem cards, sem janelas isoladas, sem painéis flutuantes.
-   A própria entrada é a arquitetura imersiva do reino.
-   ========================================================== */
-
-/* ── Container da Página ─────────────────────────────────── */
 .realm-portal-page {
+  --portal-form-width: 340px;   /* largura útil dentro da abertura da porta */
+  --portal-form-offset: 0px;    /* empurra tudo para baixo/cima (ex.: 24px, -16px) */
+  --portal-title-lift: 34px;    /* sobe o nome curvo para o anel do arco */
+  --portal-gold: #f0dba2;
+  --portal-gold-line: rgba(212, 175, 95, 0.7);
+
   position: relative;
   min-height: 100vh;
   width: 100%;
@@ -17,14 +16,14 @@
   background-color: #070e0d;
 }
 
-/* Fundo: Portal.png expandido com iluminação atmosférica */
+/* Fundo: portal.png */
 .portal-atmosphere-backdrop {
   position: fixed;
   inset: 0;
   z-index: 0;
-  background-image: 
+  background-image:
     radial-gradient(ellipse 65% 55% at 50% 45%, rgba(200, 150, 60, 0.12) 0%, transparent 70%),
-    linear-gradient(180deg, rgba(7, 14, 13, 0.45) 0%, rgba(5, 10, 9, 0.72) 100%),
+    linear-gradient(180deg, rgba(7, 14, 13, 0.35) 0%, rgba(5, 10, 9, 0.6) 100%),
     url('/portal.png');
   background-size: cover;
   background-position: center 38%;
@@ -32,7 +31,6 @@
   filter: contrast(1.08) saturate(1.05);
 }
 
-/* ── Arquitetura do Portal (O Portal em Si) ──────────────── */
 .portal-gate-structure {
   position: relative;
   z-index: 1;
@@ -41,149 +39,198 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  /* Sem cor de fundo sólida, sem borda retangular de card */
   background: transparent;
   padding: 0;
   margin: auto;
+  transform: translateY(var(--portal-form-offset));
 }
 
-/* ── Keystone / Arco Superior ────────────────────────────── */
+/* ── Título curvo ────────────────────────────────────────── */
 .portal-keystone {
   width: 100%;
-  text-align: center;
-  margin-bottom: 24px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
+  margin-bottom: 16px;
+  pointer-events: none;
 }
 
-.keystone-runes {
-  font-family: var(--font-title, serif);
-  font-size: 11px;
-  letter-spacing: 0.38em;
-  color: rgba(212, 175, 95, 0.65);
-  text-shadow: 0 0 10px rgba(240, 219, 162, 0.45);
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
 }
 
 .portal-monumental-title {
-  font-family: var(--font-title, "Cinzel", serif);
-  font-size: clamp(14px, 3.5vw, 17px);
-  font-weight: 700;
-  letter-spacing: 0.18em;
-  color: var(--gold-bright, #f0dba2);
-  text-transform: uppercase;
-  text-shadow: 
-    0 0 16px rgba(212, 175, 95, 0.75),
-    0 2px 8px rgba(0, 0, 0, 0.95);
   margin: 0;
-}
-
-/* ── Pilares Rúnicos Laterais (Efeito de Portal de Pedra) ── */
-.portal-pillar {
-  position: absolute;
-  top: 70px;
-  bottom: 80px;
   display: flex;
   flex-direction: column;
-  justify-content: space-around;
+  align-items: center;
+  font-weight: inherit;
+}
+
+/* Subtítulo reto dentro do portal, com filetes dourados nas pontas */
+.portal-subtitle {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-family: var(--font-title, "Cinzel", serif);
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.55em;
+  color: #e2c27a;
+  text-shadow: 0 0 10px rgba(212, 175, 95, 0.6), 0 2px 6px rgba(0, 0, 0, 0.95);
+}
+
+.portal-subtitle::before,
+.portal-subtitle::after {
+  content: "";
+  width: 36px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(212, 175, 95, 0.85));
+}
+
+.portal-subtitle::after { transform: scaleX(-1); }
+
+.portal-arc-title {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+  /* o layout reserva só 34px; o desenho sobe para o anel */
+  margin-bottom: -56px;
+  transform: translateY(calc(-1 * var(--portal-title-lift)));
+}
+
+.arc-line {
+  font-family: var(--font-title, "Cinzel", serif);
+  fill: var(--portal-gold);
+  paint-order: stroke;
+  stroke: rgba(0, 0, 0, 0.85);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 0 8px rgba(212, 175, 95, 0.6));
+}
+
+.arc-line--main {
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 0.3em;
+}
+
+/* ── Pilares rúnicos ─────────────────────────────────────── */
+.portal-pillar {
+  position: absolute;
+  top: 80px;
+  bottom: 56px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
   pointer-events: none;
   z-index: 2;
   user-select: none;
 }
 
-.portal-pillar--left {
-  left: -28px;
-}
-
-.portal-pillar--right {
-  right: -28px;
-}
+.portal-pillar--left { left: -28px; }
+.portal-pillar--right { right: -28px; }
 
 .rune-glyph {
   font-family: serif;
   font-size: 20px;
   color: rgba(220, 180, 80, 0.75);
-  text-shadow: 
-    0 0 8px rgba(240, 200, 100, 0.95),
-    0 0 18px rgba(200, 130, 30, 0.85);
-  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.9));
+  text-shadow: 0 0 8px rgba(240, 200, 100, 0.95), 0 0 18px rgba(200, 130, 30, 0.85);
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.9));
   animation: runeFlicker 4s ease-in-out infinite alternate;
 }
 
-.portal-pillar--right .rune-glyph {
-  animation-delay: 2s;
-}
+.portal-pillar--right .rune-glyph { animation-delay: 2s; }
 
 @keyframes runeFlicker {
   0%, 100% { opacity: 0.65; transform: scale(0.98); }
   50% { opacity: 0.95; transform: scale(1.05); }
 }
 
-/* ── Núcleo do Portal (Sanctum) ──────────────────────────── */
+/* ── Núcleo do portal: sem caixa, só um véu de contraste ─── */
 .portal-inner-sanctum {
-  width: 100%;
   position: relative;
+  width: min(100%, var(--portal-form-width));
   display: flex;
   flex-direction: column;
   align-items: center;
-  /* Arco gótico sutil esculpido em gradientes sobre a pedra */
-  background: radial-gradient(ellipse at 50% 15%, rgba(20, 38, 34, 0.68) 0%, rgba(7, 14, 13, 0.88) 85%);
-  border-top: 2px solid rgba(212, 175, 95, 0.45);
-  border-bottom: 2px solid rgba(212, 175, 95, 0.45);
-  border-radius: 120px 120px 16px 16px;
-  padding: 34px 28px 24px;
-  box-shadow: 
-    0 0 35px rgba(0, 0, 0, 0.75),
-    inset 0 0 25px rgba(0, 0, 0, 0.85),
-    inset 0 2px 10px rgba(240, 219, 162, 0.22);
+  background: none;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 8px 0 0;
 }
 
-/* ── Navegação dos Ritos (Abas Esculpidas em Ferro e Ouro) ── */
+/* Véu suave: escurece só a região do texto, sem borda nem contorno */
+.portal-inner-sanctum::before {
+  content: "";
+  position: absolute;
+  inset: -30px -50px -20px;
+  z-index: 0;
+  background: radial-gradient(
+    ellipse 55% 60% at 50% 50%,
+    rgba(5, 11, 10, 0.78) 0%,
+    rgba(5, 11, 10, 0.5) 55%,
+    transparent 100%
+  );
+  pointer-events: none;
+}
+
+.portal-inner-sanctum > * { position: relative; z-index: 1; }
+
+/* ── Abas ────────────────────────────────────────────────── */
 .portal-rites-nav {
-  display: inline-flex;
-  gap: 16px;
-  margin-bottom: 26px;
-  position: relative;
-  z-index: 3;
+  display: flex;
+  width: 100%;
+  margin-bottom: 20px;
+  border-bottom: 1px solid rgba(212, 175, 95, 0.35);
 }
 
 .portal-rite-btn {
   background: transparent;
   border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  flex: 1 1 0;
+  text-align: center;
   font-family: var(--font-title, "Cinzel", serif);
   font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.16em;
-  color: rgba(180, 165, 140, 0.65);
+  color: rgba(225, 212, 183, 0.85);
   cursor: pointer;
-  padding: 8px 18px;
-  position: relative;
-  transition: all 0.25s ease;
+  padding: 10px 16px;
+  min-height: 44px;
+  transition: color 0.25s ease, border-color 0.25s ease;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.9);
 }
 
-.portal-rite-btn:hover {
-  color: var(--gold-bright, #f0dba2);
-}
+.portal-rite-btn:hover { color: var(--portal-gold); }
 
 .portal-rite-btn.active {
   color: #fff2cc;
-  background: radial-gradient(ellipse at 50% 50%, rgba(212, 175, 95, 0.28) 0%, transparent 80%);
-  border-bottom: 2px solid var(--gold-bright, #f0dba2);
-  text-shadow: 
-    0 0 12px rgba(240, 219, 162, 0.85),
-    0 2px 6px rgba(0, 0, 0, 0.9);
+  border-bottom-color: var(--portal-gold);
+  text-shadow: 0 0 12px rgba(240, 219, 162, 0.85), 0 2px 6px rgba(0, 0, 0, 0.9);
 }
 
-/* ── Formulário Integrado ao Cenário ─────────────────────── */
+.portal-rite-btn:focus-visible,
+.switch-action-btn:focus-visible,
+.portal-seal-trigger:focus-visible,
+.engraved-eye:focus-visible {
+  outline: 3px solid var(--portal-gold);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+
+/* ── Formulário ──────────────────────────────────────────── */
 .portal-inscriptions-form {
   width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  position: relative;
-  z-index: 3;
+  gap: 18px;
 }
 
 .engraved-field-row {
@@ -202,14 +249,13 @@
 
 .engraved-label {
   font-family: var(--font-body, "EB Garamond", serif);
-  font-size: 14px;
-  letter-spacing: 0.08em;
-  color: rgba(220, 205, 175, 0.85);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: #f0e2bd;
   text-shadow: 0 1px 4px rgba(0, 0, 0, 0.95);
-  font-style: italic;
 }
 
-/* Inputs como placas de pedra/metal esculpidas na porta */
 .engraved-input-wrap {
   width: 100%;
   position: relative;
@@ -217,46 +263,71 @@
 
 .engraved-input-wrap input {
   width: 100%;
+  box-sizing: border-box;
   height: 46px;
-  background: rgba(10, 18, 17, 0.82);
-  border: 1px solid rgba(199, 166, 108, 0.35);
-  border-radius: 4px;
-  color: var(--gold-bright, #f0dba2);
+  background: rgba(8, 16, 14, 0.78);
+  border: 1.5px solid rgba(212, 175, 95, 0.7);
+  border-radius: 6px;
+  color: var(--portal-gold);
   font-family: var(--font-body, "EB Garamond", serif);
-  font-size: 16px;
-  font-style: italic;
-  padding: 0 16px;
+  font-size: 17px;
+  padding: 0 44px;
   text-align: center;
-  box-shadow: 
-    inset 0 3px 8px rgba(0, 0, 0, 0.85),
-    0 1px 0 rgba(240, 219, 162, 0.15);
-  transition: all 0.25s ease;
+  box-shadow: inset 0 3px 8px rgba(0, 0, 0, 0.85), 0 1px 0 rgba(240, 219, 162, 0.15);
+  transition: border-color 0.25s ease, box-shadow 0.25s ease, background 0.25s ease;
 }
 
 .engraved-input-wrap input::placeholder {
-  color: rgba(180, 160, 125, 0.38);
+  color: rgba(205, 190, 155, 0.72);
   font-style: italic;
 }
 
-.engraved-input-wrap input:hover {
-  border-color: rgba(212, 175, 95, 0.65);
+.engraved-input-wrap input:hover { border-color: rgba(240, 219, 162, 0.9); }
+
+.engraved-input-wrap input:focus-visible {
+  outline: 3px solid var(--portal-gold);
+  outline-offset: 2px;
+  background: rgba(12, 24, 21, 0.92);
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.9), 0 0 16px rgba(212, 175, 95, 0.35);
 }
 
-.engraved-input-wrap input:focus {
-  outline: none;
-  border-color: var(--gold-bright, #f0dba2);
-  background: rgba(14, 25, 23, 0.92);
-  box-shadow: 
-    inset 0 2px 6px rgba(0, 0, 0, 0.9),
-    0 0 16px rgba(212, 175, 95, 0.35);
+.engraved-input-wrap.has-error input {
+  border-color: #ff9d7a;
 }
 
-/* ── O Selo Monumental (Mecanismo Interativo de Entrada) ─── */
+.engraved-error {
+  margin: 0;
+  font-family: var(--font-body, "EB Garamond", serif);
+  font-size: 15px;
+  font-weight: 600;
+  color: #ffb59a;
+  text-align: center;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.95);
+}
+
+.engraved-eye {
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: 46px;
+  height: 46px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: 0;
+  color: var(--portal-gold);
+  cursor: pointer;
+}
+
+.engraved-eye:hover { color: #fff; }
+
+/* ── Selo (botão da fênix) ───────────────────────────────── */
 .portal-seal-mechanism {
   width: 100%;
   display: flex;
   justify-content: center;
-  margin: 12px 0 6px;
+  margin: 4px 0 0;
 }
 
 .portal-seal-trigger {
@@ -265,42 +336,45 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   cursor: pointer;
   padding: 0;
   transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.portal-seal-trigger:hover:not(:disabled) {
-  transform: scale(1.04);
+.portal-seal-trigger:hover:not(:disabled) { transform: scale(1.04); }
+.portal-seal-trigger:hover:not(:disabled) .seal-emblem-disc {
+  box-shadow: 0 0 36px rgba(240, 190, 80, 0.9), 0 10px 30px rgba(0, 0, 0, 0.95), inset 0 0 16px rgba(0, 0, 0, 0.9);
 }
-
-.portal-seal-trigger:active:not(:disabled) {
-  transform: scale(0.98);
-}
+.portal-seal-trigger:active:not(:disabled) { transform: scale(0.98); }
 
 .portal-seal-trigger:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  filter: grayscale(0.4);
+  opacity: 0.75;
+  cursor: progress;
 }
 
-/* Disco do Selo com Moldura e Halo Radiante */
 .seal-emblem-disc {
   position: relative;
-  width: 136px;
-  height: 136px;
+  width: 124px;
+  height: 124px;
   border-radius: 50%;
   padding: 6px;
   background: radial-gradient(circle at 40% 35%, #5a3c1f 0%, #1f140a 75%, #0d0804 100%);
   border: 2px solid rgba(225, 185, 95, 0.85);
-  box-shadow: 
-    0 0 24px rgba(220, 140, 40, 0.65),
-    0 10px 30px rgba(0, 0, 0, 0.95),
-    inset 0 0 16px rgba(0, 0, 0, 0.9);
+  box-shadow: 0 0 24px rgba(220, 140, 40, 0.65), 0 10px 30px rgba(0, 0, 0, 0.95), inset 0 0 16px rgba(0, 0, 0, 0.9);
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: box-shadow 0.25s ease;
+}
+
+.portal-seal-trigger:disabled .seal-emblem-disc {
+  animation: sealLoading 1.2s ease-in-out infinite alternate;
+}
+
+@keyframes sealLoading {
+  from { box-shadow: 0 0 14px rgba(220, 140, 40, 0.4), 0 10px 30px rgba(0, 0, 0, 0.95), inset 0 0 16px rgba(0, 0, 0, 0.9); }
+  to   { box-shadow: 0 0 44px rgba(250, 200, 90, 0.95), 0 10px 30px rgba(0, 0, 0, 0.95), inset 0 0 16px rgba(0, 0, 0, 0.9); }
 }
 
 .seal-phoenix-img {
@@ -330,47 +404,48 @@
   font-size: 14px;
   font-weight: 700;
   letter-spacing: 0.22em;
-  color: var(--gold-bright, #f0dba2);
-  text-shadow: 
-    0 0 12px rgba(240, 200, 100, 0.9),
-    0 2px 6px rgba(0, 0, 0, 0.95);
+  color: var(--portal-gold);
+  text-shadow: 0 0 12px rgba(240, 200, 100, 0.9), 0 2px 6px rgba(0, 0, 0, 0.95);
   text-transform: uppercase;
 }
 
-/* ── Link de Alternância e Avisos ────────────────────────── */
+/* ── Alternar entre ritos ────────────────────────────────── */
 .portal-ancient-switch {
   text-align: center;
-  font-size: 14px;
+  font-size: 15px;
   font-family: var(--font-body, "EB Garamond", serif);
-  color: rgba(190, 175, 150, 0.85);
-  margin-top: 6px;
+  color: #e0d3b0;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.95);
+  margin-top: 0;
 }
 
 .switch-action-btn {
   background: transparent;
   border: none;
-  color: var(--gold-bright, #f0dba2);
+  color: var(--portal-gold);
   font-family: inherit;
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 15px;
+  font-weight: 700;
   cursor: pointer;
   text-decoration: underline;
-  text-decoration-color: rgba(212, 175, 95, 0.55);
+  text-decoration-color: var(--portal-gold-line);
   text-underline-offset: 3px;
-  transition: all 0.2s ease;
+  padding: 6px 2px;
+  transition: color 0.2s ease;
 }
 
 .switch-action-btn:hover {
-  color: #ffffff;
+  color: #fff;
   text-shadow: 0 0 8px rgba(255, 255, 255, 0.6);
 }
 
-/* Alertas de Relíquia */
+/* ── Alertas ─────────────────────────────────────────────── */
 .portal-relic-alert {
   width: 100%;
-  padding: 10px 16px;
-  border-radius: 4px;
-  font-size: 14px;
+  box-sizing: border-box;
+  padding: 10px 14px;
+  border-radius: 6px;
+  font-size: 15px;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -384,57 +459,59 @@
 }
 
 .alert-error {
-  background: rgba(65, 25, 20, 0.75);
-  border: 1px solid rgba(195, 106, 99, 0.8);
+  background: rgba(65, 25, 20, 0.85);
+  border: 1px solid rgba(195, 106, 99, 0.85);
   color: #f7d2cb;
 }
 
 .alert-success {
-  background: rgba(22, 60, 48, 0.75);
-  border: 1px solid rgba(93, 157, 121, 0.8);
+  background: rgba(22, 60, 48, 0.85);
+  border: 1px solid rgba(93, 157, 121, 0.85);
   color: #d6f2dc;
 }
 
-/* ── Pedestal / Rodapé de Relíquias ──────────────────────── */
+/* ── Rodapé ──────────────────────────────────────────────── */
 .portal-pedestal-relics {
-  margin-top: 28px;
+  margin-top: 18px;
   display: flex;
   justify-content: center;
-  width: 100%;
+  width: var(--portal-form-width);
+  max-width: 100%;
 }
 
 .pedestal-glyph-row {
   display: flex;
   align-items: center;
-  gap: 22px;
-  opacity: 0.65;
+  justify-content: space-between;
+  width: 100%;
+  opacity: 0.85;
   filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.9));
 }
 
+.pedestal-glyph,
+.pedestal-glyph-crest {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
 .pedestal-glyph {
-  font-size: 18px;
+  color: #d9b86c;
 }
 
 .pedestal-glyph-crest {
-  font-size: 22px;
-  color: var(--gold-bright, #f0dba2);
+  color: var(--portal-gold);
   filter: drop-shadow(0 0 6px rgba(240, 200, 100, 0.8));
 }
 
-/* ── Responsividade e Acessibilidade ─────────────────────── */
+/* ── Responsivo e acessibilidade ─────────────────────────── */
 @media (max-width: 540px) {
-  .portal-gate-structure {
-    max-width: 100%;
-  }
+  .realm-portal-page { --portal-form-width: 300px; }
 
-  .portal-pillar {
-    display: none;
-  }
-
-  .portal-inner-sanctum {
-    border-radius: 60px 60px 12px 12px;
-    padding: 24px 18px 20px;
-  }
+  .portal-pillar { display: none; }
 
   .engraved-field-row {
     grid-template-columns: 1fr;
@@ -442,15 +519,16 @@
   }
 
   .seal-emblem-disc {
-    width: 118px;
-    height: 118px;
+    width: 108px;
+    height: 108px;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .rune-glyph,
   .seal-radial-glow,
-  .portal-seal-trigger {
+  .portal-seal-trigger,
+  .portal-seal-trigger:disabled .seal-emblem-disc {
     animation: none !important;
     transition: none !important;
   }
