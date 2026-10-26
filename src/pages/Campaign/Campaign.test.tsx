@@ -406,6 +406,27 @@ describe("exclusão da campanha", () => {
     expect(await screen.findByText("Lista de campanhas")).toBeInTheDocument();
   });
 
+  it("permite ao Mestre bloquear e liberar classes para novos personagens", async () => {
+    vi.mocked(salvarBonusClassesCampanha).mockImplementation(async (_id, bonuses) => bonuses);
+    renderCampaign();
+    await abrirSecao("secao-classes");
+
+    const blockBtn = await screen.findByRole("button", { name: "Bloquear na Criação" });
+    expect(blockBtn).toBeInTheDocument();
+    fireEvent.click(blockBtn);
+
+    await waitFor(() => {
+      expect(salvarBonusClassesCampanha).toHaveBeenCalledWith(
+        "campaign-1",
+        expect.objectContaining({
+          Guerreiro: expect.objectContaining({ bloqueada: true }),
+        }),
+      );
+    });
+
+    expect(await screen.findByRole("button", { name: "Liberar na Criação" })).toBeInTheDocument();
+  });
+
   it("não mostra a opção para jogadores", async () => {
     vi.mocked(getCampaignAccess).mockResolvedValueOnce(makeCampaignAccessFixture({ isMaster: false }));
     renderCampaign();

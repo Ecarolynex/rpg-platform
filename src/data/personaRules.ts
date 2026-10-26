@@ -34,6 +34,7 @@ export interface ClassBonusConfig {
   atributoBonus: Record<BaseAttributeKey, number>;
   hpBonus: number;
   mpBonus: number;
+  bloqueada?: boolean;
 }
 
 export type CampaignClassBonuses = Record<string, ClassBonusConfig>;
@@ -422,6 +423,7 @@ export function normalizarBonusClassesCampanha(
         Number.isFinite(personalizado.mpBonus)
           ? Math.trunc(personalizado.mpBonus)
           : definicao.mpBonus ?? 0,
+      bloqueada: Boolean(personalizado.bloqueada),
     };
   }
 
@@ -444,6 +446,7 @@ export function normalizarBonusClassesCampanha(
       atributoBonus,
       hpBonus: numeroSeguro(personalizado.hpBonus),
       mpBonus: numeroSeguro(personalizado.mpBonus),
+      bloqueada: Boolean(personalizado.bloqueada),
     };
   }
 

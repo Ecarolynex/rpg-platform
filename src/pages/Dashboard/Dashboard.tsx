@@ -291,7 +291,10 @@ export default function Dashboard() {
     ...campaignCustomClasses.filter(
       (classe) => !classCatalog.some((item) => item.nome === classe.nome),
     ),
-  ];
+  ].filter((classe) => {
+    if (!selectedCampaignId) return true;
+    return !campaignBonuses[classe.nome]?.bloqueada;
+  });
 
   const infoClasse = montarInfoClasse(
     draft.classe,
