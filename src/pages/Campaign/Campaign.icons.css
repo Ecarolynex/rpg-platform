@@ -1,0 +1,78 @@
+/* ==========================================================================
+   Ícones da Área do Mestre (substituem os emojis)
+   Importado DEPOIS de Campaign.css, então estas regras têm a palavra final.
+   ========================================================================== */
+
+/* Ícone base (SVG em traço, herda a cor do texto) */
+.campaign-icone {
+  display: inline-block;
+  flex: 0 0 auto;
+  vertical-align: middle;
+}
+
+/* Cards de atalho: Mapa, Bestiário, Loja, Dados */
+.tav-lounge-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  border: 1px solid rgba(199, 166, 108, 0.45);
+  border-radius: 6px;
+  background: rgba(6, 14, 12, 0.7);
+  color: var(--camp-ouro);
+  font-size: 0;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.tav-lounge:hover .tav-lounge-icon {
+  border-color: var(--camp-ouro);
+  background: rgba(212, 175, 95, 0.14);
+}
+
+.tav-lounge-content {
+  min-width: 0;
+}
+
+/* Títulos de bloco com ícone ao lado (coroa do Mestre) */
+.campaign-section-title h2,
+.campaign-section-title h3 {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.campaign-title-crown {
+  color: var(--camp-ouro);
+}
+
+/* Zona de perigo: alerta em vermelho-bordô */
+.tav-secao-icone-perigo {
+  display: flex;
+  flex: 0 0 auto;
+  color: #e07a85;
+}
+
+/* Rodapé: ícones dourados no lugar dos emojis */
+.campaign-pedestal-relics .pedestal-glyph-row {
+  justify-content: center;
+  gap: 24px;
+}
+
+.pedestal-glyph,
+.pedestal-glyph-crest {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  color: #c9a85c;
+  font-size: 0;
+  opacity: 0.85;
+}
+
+.pedestal-glyph-crest {
+  color: var(--camp-ouro);
+  opacity: 1;
+}

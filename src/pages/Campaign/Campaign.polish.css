@@ -1,0 +1,230 @@
+/* ==========================================================================
+   Acabamento da Área do Mestre (entregas, zona de perigo, legibilidade)
+   Importado DEPOIS de Campaign.css e Campaign.icons.css.
+   Só acrescenta regras; não altera a estrutura da página.
+   ========================================================================== */
+
+/* ── Respiro e legibilidade ─────────────────────────────────────────────── */
+.tav-page .tav-secao + .tav-secao {
+  margin-top: 20px;
+}
+
+.tav-page .tav-bloco + .tav-bloco {
+  margin-top: 24px;
+}
+
+.tav-texto-apoio,
+.campaign-content-intro,
+.master-reward-info p {
+  line-height: 1.55;
+}
+
+.tav-page button,
+.tav-page .btn-primary,
+.tav-page .btn-ghost,
+.tav-page .dm-cockpit-btn {
+  min-height: 40px;
+}
+
+/* Foco visível e consistente (não depende só de cor de fundo) */
+.tav-page button:focus-visible,
+.tav-page a:focus-visible,
+.tav-page select:focus-visible,
+.tav-page input:focus-visible,
+.tav-page textarea:focus-visible {
+  outline: 2px solid var(--camp-ouro, #d4af5f);
+  outline-offset: 2px;
+}
+
+/* Campos desabilitados parecem desabilitados */
+.tav-page button:disabled,
+.tav-page input:disabled,
+.tav-page select:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* ── Entregas: mensagem de resultado ────────────────────────────────────── */
+.tav-mensagem--entrega {
+  display: block;
+  margin: 14px 0;
+  padding: 10px 14px 10px 16px;
+  border: 1px solid rgba(199, 166, 108, 0.4);
+  border-left-width: 4px;
+  border-radius: 6px;
+  background: rgba(6, 14, 12, 0.55);
+  line-height: 1.5;
+}
+
+.tav-mensagem--entrega[data-estado="sucesso"] {
+  border-color: rgba(120, 190, 140, 0.7);
+  background: rgba(40, 90, 60, 0.22);
+}
+
+.tav-mensagem--entrega[data-estado="sucesso"]::before {
+  content: "Entregue · ";
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+.tav-mensagem--entrega[data-estado="erro"] {
+  border-color: rgba(224, 122, 133, 0.75);
+  background: rgba(120, 30, 45, 0.25);
+}
+
+.tav-mensagem--entrega[data-estado="erro"]::before {
+  content: "Não entregue · ";
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+/* ── Entregas: histórico ───────────────────────────────────────────────── */
+.campaign-content-card.reward-history-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+}
+
+.reward-history-item time {
+  margin-left: auto;
+  font-size: 0.85em;
+  opacity: 0.8;
+}
+
+.reward-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 10px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font-size: 0.78em;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.reward-status::before {
+  content: "✓";
+  font-weight: 700;
+}
+
+.reward-status--ok {
+  color: #8fd1a2;
+}
+
+/* ── Zona de perigo ────────────────────────────────────────────────────── */
+.tav-secao--perigo {
+  border-color: rgba(224, 122, 133, 0.55);
+}
+
+.campaign-danger-zone {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.campaign-danger-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px dashed rgba(224, 122, 133, 0.8);
+  border-left: 6px solid #e07a85;
+  border-radius: 6px;
+  background: rgba(120, 30, 45, 0.18);
+}
+
+.campaign-danger-warning-icone {
+  display: flex;
+  flex: 0 0 auto;
+  color: #e07a85;
+}
+
+.campaign-danger-warning-titulo {
+  display: block;
+  margin-bottom: 4px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  font-size: 0.85em;
+}
+
+.campaign-danger-warning p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.campaign-delete-trigger,
+.campaign-delete-confirm-button {
+  border-width: 2px;
+  font-weight: 700;
+}
+
+.campaign-delete-confirmation {
+  padding: 16px;
+  border: 2px solid #e07a85;
+  border-radius: 6px;
+  background: rgba(120, 30, 45, 0.22);
+}
+
+.campaign-delete-confirm-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+/* ── Telas menores ─────────────────────────────────────────────────────── */
+.party-overview-grid,
+.campaign-meta-grid,
+.campaign-class-bonus-grid,
+.dashboard-grid {
+  min-width: 0;
+}
+
+.party-char-card,
+.campaign-meta-card,
+.campaign-content-card {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.campaign-classes-table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 640px) {
+  .party-toolbar,
+  .party-char-actions,
+  .master-reward-form {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .party-char-actions > *,
+  .party-toolbar > * {
+    width: 100%;
+  }
+
+  .reward-history-item time {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .campaign-danger-warning {
+    padding: 12px;
+  }
+
+  .campaign-delete-confirm-actions > * {
+    flex: 1 1 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tav-page * {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}

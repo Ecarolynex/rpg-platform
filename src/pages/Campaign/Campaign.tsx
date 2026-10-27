@@ -33,6 +33,8 @@ import {
 import { CharacterCard } from "../../components/character/CharacterCard";
 import { StatBar } from "../../components/ui/StatBar";
 import "./Campaign.css";
+import "./Campaign.icons.css";
+import "./Campaign.polish.css";
 
 
 function criarIdClasseCampanha() {
@@ -45,6 +47,104 @@ function criarRequestId(): string {
     const value = Math.floor(Math.random() * 16);
     return (token === "x" ? value : (value & 0x3) | 0x8).toString(16);
   });
+}
+
+/* ── Ícones em traço (substituem os emojis) ───────────────────────────── */
+type NomeIcone =
+  | "mapa"
+  | "bestiario"
+  | "moeda"
+  | "dados"
+  | "coroa"
+  | "alerta"
+  | "escudo"
+  | "flor"
+  | "espadas"
+  | "brilho";
+
+const ICONES: Record<NomeIcone, ReactNode> = {
+  mapa: (
+    <>
+      <path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z" />
+      <path d="M9 4v14M15 6v14" />
+    </>
+  ),
+  bestiario: (
+    <>
+      <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" />
+      <path d="M12 8c1.4 1.2 1.4 6.8 0 8-1.4-1.2-1.4-6.8 0-8z" />
+    </>
+  ),
+  moeda: (
+    <>
+      <circle cx="12" cy="12" r="8" />
+      <path d="M12 7.5l3 4.5-3 4.5-3-4.5z" />
+    </>
+  ),
+  dados: (
+    <>
+      <path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z" />
+      <path d="M4 7.5l8 4.5 8-4.5M12 12v9" />
+    </>
+  ),
+  coroa: (
+    <>
+      <path d="M4 18l-1-10 5 4 4-7 4 7 5-4-1 10z" />
+      <path d="M4 21h16" />
+    </>
+  ),
+  alerta: (
+    <>
+      <path d="M12 3l10 18H2z" />
+      <path d="M12 10v5M12 18v.5" />
+    </>
+  ),
+  escudo: (
+    <>
+      <path d="M12 3l7 3v5.5c0 4.5-3 8-7 9.5-4-1.5-7-5-7-9.5V6z" />
+      <path d="M12 7v9" />
+    </>
+  ),
+  flor: (
+    <>
+      <path d="M12 3c2.2 2.6 2.2 5.4 0 8.5-2.2-3.1-2.2-5.9 0-8.5z" />
+      <path d="M12 11.5c-.8-3.5-5.5-3.8-6 0-.3 2.6 2.3 3.6 4.2 2.2" />
+      <path d="M12 11.5c.8-3.5 5.5-3.8 6 0 .3 2.6-2.3 3.6-4.2 2.2" />
+      <path d="M8.5 17h7M12 11.5V21" />
+    </>
+  ),
+  espadas: (
+    <>
+      <path d="M4 4l10 10M20 4L10 14" />
+      <path d="M12 16l-3 3M12 16l3 3M7.5 12.5l-3 3M16.5 12.5l3 3" />
+    </>
+  ),
+  brilho: (
+    <>
+      <path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z" />
+      <path d="M18.5 16.5v3M17 18h3" />
+    </>
+  ),
+};
+
+function Icone({ nome, tamanho = 24 }: { nome: NomeIcone; tamanho?: number }) {
+  return (
+    <svg
+      className="campaign-icone"
+      width={tamanho}
+      height={tamanho}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      {ICONES[nome]}
+    </svg>
+  );
 }
 
 interface SecaoProps {
@@ -84,6 +184,11 @@ function Secao({ id, titulo, resumo, aberta, aoAlternar, variante, children }: S
           aria-controls={id + "-corpo"}
           onClick={() => aoAlternar(id)}
         >
+          {variante === "perigo" && (
+            <span className="tav-secao-icone-perigo" aria-hidden="true">
+              <Icone nome="alerta" tamanho={20} />
+            </span>
+          )}
           <span className="tav-secao-rotulo" id={id + "-rotulo"}>{titulo}</span>
           {resumo && <span className="tav-secao-resumo">{resumo}</span>}
           <span className="tav-secao-seta" aria-hidden="true" />
@@ -757,7 +862,7 @@ export default function Campaign() {
             <span className="campaign-badge">{campaign.status}</span>
             {isMaster && (
               <span className="campaign-badge campaign-badge-master">
-                👑 Mestre da Campanha
+                Mestre da Campanha
               </span>
             )}
           </div>
@@ -771,7 +876,9 @@ export default function Campaign() {
 
         <nav className="campaign-context-nav tav-lounges" aria-label="Áreas da campanha">
           <Link className="tav-lounge" to={"/campanha/" + campaign.id + "/mapa"}>
-            <span className="tav-lounge-icon" aria-hidden="true">🗺️</span>
+            <span className="tav-lounge-icon" aria-hidden="true">
+              <Icone nome="mapa" />
+            </span>
             <div className="tav-lounge-content">
               <span className="tav-lounge-nome">Mapa</span>
               <span className="tav-lounge-desc">Terras e marcadores</span>
@@ -779,7 +886,9 @@ export default function Campaign() {
             <span className="tav-lounge-glow" aria-hidden="true" />
           </Link>
           <Link className="tav-lounge" to={"/campanha/" + campaign.id + "/bestiario"}>
-            <span className="tav-lounge-icon" aria-hidden="true">🐉</span>
+            <span className="tav-lounge-icon" aria-hidden="true">
+              <Icone nome="bestiario" />
+            </span>
             <div className="tav-lounge-content">
               <span className="tav-lounge-nome">Bestiário</span>
               <span className="tav-lounge-desc">Criaturas da mesa</span>
@@ -787,7 +896,9 @@ export default function Campaign() {
             <span className="tav-lounge-glow" aria-hidden="true" />
           </Link>
           <Link className="tav-lounge" to={"/campanha/" + campaign.id + "/loja"}>
-            <span className="tav-lounge-icon" aria-hidden="true">🪙</span>
+            <span className="tav-lounge-icon" aria-hidden="true">
+              <Icone nome="moeda" />
+            </span>
             <div className="tav-lounge-content">
               <span className="tav-lounge-nome">Loja</span>
               <span className="tav-lounge-desc">Itens e estoque</span>
@@ -795,7 +906,9 @@ export default function Campaign() {
             <span className="tav-lounge-glow" aria-hidden="true" />
           </Link>
           <Link className="tav-lounge" to={"/campanha/" + campaign.id + "/dados"}>
-            <span className="tav-lounge-icon" aria-hidden="true">🎲</span>
+            <span className="tav-lounge-icon" aria-hidden="true">
+              <Icone nome="dados" />
+            </span>
             <div className="tav-lounge-content">
               <span className="tav-lounge-nome">Dados</span>
               <span className="tav-lounge-desc">Role e registre</span>
@@ -805,7 +918,7 @@ export default function Campaign() {
         </nav>
       </header>
 
-      {/* Navegação entre ritos e seções da página */}
+      {/* Navegação entre seções da página (somente texto: mais legível em tamanho pequeno) */}
       <nav className="tav-section-nav" aria-label="Seções desta página">
         <button
           type="button"
@@ -813,7 +926,6 @@ export default function Campaign() {
           aria-controls="secao-visao-corpo"
           onClick={() => irParaSecao("secao-visao")}
         >
-          <span className="tav-nav-glyph" aria-hidden="true">📜</span>
           <span>Visão geral</span>
         </button>
         <button
@@ -822,7 +934,6 @@ export default function Campaign() {
           aria-controls="secao-jogadores-corpo"
           onClick={() => irParaSecao("secao-jogadores")}
         >
-          <span className="tav-nav-glyph" aria-hidden="true">⚔️</span>
           <span>Jogadores</span>
         </button>
         <button
@@ -831,7 +942,6 @@ export default function Campaign() {
           aria-controls="secao-regras-corpo"
           onClick={() => irParaSecao("secao-regras")}
         >
-          <span className="tav-nav-glyph" aria-hidden="true">⚖️</span>
           <span>Regras</span>
         </button>
         <button
@@ -840,7 +950,6 @@ export default function Campaign() {
           aria-controls="secao-classes-corpo"
           onClick={() => irParaSecao("secao-classes")}
         >
-          <span className="tav-nav-glyph" aria-hidden="true">🛡️</span>
           <span>Classes</span>
         </button>
         {mostrarEntregas && (
@@ -850,7 +959,6 @@ export default function Campaign() {
             aria-controls="secao-entregas-corpo"
             onClick={() => irParaSecao("secao-entregas")}
           >
-            <span className="tav-nav-glyph" aria-hidden="true">🎁</span>
             <span>Entregas</span>
           </button>
         )}
@@ -861,7 +969,6 @@ export default function Campaign() {
             aria-controls="secao-perigo-corpo"
             onClick={() => irParaSecao("secao-perigo")}
           >
-            <span className="tav-nav-glyph" aria-hidden="true">⚠️</span>
             <span>Zona de perigo</span>
           </button>
         )}
@@ -884,20 +991,20 @@ export default function Campaign() {
               className="dm-cockpit-btn"
               onClick={() => abrirRecompensaPara()}
             >
-              🎁 Entregar Recompensa
+              Dar recompensa
             </button>
             <button
               type="button"
               className="dm-cockpit-btn"
               onClick={() => irParaSecao("secao-classes")}
             >
-              🛡️ Gerenciar Classes ({totalClassesDisponiveis} ativas)
+              Gerenciar Classes ({totalClassesDisponiveis} ativas)
             </button>
             <Link className="dm-cockpit-btn" to={"/campanha/" + campaign.id + "/mapa"}>
-              🗺️ Ver Mapa
+              Ver Mapa
             </Link>
             <Link className="dm-cockpit-btn" to={"/campanha/" + campaign.id + "/loja"}>
-              🪙 Abrir Loja
+              Abrir Loja
             </Link>
           </div>
         </div>
@@ -962,7 +1069,12 @@ export default function Campaign() {
           <div className="tav-bloco">
             <div className="party-panel-header">
               <div className="campaign-section-title">
-                <h3>👑 Painel de Controle do Mestre</h3>
+                <h3>
+                  <span className="campaign-title-crown" aria-hidden="true">
+                    <Icone nome="coroa" tamanho={20} />
+                  </span>
+                  Painel de Controle do Mestre
+                </h3>
                 <span className="campaign-section-badge">
                   {todosDaCampanha.length} {todosDaCampanha.length === 1 ? "Personagem" : "Personagens"} na Mesa
                 </span>
@@ -983,7 +1095,7 @@ export default function Campaign() {
                   className="btn-primary party-reward-all-btn"
                   onClick={() => abrirRecompensaPara()}
                 >
-                  🎁 Recompensar Grupo
+                  Recompensar Grupo
                 </button>
               </div>
             </div>
@@ -1062,7 +1174,7 @@ export default function Campaign() {
                           className="btn-ghost party-char-quick-reward"
                           onClick={() => abrirRecompensaPara(personagem.id)}
                         >
-                          🎁 Recompensar
+                          Recompensar
                         </button>
                       </div>
                     </article>
@@ -1451,7 +1563,7 @@ export default function Campaign() {
                             bloqueada ? "status-blocked" : "status-available"
                           }`}
                         >
-                          {bloqueada ? "🚫 Bloqueada na Criação" : "✓ Disponível"}
+                          {bloqueada ? "Bloqueada na Criação" : "Disponível"}
                         </span>
                       </td>
                       {isMaster && (
@@ -1753,7 +1865,7 @@ export default function Campaign() {
                     onChange={(e) => setDestinatarioOuro(e.target.value)}
                     disabled={distribuindoOuro}
                   >
-                    <option value="TODOS">✦ Todos os Jogadores ({todosDaCampanha.length})</option>
+                    <option value="TODOS">Todos os Jogadores ({todosDaCampanha.length})</option>
                     <optgroup label="Jogador Específico">
                       {todosDaCampanha.map((char) => (
                         <option key={char.id} value={char.id}>
@@ -1775,7 +1887,15 @@ export default function Campaign() {
             </div>
           )}
 
-          {isMaster && ouroMensagem && <p className="tav-mensagem">{ouroMensagem}</p>}
+          {isMaster && ouroMensagem && (
+            <p
+              className="tav-mensagem tav-mensagem--entrega"
+              data-estado={ouroMensagem.startsWith("Concluído!") ? "sucesso" : "erro"}
+              role={ouroMensagem.startsWith("Concluído!") ? "status" : "alert"}
+            >
+              {ouroMensagem}
+            </p>
+          )}
 
           {historicoRecompensas.length > 0 && (
             <section className="tav-bloco" aria-labelledby="reward-history-title">
@@ -1792,7 +1912,8 @@ export default function Campaign() {
                       ? `${reward.quantidade} XP`
                       : `${reward.quantidade_item ?? reward.quantidade} × ${item?.nome ?? "item removido"}`;
                   return (
-                    <li key={reward.id} className="campaign-content-card">
+                    <li key={reward.id} className="campaign-content-card reward-history-item">
+                      <span className="reward-status reward-status--ok">Concluída</span>
                       <strong>{description}</strong>
                       <span> para {recipient}</span>
                       <time dateTime={reward.created_at}>{new Date(reward.created_at).toLocaleString()}</time>
@@ -1815,8 +1936,14 @@ export default function Campaign() {
           aoAlternar={alternarSecao}
         >
           <div className="campaign-danger-zone">
-            <div>
-              <p>A exclusão remove a campanha e não pode ser desfeita.</p>
+            <div className="campaign-danger-warning">
+              <span className="campaign-danger-warning-icone" aria-hidden="true">
+                <Icone nome="alerta" tamanho={22} />
+              </span>
+              <div>
+                <strong className="campaign-danger-warning-titulo">Ação irreversível</strong>
+                <p>A exclusão remove a campanha e não pode ser desfeita.</p>
+              </div>
             </div>
 
             {!confirmandoExclusao ? (
@@ -1868,14 +1995,14 @@ export default function Campaign() {
         </Secao>
       )}
 
-      {/* Rodapé Arquitetônico de Relíquias (idêntico ao estilo monumental do portal) */}
+      {/* Rodapé de relíquias (mesmos ícones em traço do portal de login) */}
       <footer className="campaign-pedestal-relics" aria-hidden="true">
         <div className="pedestal-glyph-row">
-          <span className="pedestal-glyph">🛡️</span>
-          <span className="pedestal-glyph">💰</span>
-          <span className="pedestal-glyph-crest">⚜️</span>
-          <span className="pedestal-glyph">⚔️</span>
-          <span className="pedestal-glyph">✨</span>
+          <span className="pedestal-glyph"><Icone nome="escudo" tamanho={22} /></span>
+          <span className="pedestal-glyph"><Icone nome="moeda" tamanho={22} /></span>
+          <span className="pedestal-glyph-crest"><Icone nome="flor" tamanho={22} /></span>
+          <span className="pedestal-glyph"><Icone nome="espadas" tamanho={22} /></span>
+          <span className="pedestal-glyph"><Icone nome="brilho" tamanho={22} /></span>
         </div>
         <p className="campaign-pedestal-tag">RPG Platform · Mesa de Aventuras do Reino</p>
       </footer>
