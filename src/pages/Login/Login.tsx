@@ -1,11 +1,12 @@
-import { useState, type FormEvent } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/useAuth";
+import { PortalScene } from "./PortalScene";
 import "./Login.css";
 
 type AuthTab = "login" | "register";
 
-/* ── Campo gravado na pedra (com erro inline e olho de senha) ── */
 interface FieldProps {
   id: string;
   label: string;
@@ -27,22 +28,20 @@ function Field({
   autoComplete,
   error,
 }: FieldProps) {
-  const [visivel, setVisivel] = useState(false);
+  const [visible, setVisible] = useState(false);
   const isPassword = type === "password";
-  const errorId = `${id}-erro`;
+  const errorId = `${id}-error`;
 
   return (
-    <div className="portal-engraved-field">
-      <label htmlFor={id} className="engraved-label">
-        {label}
-      </label>
-      <div className={`engraved-input-wrap ${error ? "has-error" : ""}`}>
+    <div className="portal-field">
+      <label htmlFor={id}>{label}</label>
+      <div className={`portal-field__control${error ? " is-invalid" : ""}`}>
         <input
           id={id}
-          type={isPassword && visivel ? "text" : type}
+          type={isPassword && visible ? "text" : type}
           placeholder={placeholder}
           value={value}
-          onChange={(e) => onChange(e.target.value)}
+          onChange={(event) => onChange(event.target.value)}
           autoComplete={autoComplete}
           aria-invalid={error ? true : undefined}
           aria-describedby={error ? errorId : undefined}
@@ -50,33 +49,16 @@ function Field({
         {isPassword && (
           <button
             type="button"
-            className="engraved-eye"
-            aria-label={visivel ? "Ocultar senha" : "Mostrar senha"}
-            aria-pressed={visivel}
-            onClick={() => setVisivel((v) => !v)}
+            className="portal-field__visibility"
+            aria-label={visible ? "Ocultar senha" : "Mostrar senha"}
+            aria-pressed={visible}
+            onClick={() => setVisible((current) => !current)}
           >
-            <svg
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              aria-hidden="true"
-            >
-              <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" />
-              <circle cx="12" cy="12" r="3" />
-              {visivel && <path d="M4 4l16 16" />}
-            </svg>
+            {visible ? "OCULTAR" : "MOSTRAR"}
           </button>
         )}
       </div>
-      {error && (
-        <p id={errorId} className="engraved-error">
-          {error}
-        </p>
-      )}
+      {error && <p className="portal-field__error" id={errorId}>{error}</p>}
     </div>
   );
 }
@@ -86,24 +68,34 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export default function Login() {
   const { login, register } = useAuth();
   const navigate = useNavigate();
-
+  const reduceMotion = useReducedMotion();
+  const [opened, setOpened] = useState(false);
+  const [authVisible, setAuthVisible] = useState(false);
   const [activeTab, setActiveTab] = useState<AuthTab>("login");
-
-  // Campos de login
   const [usuario, setUsuario] = useState("");
   const [senha, setSenha] = useState("");
-
-  // Campos de cadastro
   const [regUsuario, setRegUsuario] = useState("");
   const [regEmail, setRegEmail] = useState("");
   const [regSenha, setRegSenha] = useState("");
   const [regConfirmaSenha, setRegConfirmaSenha] = useState("");
-
-  // Feedback
   const [erro, setErro] = useState<string | null>(null);
   const [sucesso, setSucesso] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
   const [errosCampos, setErrosCampos] = useState<Record<string, string>>({});
+  const revealTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => () => {
+    if (revealTimer.current) clearTimeout(revealTimer.current);
+  }, []);
+
+  function enterRealm() {
+    if (opened) return;
+    setOpened(true);
+    revealTimer.current = setTimeout(
+      () => setAuthVisible(true),
+      reduceMotion ? 100 : 2850,
+    );
+  }
 
   function switchTab(tab: AuthTab) {
     setActiveTab(tab);
@@ -112,315 +104,223 @@ export default function Login() {
     setErrosCampos({});
   }
 
-  async function handleLoginSubmit(e: FormEvent) {
-    e.preventDefault();
+  async function handleLoginSubmit(event: FormEvent) {
+    event.preventDefault();
     setErro(null);
     setSucesso(null);
 
-    const erros: Record<string, string> = {};
-    if (!usuario.trim()) erros.usuario = "Informe o e-mail do Reino.";
-    else if (!EMAIL_REGEX.test(usuario.trim()))
-      erros.usuario = "Esse e-mail não parece válido.";
-    if (!senha) erros.senha = "Informe a senha arcana.";
-    setErrosCampos(erros);
-    if (Object.keys(erros).length > 0) return;
+    const errors: Record<string, string> = {};
+    if (!usuario.trim()) errors.usuario = "Informe o e-mail do Reino.";
+    else if (!EMAIL_REGEX.test(usuario.trim())) errors.usuario = "Esse e-mail não parece válido.";
+    if (!senha) errors.senha = "Informe a senha arcana.";
+    setErrosCampos(errors);
+    if (Object.keys(errors).length > 0) return;
 
     setEnviando(true);
     try {
       await login(usuario, senha);
       navigate("/");
-    } catch (err) {
-      setErro(err instanceof Error ? err.message : "Não foi possível entrar no reino.");
+    } catch (error) {
+      setErro(error instanceof Error ? error.message : "Não foi possível entrar no reino.");
     } finally {
       setEnviando(false);
     }
   }
 
-  async function handleRegisterSubmit(e: FormEvent) {
-    e.preventDefault();
+  async function handleRegisterSubmit(event: FormEvent) {
+    event.preventDefault();
     setErro(null);
     setSucesso(null);
 
-    const erros: Record<string, string> = {};
-    if (!regUsuario.trim()) erros.regUsuario = "Escolha um nome de aventureiro.";
-    if (!regEmail.trim()) erros.regEmail = "Informe o e-mail do Reino.";
-    else if (!EMAIL_REGEX.test(regEmail.trim()))
-      erros.regEmail = "Esse e-mail não parece válido.";
-    if (regSenha.length < 3)
-      erros.regSenha = "A senha deve conter pelo menos 3 caracteres.";
-    if (regSenha !== regConfirmaSenha)
-      erros.regConfirmaSenha = "As senhas não coincidem.";
-    setErrosCampos(erros);
-    if (Object.keys(erros).length > 0) return;
+    const errors: Record<string, string> = {};
+    if (!regUsuario.trim()) errors.regUsuario = "Escolha um nome de aventureiro.";
+    if (!regEmail.trim()) errors.regEmail = "Informe o e-mail do Reino.";
+    else if (!EMAIL_REGEX.test(regEmail.trim())) errors.regEmail = "Esse e-mail não parece válido.";
+    if (regSenha.length < 3) errors.regSenha = "A senha deve conter pelo menos 3 caracteres.";
+    if (regSenha !== regConfirmaSenha) errors.regConfirmaSenha = "As senhas não coincidem.";
+    setErrosCampos(errors);
+    if (Object.keys(errors).length > 0) return;
 
     setEnviando(true);
     try {
       await register(regUsuario, regEmail, regSenha);
       setSucesso("Conta forjada com sucesso! Adentrando o reino...");
-      setTimeout(() => {
-        navigate("/");
-      }, 1000);
-    } catch (err) {
-      setErro(err instanceof Error ? err.message : "Erro ao forjar conta.");
+      setTimeout(() => navigate("/"), 1000);
+    } catch (error) {
+      setErro(error instanceof Error ? error.message : "Erro ao forjar conta.");
     } finally {
       setEnviando(false);
     }
   }
 
   return (
-    <div className="realm-portal-page">
-      {/* Cenário: a arte do portal ocupa a tela toda */}
-      <div className="portal-atmosphere-backdrop" aria-hidden="true" />
+    <main className={`realm-portal-page${opened ? " is-opened" : ""}`}>
+      <PortalScene opened={opened} reducedMotion={reduceMotion ?? false} />
 
-      <main className="portal-gate-structure">
-        {/* Título curvo, acompanhando o arco da porta */}
-        <header className="portal-keystone">
-          <svg
-            className="portal-arc-title"
-            viewBox="0 0 480 130"
-            role="img"
-            aria-label="Portal dos Aventureiros — Elementum"
+      <motion.section
+        className="portal-intro"
+        initial={false}
+        animate={{ opacity: opened ? 0 : 1, y: opened ? -18 : 0 }}
+        transition={{ duration: reduceMotion ? 0.1 : 0.55 }}
+        aria-hidden={opened}
+        inert={opened}
+      >
+        <span className="portal-intro__eyebrow">ELEMENTUM · CRÔNICAS DO REINO</span>
+        <h1>AS PORTAS DE OUTRO MUNDO AGUARDAM.</h1>
+        <p>Além destas pedras antigas, uma nova lenda começa.</p>
+        <motion.button
+          className="portal-enter-button"
+          type="button"
+          aria-label="Entrar no reino"
+          onClick={enterRealm}
+          whileHover={reduceMotion ? undefined : { scale: 1.035 }}
+          whileTap={reduceMotion ? undefined : { scale: 0.96 }}
+        >
+          <span aria-hidden="true">✧</span>
+        </motion.button>
+      </motion.section>
+
+      <AnimatePresence>
+        {authVisible && (
+          <motion.section
+            className="portal-auth-panel"
+            aria-labelledby="portal-auth-title"
+            initial={{ opacity: 0, y: 28, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ duration: reduceMotion ? 0.12 : 0.75, ease: [0.2, 0.75, 0.25, 1] }}
           >
-            <defs>
-              <path id="arc-outer" d="M 40 118 A 260 260 0 0 1 440 118" />
-              <path id="arc-inner" d="M 83.7 118 A 228 228 0 0 1 396.3 118" />
-            </defs>
-            <text className="arc-line arc-line--main">
-              <textPath href="#arc-outer" startOffset="50%" textAnchor="middle">
-                PORTAL DOS AVENTUREIROS
-              </textPath>
-            </text>
-            <text className="arc-line arc-line--sub">
-              <textPath href="#arc-inner" startOffset="50%" textAnchor="middle">
-                ELEMENTUM
-              </textPath>
-            </text>
-          </svg>
-        </header>
+            <div className="portal-auth-panel__crest" aria-hidden="true">✧</div>
+            <p className="portal-auth-panel__eyebrow">O PORTAL FOI ABERTO</p>
+            <h2 id="portal-auth-title">
+              {activeTab === "login" ? "RETORNAR AO REINO" : "FORJE SUA LENDA"}
+            </h2>
+            <nav className="portal-auth-tabs" aria-label="Acesso ao reino">
+              <button
+                type="button"
+                className={activeTab === "login" ? "active" : ""}
+                aria-current={activeTab === "login" ? "page" : undefined}
+                onClick={() => switchTab("login")}
+              >
+                ENTRAR
+              </button>
+              <button
+                type="button"
+                className={activeTab === "register" ? "active" : ""}
+                aria-current={activeTab === "register" ? "page" : undefined}
+                onClick={() => switchTab("register")}
+              >
+                CRIAR CONTA
+              </button>
+            </nav>
 
-        {/* Pilares rúnicos laterais */}
-        <aside className="portal-pillar portal-pillar--left" aria-hidden="true">
-          <span className="rune-glyph">ᚦ</span>
-          <span className="rune-glyph">ᚨ</span>
-          <span className="rune-glyph">ᚱ</span>
-          <span className="rune-glyph">ᛈ</span>
-          <span className="rune-glyph">ᛗ</span>
-        </aside>
+            {erro && <div className="portal-feedback portal-feedback--error" role="alert">{erro}</div>}
+            {sucesso && <div className="portal-feedback portal-feedback--success" role="status">{sucesso}</div>}
 
-        <aside className="portal-pillar portal-pillar--right" aria-hidden="true">
-          <span className="rune-glyph">ᚱ</span>
-          <span className="rune-glyph">ᛏ</span>
-          <span className="rune-glyph">ᛁ</span>
-          <span className="rune-glyph">ᚱ</span>
-          <span className="rune-glyph">ᛚ</span>
-        </aside>
-
-        {/* Núcleo do portal: formulário direto sobre a arte, sem card */}
-        <section className="portal-inner-sanctum">
-          <nav className="portal-rites-nav" aria-label="Acesso ao reino">
-            <button
-              type="button"
-              className={`portal-rite-btn ${activeTab === "login" ? "active" : ""}`}
-              aria-current={activeTab === "login" ? "page" : undefined}
-              onClick={() => switchTab("login")}
-            >
-              ENTRAR
-            </button>
-            <button
-              type="button"
-              className={`portal-rite-btn ${activeTab === "register" ? "active" : ""}`}
-              aria-current={activeTab === "register" ? "page" : undefined}
-              onClick={() => switchTab("register")}
-            >
-              CRIAR CONTA
-            </button>
-          </nav>
-
-          {erro && (
-            <div className="portal-relic-alert alert-error" role="alert">
-              <span className="alert-symbol" aria-hidden="true">⚔</span>
-              <span>{erro}</span>
-            </div>
-          )}
-          {sucesso && (
-            <div className="portal-relic-alert alert-success" role="status">
-              <span className="alert-symbol" aria-hidden="true">✨</span>
-              <span>{sucesso}</span>
-            </div>
-          )}
-
-          {/* Rito de Entrada (Login) */}
-          {activeTab === "login" && (
-            <form
-              className="portal-inscriptions-form"
-              onSubmit={handleLoginSubmit}
-              noValidate
-            >
-              <Field
-                id="usuario"
-                label="E-mail do Reino"
-                type="email"
-                placeholder="seu-email@reino.com"
-                value={usuario}
-                onChange={setUsuario}
-                autoComplete="email"
-                error={errosCampos.usuario}
-              />
-
-              <Field
-                id="senha"
-                label="Senha Arcana"
-                type="password"
-                placeholder="sua-senha-secreta"
-                value={senha}
-                onChange={setSenha}
-                autoComplete="current-password"
-                error={errosCampos.senha}
-              />
-
-              <div className="portal-seal-mechanism">
-                <button
-                  type="submit"
-                  className="portal-seal-trigger"
-                  disabled={enviando}
-                  aria-busy={enviando}
-                  aria-label={enviando ? "Abrindo o portal" : "Adentrar o Reino"}
+            <AnimatePresence mode="wait" initial={false}>
+              {activeTab === "login" ? (
+                <motion.form
+                  key="login"
+                  className="portal-auth-form"
+                  onSubmit={handleLoginSubmit}
+                  noValidate
+                  initial={{ opacity: 0, x: 12 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -12 }}
+                  transition={{ duration: reduceMotion ? 0.1 : 0.22 }}
                 >
-                  <div className="seal-emblem-disc">
-                    <img
-                      src="/logo.png"
-                      alt=""
-                      className="seal-phoenix-img"
+                  <Field
+                    id="usuario"
+                    label="E-mail cadastrado"
+                    type="email"
+                    placeholder="seu-email@reino.com"
+                    value={usuario}
+                    onChange={setUsuario}
+                    autoComplete="email"
+                    error={errosCampos.usuario}
+                  />
+                  <Field
+                    id="senha"
+                    label="Senha arcana"
+                    type="password"
+                    placeholder="Sua senha secreta"
+                    value={senha}
+                    onChange={setSenha}
+                    autoComplete="current-password"
+                    error={errosCampos.senha}
+                  />
+                  <button className="portal-submit-button" type="submit" disabled={enviando} aria-busy={enviando}>
+                    {enviando ? "ABRINDO O PORTAL..." : "ENTRAR NO REINO"}
+                  </button>
+                  <p className="portal-auth-switch">
+                    Ainda não tem conta?{" "}
+                    <button type="button" onClick={() => switchTab("register")}>Forje sua lenda</button>
+                  </p>
+                </motion.form>
+              ) : (
+                <motion.form
+                  key="register"
+                  className="portal-auth-form"
+                  onSubmit={handleRegisterSubmit}
+                  noValidate
+                  initial={{ opacity: 0, x: 12 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -12 }}
+                  transition={{ duration: reduceMotion ? 0.1 : 0.22 }}
+                >
+                  <Field
+                    id="reg-usuario"
+                    label="Nome de aventureiro"
+                    placeholder="Ex.: MagoEldrin"
+                    value={regUsuario}
+                    onChange={setRegUsuario}
+                    autoComplete="username"
+                    error={errosCampos.regUsuario}
+                  />
+                  <Field
+                    id="reg-email"
+                    label="E-mail do Reino"
+                    type="email"
+                    placeholder="aventureiro@reino.com"
+                    value={regEmail}
+                    onChange={setRegEmail}
+                    autoComplete="email"
+                    error={errosCampos.regEmail}
+                  />
+                  <div className="portal-auth-form__row">
+                    <Field
+                      id="reg-senha"
+                      label="Senha"
+                      type="password"
+                      placeholder="Mínimo 3 caracteres"
+                      value={regSenha}
+                      onChange={setRegSenha}
+                      autoComplete="new-password"
+                      error={errosCampos.regSenha}
                     />
-                    <div className="seal-radial-glow" aria-hidden="true" />
-                  </div>
-                  <span className="seal-arc-text">
-                    {enviando ? "ABRINDO O PORTAL..." : "ADENTRAR O REINO"}
-                  </span>
-                </button>
-              </div>
-
-              <div className="portal-ancient-switch">
-                <span className="switch-prompt">Ainda não tem conta?</span>{" "}
-                <button
-                  type="button"
-                  className="switch-action-btn"
-                  onClick={() => switchTab("register")}
-                >
-                  Forjar uma nova conta
-                </button>
-              </div>
-            </form>
-          )}
-
-          {/* Rito de Forja (Cadastro) */}
-          {activeTab === "register" && (
-            <form
-              className="portal-inscriptions-form"
-              onSubmit={handleRegisterSubmit}
-              noValidate
-            >
-              <Field
-                id="reg-usuario"
-                label="Nome de Aventureiro"
-                placeholder="Ex: MagoEldrin, Valquíria..."
-                value={regUsuario}
-                onChange={setRegUsuario}
-                autoComplete="username"
-                error={errosCampos.regUsuario}
-              />
-
-              <Field
-                id="reg-email"
-                label="E-mail do Reino"
-                type="email"
-                placeholder="aventureiro@reino.com"
-                value={regEmail}
-                onChange={setRegEmail}
-                autoComplete="email"
-                error={errosCampos.regEmail}
-              />
-
-              <div className="engraved-field-row">
-                <Field
-                  id="reg-senha"
-                  label="Senha"
-                  type="password"
-                  placeholder="Mínimo 3 caracteres"
-                  value={regSenha}
-                  onChange={setRegSenha}
-                  autoComplete="new-password"
-                  error={errosCampos.regSenha}
-                />
-                <Field
-                  id="reg-confirma-senha"
-                  label="Confirmar Senha"
-                  type="password"
-                  placeholder="Repita a senha"
-                  value={regConfirmaSenha}
-                  onChange={setRegConfirmaSenha}
-                  autoComplete="new-password"
-                  error={errosCampos.regConfirmaSenha}
-                />
-              </div>
-
-              <div className="portal-seal-mechanism">
-                <button
-                  type="submit"
-                  className="portal-seal-trigger"
-                  disabled={enviando}
-                  aria-busy={enviando}
-                  aria-label={enviando ? "Forjando a conta" : "Forjar Conta de Aventureiro"}
-                >
-                  <div className="seal-emblem-disc">
-                    <img
-                      src="/logo.png"
-                      alt=""
-                      className="seal-phoenix-img"
+                    <Field
+                      id="reg-confirma-senha"
+                      label="Confirmar senha"
+                      type="password"
+                      placeholder="Repita a senha"
+                      value={regConfirmaSenha}
+                      onChange={setRegConfirmaSenha}
+                      autoComplete="new-password"
+                      error={errosCampos.regConfirmaSenha}
                     />
-                    <div className="seal-radial-glow" aria-hidden="true" />
                   </div>
-                  <span className="seal-arc-text">
-                    {enviando ? "FORJANDO..." : "FORJAR CONTA"}
-                  </span>
-                </button>
-              </div>
-
-              <div className="portal-ancient-switch">
-                <span className="switch-prompt">Já possui uma lenda registrada?</span>{" "}
-                <button
-                  type="button"
-                  className="switch-action-btn"
-                  onClick={() => switchTab("login")}
-                >
-                  Entrar com conta existente
-                </button>
-              </div>
-            </form>
-          )}
-        </section>
-
-        {/* Rodapé de glifos */}
-        <footer className="portal-pedestal-relics" aria-hidden="true">
-          <div className="pedestal-glyph-row">
-            <span className="pedestal-glyph">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l7 3v5.500c0 4.500-3 8-7 9.500-4-1.500-7-5-7-9.500V6l7-3z" /><path d="M12 7v9" /></svg>
-            </span>
-            <span className="pedestal-glyph">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="8" /><path d="M12 7.500l3 4.500-3 4.500-3-4.500z" /></svg>
-            </span>
-            <span className="pedestal-glyph-crest">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3c2.2 2.6 2.2 5.4 0 8.500-2.200-3.100-2.200-5.9 0-8.500z" /><path d="M12 11.500c-.8-3.500-5.500-3.800-6 0-.3 2.6 2.3 3.6 4.2 2.200" /><path d="M12 11.500c.8-3.5 5.500-3.8 6 0 .3 2.600-2.3 3.600-4.2 2.200" /><path d="M8.5 17h7M12 11.500V21" /></svg>
-            </span>
-            <span className="pedestal-glyph">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4l10 10M20 4L10 14" /><path d="M12 16l-3 3M12 16l3 3M7.5 12.500l-3 3M16.5 12.500l3 3" /></svg>
-            </span>
-            <span className="pedestal-glyph">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l1.9 5.100L19 10l-5.1 1.900L12 17l-1.900-5.100L5 10l5.100-1.900z" /><path d="M18.5 16.500v3M17 18h3" /></svg>
-            </span>
-          </div>
-        </footer>
-      </main>
-    </div>
+                  <button className="portal-submit-button" type="submit" disabled={enviando} aria-busy={enviando}>
+                    {enviando ? "FORJANDO SUA LENDA..." : "FORJAR CONTA"}
+                  </button>
+                  <p className="portal-auth-switch">
+                    Já possui uma conta?{" "}
+                    <button type="button" onClick={() => switchTab("login")}>Retornar ao login</button>
+                  </p>
+                </motion.form>
+              )}
+            </AnimatePresence>
+          </motion.section>
+        )}
+      </AnimatePresence>
+    </main>
   );
 }

@@ -1,535 +1,885 @@
 .realm-portal-page {
-  --portal-form-width: 340px;   /* largura útil dentro da abertura da porta */
-  --portal-form-offset: 0px;    /* empurra tudo para baixo/cima (ex.: 24px, -16px) */
-  --portal-title-lift: 34px;    /* sobe o nome curvo para o anel do arco */
-  --portal-gold: #f0dba2;
-  --portal-gold-line: rgba(212, 175, 95, 0.7);
-
+  --portal-gold: #e8c77d;
+  --portal-gold-bright: #fff0c2;
+  --portal-ink: #080b0c;
+  box-sizing: border-box;
   position: relative;
-  min-height: 100vh;
+  display: grid;
+  place-items: center;
   width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 32px 16px;
+  min-height: 100vh;
+  min-height: 100svh;
+  padding: 28px 20px;
   overflow-x: hidden;
-  background-color: #070e0d;
+  overflow-y: auto;
+  isolation: isolate;
+  color: #f5ead0;
+  background: #070b10;
 }
 
-/* Fundo: portal.png */
-.portal-atmosphere-backdrop {
+.portal-scene {
   position: fixed;
   inset: 0;
-  z-index: 0;
-  background-image:
-    radial-gradient(ellipse 65% 55% at 50% 45%, rgba(200, 150, 60, 0.12) 0%, transparent 70%),
-    linear-gradient(180deg, rgba(7, 14, 13, 0.35) 0%, rgba(5, 10, 9, 0.6) 100%),
-    url('/portal.png');
-  background-size: cover;
-  background-position: center 38%;
-  background-repeat: no-repeat;
-  filter: contrast(1.08) saturate(1.05);
-}
-
-.portal-gate-structure {
-  position: relative;
-  z-index: 1;
-  width: 100%;
-  max-width: 480px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  background: transparent;
-  padding: 0;
-  margin: auto;
-  transform: translateY(var(--portal-form-offset));
-}
-
-/* ── Título curvo ────────────────────────────────────────── */
-.portal-keystone {
-  width: 100%;
-  margin-bottom: 16px;
-  pointer-events: none;
-}
-
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
+  z-index: -1;
   overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
-}
-
-.portal-monumental-title {
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  font-weight: inherit;
-}
-
-/* Subtítulo reto dentro do portal, com filetes dourados nas pontas */
-.portal-subtitle {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  font-family: var(--font-title, "Cinzel", serif);
-  font-size: 14px;
-  font-weight: 500;
-  letter-spacing: 0.55em;
-  color: #e2c27a;
-  text-shadow: 0 0 10px rgba(212, 175, 95, 0.6), 0 2px 6px rgba(0, 0, 0, 0.95);
-}
-
-.portal-subtitle::before,
-.portal-subtitle::after {
-  content: "";
-  width: 36px;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(212, 175, 95, 0.85));
-}
-
-.portal-subtitle::after { transform: scaleX(-1); }
-
-.portal-arc-title {
-  display: block;
-  width: 100%;
-  height: auto;
-  overflow: visible;
-  /* o layout reserva só 34px; o desenho sobe para o anel */
-  margin-bottom: -56px;
-  transform: translateY(calc(-1 * var(--portal-title-lift)));
-}
-
-.arc-line {
-  font-family: var(--font-title, "Cinzel", serif);
-  fill: var(--portal-gold);
-  paint-order: stroke;
-  stroke: rgba(0, 0, 0, 0.85);
-  stroke-width: 3px;
-  stroke-linejoin: round;
-  filter: drop-shadow(0 0 8px rgba(212, 175, 95, 0.6));
-}
-
-.arc-line--main {
-  font-size: 17px;
-  font-weight: 700;
-  letter-spacing: 0.3em;
-}
-
-/* ── Pilares rúnicos ─────────────────────────────────────── */
-.portal-pillar {
-  position: absolute;
-  top: 80px;
-  bottom: 56px;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
+  background: #070b10;
   pointer-events: none;
-  z-index: 2;
-  user-select: none;
 }
 
-.portal-pillar--left { left: -28px; }
-.portal-pillar--right { right: -28px; }
-
-.rune-glyph {
-  font-family: serif;
-  font-size: 20px;
-  color: rgba(220, 180, 80, 0.75);
-  text-shadow: 0 0 8px rgba(240, 200, 100, 0.95), 0 0 18px rgba(200, 130, 30, 0.85);
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.9));
-  animation: runeFlicker 4s ease-in-out infinite alternate;
-}
-
-.portal-pillar--right .rune-glyph { animation-delay: 2s; }
-
-@keyframes runeFlicker {
-  0%, 100% { opacity: 0.65; transform: scale(0.98); }
-  50% { opacity: 0.95; transform: scale(1.05); }
-}
-
-/* ── Núcleo do portal: sem caixa, só um véu de contraste ─── */
-.portal-inner-sanctum {
-  position: relative;
-  width: min(100%, var(--portal-form-width));
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  background: none;
-  border: 0;
-  border-radius: 0;
-  box-shadow: none;
-  padding: 8px 0 0;
-}
-
-/* Véu suave: escurece só a região do texto, sem borda nem contorno */
-.portal-inner-sanctum::before {
-  content: "";
+/*
+ * 16:9 stage locked to gate-scene.jpg (2560x1440).
+ * Translating by (-50%, -45.5%) pins the exact center between the gate knockers
+ * (x = 50%, y = 45.5% of the scene) to the viewport center (50vw, 50vh) on all screens.
+ */
+.portal-scene__stage {
   position: absolute;
-  inset: -30px -50px -20px;
-  z-index: 0;
-  background: radial-gradient(
-    ellipse 55% 60% at 50% 50%,
-    rgba(5, 11, 10, 0.78) 0%,
-    rgba(5, 11, 10, 0.5) 55%,
-    transparent 100%
+  top: 50%;
+  left: 50%;
+  width: max(110vw, calc(110vh * 16 / 9));
+  height: max(110vh, calc(110vw * 9 / 16));
+  transform: translate(-50%, -45.5%);
+  transition: transform 3.2s cubic-bezier(0.2, 0.65, 0.2, 1);
+}
+
+.portal-scene--opened .portal-scene__stage {
+  transform: translate(-50%, -45.5%) scale(1.025);
+}
+
+.portal-scene__backdrop {
+  position: absolute;
+  inset: 0;
+  background-position: center center;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  transition: filter 3s ease;
+}
+
+.portal-scene--opened .portal-scene__backdrop {
+  filter: brightness(1.14) saturate(1.08);
+}
+
+.portal-scene__vignette {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  background:
+    radial-gradient(ellipse 46% 74% at 50% 48%, transparent 24%, rgba(3, 5, 8, 0.34) 100%),
+    linear-gradient(180deg, rgba(2, 5, 9, 0.45), transparent 36%, rgba(3, 6, 8, 0.56));
+}
+
+/*
+ * Exact gothic archway cutout in gate-scene.jpg:
+ * X: 1084..1476 / 2560 => left: 42.34%, width: 15.32% (centered at 50%)
+ * Y: 257..1026 / 1440  => top: 17.85%, height: 53.40%
+ */
+.portal-archway {
+  position: absolute;
+  top: 17.85%;
+  left: 42.34%;
+  z-index: 2;
+  width: 15.32%;
+  height: 53.4%;
+  overflow: hidden;
+  clip-path: polygon(
+    50% 0%,
+    59% 4%,
+    68% 8%,
+    76% 12.5%,
+    83% 17%,
+    89% 21.5%,
+    94% 26.5%,
+    97.5% 32%,
+    100% 38%,
+    100% 100%,
+    0% 100%,
+    0% 38%,
+    2.5% 32%,
+    6% 26.5%,
+    11% 21.5%,
+    17% 17%,
+    24% 12.5%,
+    32% 8%,
+    41% 4%
   );
   pointer-events: none;
 }
 
-.portal-inner-sanctum > * { position: relative; z-index: 1; }
+.portal-archway::after {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  box-shadow:
+    inset 0 0 22px 6px rgba(4, 6, 10, 0.78),
+    inset 0 -12px 18px -4px rgba(5, 8, 12, 0.72);
+  content: "";
+  pointer-events: none;
+}
 
-/* ── Abas ────────────────────────────────────────────────── */
-.portal-rites-nav {
-  display: flex;
+.portal-aperture {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  overflow: hidden;
+  background: #05070b;
+  pointer-events: none;
+}
+
+.portal-aperture__realm,
+.portal-aperture__glow {
+  position: absolute;
+  inset: 0;
   width: 100%;
-  margin-bottom: 20px;
-  border-bottom: 1px solid rgba(212, 175, 95, 0.35);
+  height: 100%;
 }
 
-.portal-rite-btn {
-  background: transparent;
-  border: none;
-  border-bottom: 2px solid transparent;
-  margin-bottom: -1px;
-  flex: 1 1 0;
-  text-align: center;
-  font-family: var(--font-title, "Cinzel", serif);
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.16em;
-  color: rgba(225, 212, 183, 0.85);
-  cursor: pointer;
-  padding: 10px 16px;
-  min-height: 44px;
-  transition: color 0.25s ease, border-color 0.25s ease;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.9);
+.portal-aperture__realm {
+  background-position: 50% 50%;
+  background-repeat: no-repeat;
+  background-size: cover;
+  filter: saturate(1.02) brightness(0.95);
+  will-change: transform, opacity;
 }
 
-.portal-rite-btn:hover { color: var(--portal-gold); }
-
-.portal-rite-btn.active {
-  color: #fff2cc;
-  border-bottom-color: var(--portal-gold);
-  text-shadow: 0 0 12px rgba(240, 219, 162, 0.85), 0 2px 6px rgba(0, 0, 0, 0.9);
+.portal-aperture__glow {
+  background:
+    radial-gradient(ellipse at 50% 72%, rgba(255, 252, 224, 0.85), transparent 54%),
+    linear-gradient(180deg, rgba(255, 241, 195, 0.18), rgba(255, 208, 122, 0.08) 62%, rgba(255, 239, 191, 0.48));
+  filter: blur(14px);
+  mix-blend-mode: screen;
 }
 
-.portal-rite-btn:focus-visible,
-.switch-action-btn:focus-visible,
-.portal-seal-trigger:focus-visible,
-.engraved-eye:focus-visible {
-  outline: 3px solid var(--portal-gold);
-  outline-offset: 3px;
-  border-radius: 6px;
+.portal-light-shaft {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  opacity: 0;
+  background:
+    radial-gradient(ellipse at 50% 78%, rgba(255, 250, 218, 0.68), transparent 46%),
+    linear-gradient(180deg, rgba(255, 230, 177, 0.08), rgba(255, 229, 174, 0.32) 70%, rgba(255, 248, 218, 0.62));
+  filter: blur(12px);
+  pointer-events: none;
 }
 
-/* ── Formulário ──────────────────────────────────────────── */
-.portal-inscriptions-form {
-  width: 100%;
+.portal-scene--opened .portal-light-shaft {
+  animation: portal-light-bloom 3.4s ease-out both;
+}
+
+.portal-light-shaft--active {
+  opacity: 1;
+}
+
+.portal-gate-leaves {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  perspective: 1200px;
+  pointer-events: none;
+}
+
+.portal-gate-leaves::before {
+  position: absolute;
+  top: 3%;
+  bottom: 1%;
+  left: 50%;
+  z-index: 2;
+  width: 2px;
+  transform: translateX(-50%);
+  background: linear-gradient(
+    180deg,
+    transparent,
+    rgba(255, 215, 136, 0.68) 18%,
+    #ffe6a5 50%,
+    rgba(255, 196, 97, 0.68) 82%,
+    transparent
+  );
+  box-shadow: 0 0 10px 3px rgba(255, 190, 80, 0.25);
+  content: "";
+  transition: opacity 0.45s ease;
+}
+
+.portal-scene--opened .portal-gate-leaves::before {
+  opacity: 0;
+}
+
+.portal-gate-leaf {
+  position: absolute;
+  top: 0;
+  width: 50.2%;
+  height: 100%;
+  background-repeat: no-repeat;
+  background-size: 200% 100%;
+  box-shadow:
+    inset 0 0 22px rgba(0, 0, 0, 0.82),
+    0 8px 28px rgba(0, 0, 0, 0.55);
+  will-change: transform;
+}
+
+.portal-gate-leaf--left {
+  left: 0;
+  transform-origin: left center;
+  background-position: left center;
+  border-right: 1px solid rgba(202, 159, 78, 0.28);
+}
+
+.portal-gate-leaf--right {
+  right: 0;
+  transform-origin: right center;
+  background-position: right center;
+  border-left: 1px solid rgba(202, 159, 78, 0.28);
+}
+
+.portal-ground-glow {
+  position: absolute;
+  top: 66%;
+  left: 50%;
+  z-index: 1;
+  width: 44%;
+  height: 28%;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(255, 188, 72, 0.38), transparent 66%);
+  opacity: 0;
+  transition: opacity 1.5s ease 0.85s;
+}
+
+.portal-scene--opened .portal-ground-glow {
+  opacity: 1;
+}
+
+.portal-runes {
+  position: absolute;
+  top: 29%;
+  bottom: 30%;
+  z-index: 3;
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  justify-content: space-around;
+  color: #d7ae5d;
+  font-family: Georgia, serif;
+  font-size: clamp(16px, 1.45vw, 26px);
+  text-shadow: 0 0 9px rgba(244, 191, 81, 0.45), 0 0 24px rgba(244, 191, 81, 0.22);
+  opacity: 0.68;
+  pointer-events: none;
 }
 
-.engraved-field-row {
+.portal-runes--left {
+  left: 39.2%;
+}
+
+.portal-runes--right {
+  right: 39.2%;
+}
+
+.portal-runes span {
+  animation: rune-spark 4s ease-in-out infinite alternate;
+  transition: color 0.45s ease, text-shadow 0.45s ease;
+}
+
+.portal-runes span:nth-child(even) {
+  animation-delay: 1.2s;
+}
+
+.portal-scene--opened .portal-runes span {
+  color: #fff1bd;
+  text-shadow: 0 0 12px #fff0bb, 0 0 30px #f4bc55;
+}
+
+.portal-particles {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.portal-particles i {
+  position: absolute;
+  display: block;
+  border-radius: 50%;
+  background: #efc875;
+  box-shadow: 0 0 7px 2px rgba(246, 200, 104, 0.56);
+  opacity: 0.32;
+  animation: ember-drift 7s ease-in-out infinite;
+}
+
+.portal-scene--opened .portal-particles i {
+  animation-name: ember-rise;
+  opacity: 0.86;
+}
+
+.portal-intro {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  width: auto;
+  margin: 0;
+  pointer-events: none;
+  text-shadow: 0 3px 14px #000, 0 1px 3px #000;
+}
+
+.is-opened .portal-intro {
+  pointer-events: none;
+}
+
+.portal-intro__eyebrow,
+.portal-auth-panel__eyebrow {
+  color: #e5c27a;
+  font-family: var(--font-title, "Cinzel", Georgia, serif);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.3em;
+}
+
+.portal-intro__eyebrow {
+  position: absolute;
+  top: 4.5%;
+  left: 50%;
+  width: max-content;
+  max-width: calc(100% - 32px);
+  transform: translateX(-50%);
+  text-align: center;
+}
+
+.portal-intro h1 {
+  position: absolute;
+  top: 7%;
+  left: 50%;
+  width: min(94%, 1100px);
+  transform: translateX(-50%);
+  max-width: none;
+  margin: 0;
+  color: #fff1d0;
+  font-family: var(--font-title, "Cinzel", Georgia, serif);
+  font-size: clamp(22px, 3.1vw, 38px);
+  font-weight: 600;
+  letter-spacing: 0.065em;
+  line-height: 1.18;
+  text-wrap: balance;
+  text-align: center;
+  text-shadow: 0 3px 2px #1a1108, 0 0 24px rgba(247, 185, 79, 0.35);
+}
+
+.portal-intro p {
+  position: absolute;
+  top: 13.5%;
+  left: 50%;
+  width: min(90%, 520px);
+  transform: translateX(-50%);
+  margin: 0;
+  color: rgba(245, 232, 205, 0.88);
+  font-family: var(--font-body, Georgia, serif);
+  font-size: clamp(15px, 1.8vw, 19px);
+  text-align: center;
+}
+
+.portal-enter-button,
+.portal-submit-button {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  min-height: 54px;
+  padding: 0 30px;
+  border: 1px solid #d5b66f;
+  border-radius: 4px;
+  color: #fff1c8;
+  background:
+    linear-gradient(180deg, rgba(92, 75, 43, 0.97), rgba(31, 29, 22, 0.98) 48%, rgba(15, 20, 23, 0.98)),
+    #18140d;
+  box-shadow:
+    inset 0 1px rgba(255, 241, 196, 0.3),
+    inset 0 -3px rgba(0, 0, 0, 0.55),
+    0 5px 22px rgba(0, 0, 0, 0.6),
+    0 0 17px rgba(222, 172, 75, 0.21);
+  font-family: var(--font-title, "Cinzel", Georgia, serif);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.17em;
+  cursor: pointer;
+  text-shadow: 0 1px 2px #100d08;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+}
+
+.portal-enter-button {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: grid;
+  width: 72px;
+  min-width: 0;
+  height: 72px;
+  min-height: 0;
+  padding: 0;
+  margin: -36px 0 0 -36px;
+  border-radius: 50%;
+  font-size: 32px;
+  line-height: 1;
+  pointer-events: auto;
+}
+
+.portal-enter-button::before,
+.portal-submit-button::before {
+  position: absolute;
+  inset: 4px;
+  border: 1px solid rgba(184, 197, 197, 0.24);
+  border-radius: 2px;
+  content: "";
+  pointer-events: none;
+}
+
+.portal-enter-button::before {
+  inset: 5px;
+  border-radius: 50%;
+}
+
+.portal-enter-button:hover,
+.portal-submit-button:hover:not(:disabled) {
+  border-color: #fff0b9;
+  filter: brightness(1.16);
+  box-shadow:
+    inset 0 1px rgba(255, 241, 196, 0.48),
+    0 0 26px rgba(255, 204, 109, 0.43),
+    0 7px 24px rgba(0, 0, 0, 0.65);
+}
+
+.portal-enter-button:focus-visible,
+.portal-submit-button:focus-visible,
+.portal-auth-tabs button:focus-visible,
+.portal-auth-switch button:focus-visible,
+.portal-field__visibility:focus-visible {
+  outline: 3px solid #fff0b9;
+  outline-offset: 4px;
+}
+
+.portal-enter-button__rune {
+  color: #9eb4ba;
+  font-size: 16px;
+}
+
+.portal-intro__hint {
+  position: absolute;
+  bottom: 2%;
+  left: 50%;
+  width: min(90%, 420px);
+  transform: translateX(-50%);
+  color: rgba(232, 216, 184, 0.72);
+  font-family: var(--font-body, Georgia, serif);
+  font-size: 13px;
+  letter-spacing: 0.045em;
+  text-align: center;
+}
+
+.portal-auth-panel {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  z-index: 3;
+  width: min(100%, 440px);
+  padding: 27px 34px 25px;
+  border: 1px solid rgba(216, 183, 112, 0.75);
+  border-radius: 5px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.035), transparent 38%),
+    rgba(8, 12, 14, 0.86);
+  box-shadow:
+    0 0 0 5px rgba(18, 19, 17, 0.76),
+    0 0 0 6px rgba(206, 166, 88, 0.35),
+    0 17px 80px rgba(0, 0, 0, 0.82),
+    0 0 60px rgba(255, 187, 80, 0.14);
+  backdrop-filter: blur(9px);
+  translate: -50% -50%;
+  text-align: center;
+}
+
+.portal-auth-panel::before,
+.portal-auth-panel::after {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  border-color: #e5c27a;
+  border-style: solid;
+  content: "";
+  pointer-events: none;
+}
+
+.portal-auth-panel::before {
+  top: -1px;
+  left: -1px;
+  border-width: 1px 0 0 1px;
+}
+
+.portal-auth-panel::after {
+  right: -1px;
+  bottom: -1px;
+  border-width: 0 1px 1px 0;
+}
+
+.portal-auth-panel__crest {
+  position: absolute;
+  top: -17px;
+  left: 50%;
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  transform: translateX(-50%);
+  border: 1px solid #d9b86c;
+  border-radius: 50%;
+  color: #f7daa0;
+  background: #101310;
+  box-shadow: 0 0 14px rgba(235, 190, 105, 0.35);
+  font-size: 21px;
+}
+
+.portal-auth-panel__eyebrow {
+  margin: 1px 0 5px;
+  font-size: 9px;
+}
+
+.portal-auth-panel h2 {
+  margin: 0 0 17px;
+  color: #fff0ca;
+  font-family: var(--font-title, "Cinzel", Georgia, serif);
+  font-size: clamp(19px, 2.6vw, 23px);
+  font-weight: 600;
+  letter-spacing: 0.13em;
+  text-shadow: 0 0 15px rgba(225, 178, 93, 0.28);
+}
+
+.portal-auth-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  margin-bottom: 19px;
+  border-bottom: 1px solid rgba(209, 174, 98, 0.38);
+}
+
+.portal-auth-tabs button {
+  min-height: 42px;
+  padding: 8px 10px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  color: rgba(232, 222, 201, 0.7);
+  background: transparent;
+  font-family: var(--font-title, "Cinzel", Georgia, serif);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  cursor: pointer;
+  transition: color 0.2s ease, border-color 0.2s ease;
+}
+
+.portal-auth-tabs button:hover,
+.portal-auth-tabs button.active {
+  color: #fff0c7;
+}
+
+.portal-auth-tabs button.active {
+  border-bottom-color: #dfbd76;
+  text-shadow: 0 0 12px rgba(255, 213, 133, 0.45);
+}
+
+.portal-auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  text-align: left;
+}
+
+.portal-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.portal-field > label {
+  color: #ead9b5;
+  font-family: var(--font-body, Georgia, serif);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.035em;
+}
+
+.portal-field__control {
+  position: relative;
+}
+
+.portal-field__control input {
+  box-sizing: border-box;
+  width: 100%;
+  height: 45px;
+  padding: 0 88px 0 13px;
+  border: 1px solid rgba(202, 166, 95, 0.58);
+  border-radius: 3px;
+  color: #fff1d2;
+  background: rgba(4, 8, 10, 0.7);
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.55);
+  font-family: var(--font-body, Georgia, serif);
+  font-size: 16px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.portal-field__control input::placeholder {
+  color: rgba(221, 207, 176, 0.48);
+}
+
+.portal-field__control input:focus-visible {
+  outline: 2px solid rgba(255, 232, 177, 0.85);
+  outline-offset: 2px;
+  border-color: #ebcc89;
+  box-shadow: 0 0 15px rgba(225, 178, 93, 0.2), inset 0 2px 6px rgba(0, 0, 0, 0.55);
+}
+
+.portal-field__control.is-invalid input {
+  border-color: #d4846f;
+}
+
+.portal-field__visibility {
+  position: absolute;
+  top: 0;
+  right: 0;
+  min-width: 78px;
+  height: 45px;
+  padding: 0 8px;
+  border: 0;
+  color: #d7c18f;
+  background: transparent;
+  font-family: var(--font-title, "Cinzel", Georgia, serif);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+}
+
+.portal-field__visibility:hover {
+  color: #fff0c2;
+}
+
+.portal-field__error {
+  margin: 0;
+  color: #ffc0ad;
+  font-family: var(--font-body, Georgia, serif);
+  font-size: 13px;
+}
+
+.portal-auth-form__row {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
 }
 
-.portal-engraved-field {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
+.portal-auth-form__row .portal-field__control input {
+  padding-right: 68px;
+  padding-left: 10px;
+}
+
+.portal-auth-form__row .portal-field__visibility {
+  min-width: 64px;
+}
+
+.portal-submit-button {
   width: 100%;
+  min-height: 48px;
+  margin-top: 4px;
+  font-size: 12px;
+  letter-spacing: 0.15em;
 }
 
-.engraved-label {
-  font-family: var(--font-body, "EB Garamond", serif);
-  font-size: 15px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  color: #f0e2bd;
-  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.95);
-}
-
-.engraved-input-wrap {
-  width: 100%;
-  position: relative;
-}
-
-.engraved-input-wrap input {
-  width: 100%;
-  box-sizing: border-box;
-  height: 46px;
-  background: rgba(8, 16, 14, 0.78);
-  border: 1.5px solid rgba(212, 175, 95, 0.7);
-  border-radius: 6px;
-  color: var(--portal-gold);
-  font-family: var(--font-body, "EB Garamond", serif);
-  font-size: 17px;
-  padding: 0 44px;
-  text-align: center;
-  box-shadow: inset 0 3px 8px rgba(0, 0, 0, 0.85), 0 1px 0 rgba(240, 219, 162, 0.15);
-  transition: border-color 0.25s ease, box-shadow 0.25s ease, background 0.25s ease;
-}
-
-.engraved-input-wrap input::placeholder {
-  color: rgba(205, 190, 155, 0.72);
-  font-style: italic;
-}
-
-.engraved-input-wrap input:hover { border-color: rgba(240, 219, 162, 0.9); }
-
-.engraved-input-wrap input:focus-visible {
-  outline: 3px solid var(--portal-gold);
-  outline-offset: 2px;
-  background: rgba(12, 24, 21, 0.92);
-  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.9), 0 0 16px rgba(212, 175, 95, 0.35);
-}
-
-.engraved-input-wrap.has-error input {
-  border-color: #ff9d7a;
-}
-
-.engraved-error {
-  margin: 0;
-  font-family: var(--font-body, "EB Garamond", serif);
-  font-size: 15px;
-  font-weight: 600;
-  color: #ffb59a;
-  text-align: center;
-  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.95);
-}
-
-.engraved-eye {
-  position: absolute;
-  right: 0;
-  top: 0;
-  width: 46px;
-  height: 46px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: none;
-  border: 0;
-  color: var(--portal-gold);
-  cursor: pointer;
-}
-
-.engraved-eye:hover { color: #fff; }
-
-/* ── Selo (botão da fênix) ───────────────────────────────── */
-.portal-seal-mechanism {
-  width: 100%;
-  display: flex;
-  justify-content: center;
-  margin: 4px 0 0;
-}
-
-.portal-seal-trigger {
-  background: transparent;
-  border: none;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-  cursor: pointer;
-  padding: 0;
-  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.portal-seal-trigger:hover:not(:disabled) { transform: scale(1.04); }
-.portal-seal-trigger:hover:not(:disabled) .seal-emblem-disc {
-  box-shadow: 0 0 36px rgba(240, 190, 80, 0.9), 0 10px 30px rgba(0, 0, 0, 0.95), inset 0 0 16px rgba(0, 0, 0, 0.9);
-}
-.portal-seal-trigger:active:not(:disabled) { transform: scale(0.98); }
-
-.portal-seal-trigger:disabled {
-  opacity: 0.75;
+.portal-submit-button:disabled {
+  opacity: 0.72;
   cursor: progress;
 }
 
-.seal-emblem-disc {
-  position: relative;
-  width: 124px;
-  height: 124px;
-  border-radius: 50%;
-  padding: 6px;
-  background: radial-gradient(circle at 40% 35%, #5a3c1f 0%, #1f140a 75%, #0d0804 100%);
-  border: 2px solid rgba(225, 185, 95, 0.85);
-  box-shadow: 0 0 24px rgba(220, 140, 40, 0.65), 0 10px 30px rgba(0, 0, 0, 0.95), inset 0 0 16px rgba(0, 0, 0, 0.9);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: box-shadow 0.25s ease;
-}
-
-.portal-seal-trigger:disabled .seal-emblem-disc {
-  animation: sealLoading 1.2s ease-in-out infinite alternate;
-}
-
-@keyframes sealLoading {
-  from { box-shadow: 0 0 14px rgba(220, 140, 40, 0.4), 0 10px 30px rgba(0, 0, 0, 0.95), inset 0 0 16px rgba(0, 0, 0, 0.9); }
-  to   { box-shadow: 0 0 44px rgba(250, 200, 90, 0.95), 0 10px 30px rgba(0, 0, 0, 0.95), inset 0 0 16px rgba(0, 0, 0, 0.9); }
-}
-
-.seal-phoenix-img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  border-radius: 50%;
-  filter: drop-shadow(0 0 8px rgba(245, 190, 80, 0.75));
-}
-
-.seal-radial-glow {
-  position: absolute;
-  inset: -14px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(240, 170, 50, 0.32) 0%, transparent 70%);
-  pointer-events: none;
-  animation: sealBreathing 3.5s ease-in-out infinite alternate;
-}
-
-@keyframes sealBreathing {
-  0% { transform: scale(0.92); opacity: 0.5; }
-  100% { transform: scale(1.12); opacity: 0.9; }
-}
-
-.seal-arc-text {
-  font-family: var(--font-title, "Cinzel", serif);
+.portal-auth-switch {
+  margin: 0;
+  color: rgba(238, 225, 199, 0.8);
+  font-family: var(--font-body, Georgia, serif);
   font-size: 14px;
-  font-weight: 700;
-  letter-spacing: 0.22em;
-  color: var(--portal-gold);
-  text-shadow: 0 0 12px rgba(240, 200, 100, 0.9), 0 2px 6px rgba(0, 0, 0, 0.95);
-  text-transform: uppercase;
-}
-
-/* ── Alternar entre ritos ────────────────────────────────── */
-.portal-ancient-switch {
   text-align: center;
-  font-size: 15px;
-  font-family: var(--font-body, "EB Garamond", serif);
-  color: #e0d3b0;
-  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.95);
-  margin-top: 0;
 }
 
-.switch-action-btn {
-  background: transparent;
-  border: none;
-  color: var(--portal-gold);
-  font-family: inherit;
-  font-size: 15px;
+.portal-auth-switch button {
+  padding: 4px 2px;
+  border: 0;
+  color: #f1d08c;
+  background: none;
+  font: inherit;
   font-weight: 700;
-  cursor: pointer;
   text-decoration: underline;
-  text-decoration-color: var(--portal-gold-line);
+  text-decoration-color: rgba(224, 185, 109, 0.65);
   text-underline-offset: 3px;
-  padding: 6px 2px;
-  transition: color 0.2s ease;
+  cursor: pointer;
 }
 
-.switch-action-btn:hover {
-  color: #fff;
-  text-shadow: 0 0 8px rgba(255, 255, 255, 0.6);
+.portal-auth-switch button:hover {
+  color: #fff4d5;
 }
 
-/* ── Alertas ─────────────────────────────────────────────── */
-.portal-relic-alert {
-  width: 100%;
-  box-sizing: border-box;
-  padding: 10px 14px;
-  border-radius: 6px;
-  font-size: 15px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 12px;
-  animation: relicAppear 0.25s ease forwards;
+.portal-feedback {
+  padding: 9px 11px;
+  margin: 0 0 12px;
+  border: 1px solid;
+  border-radius: 3px;
+  font-family: var(--font-body, Georgia, serif);
+  font-size: 14px;
+  text-align: left;
 }
 
-@keyframes relicAppear {
-  from { opacity: 0; transform: translateY(-4px); }
-  to { opacity: 1; transform: translateY(0); }
+.portal-feedback--error {
+  border-color: rgba(202, 118, 101, 0.8);
+  color: #ffe0d7;
+  background: rgba(83, 34, 27, 0.8);
 }
 
-.alert-error {
-  background: rgba(65, 25, 20, 0.85);
-  border: 1px solid rgba(195, 106, 99, 0.85);
-  color: #f7d2cb;
+.portal-feedback--success {
+  border-color: rgba(111, 168, 126, 0.8);
+  color: #e2f5df;
+  background: rgba(28, 63, 43, 0.8);
 }
 
-.alert-success {
-  background: rgba(22, 60, 48, 0.85);
-  border: 1px solid rgba(93, 157, 121, 0.85);
-  color: #d6f2dc;
-}
-
-/* ── Rodapé ──────────────────────────────────────────────── */
-.portal-pedestal-relics {
-  margin-top: 18px;
-  display: flex;
-  justify-content: center;
-  width: var(--portal-form-width);
-  max-width: 100%;
-}
-
-.pedestal-glyph-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  opacity: 0.85;
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.9));
-}
-
-.pedestal-glyph,
-.pedestal-glyph-crest {
-  width: 28px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  line-height: 1;
-}
-
-.pedestal-glyph {
-  color: #d9b86c;
-}
-
-.pedestal-glyph-crest {
-  color: var(--portal-gold);
-  filter: drop-shadow(0 0 6px rgba(240, 200, 100, 0.8));
-}
-
-/* ── Responsivo e acessibilidade ─────────────────────────── */
-@media (max-width: 540px) {
-  .realm-portal-page { --portal-form-width: 300px; }
-
-  .portal-pillar { display: none; }
-
-  .engraved-field-row {
-    grid-template-columns: 1fr;
-    gap: 16px;
+@keyframes rune-spark {
+  from {
+    opacity: 0.42;
+    transform: scale(0.94);
   }
+  to {
+    opacity: 1;
+    transform: scale(1.07);
+  }
+}
 
-  .seal-emblem-disc {
-    width: 108px;
-    height: 108px;
+@keyframes ember-drift {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+    opacity: 0.16;
+  }
+  50% {
+    transform: translate3d(9px, -20px, 0);
+    opacity: 0.62;
+  }
+}
+
+@keyframes ember-rise {
+  0% {
+    transform: translate3d(0, 12px, 0) scale(0.75);
+    opacity: 0;
+  }
+  30% {
+    opacity: 0.9;
+  }
+  100% {
+    transform: translate3d(-12px, -90px, 0) scale(1.18);
+    opacity: 0;
+  }
+}
+
+@keyframes portal-light-bloom {
+  0% {
+    opacity: 0;
+    transform: scaleX(0.65);
+    filter: blur(24px);
+  }
+  55% {
+    opacity: 0.95;
+    transform: scaleX(1.08);
+    filter: blur(11px);
+  }
+  100% {
+    opacity: 0.35;
+    transform: scaleX(1);
+    filter: blur(16px);
+  }
+}
+
+@media (max-width: 700px) {
+  .portal-runes {
+    font-size: 18px;
+  }
+  .portal-intro__eyebrow {
+    top: 4%;
+    font-size: 9px;
+    letter-spacing: 0.2em;
+  }
+  .portal-intro h1 {
+    top: 8.5%;
+    font-size: clamp(20px, 5vw, 30px);
+    letter-spacing: 0.045em;
+  }
+  .portal-intro p {
+    top: 17%;
+    max-width: 320px;
+    font-size: 15px;
+  }
+  .portal-enter-button {
+    width: 58px;
+    height: 58px;
+    margin: -29px 0 0 -29px;
+    font-size: 26px;
+  }
+  .portal-auth-panel {
+    width: calc(100% - 28px);
+    max-width: 420px;
+    max-height: calc(100svh - 28px);
+    overflow-y: auto;
+    padding: 25px 22px 22px;
+  }
+}
+
+@media (max-width: 390px) {
+  .realm-portal-page {
+    padding: 20px 14px;
+  }
+  .portal-auth-panel {
+    padding-right: 17px;
+    padding-left: 17px;
+  }
+  .portal-auth-form__row {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+  .portal-intro__hint {
+    max-width: 260px;
+  }
+  .portal-runes {
+    font-size: 15px;
+  }
+}
+
+@media (max-width: 700px) and (max-height: 500px) {
+  .portal-intro__eyebrow {
+    top: 3%;
+  }
+  .portal-intro h1 {
+    top: 7%;
+    font-size: clamp(18px, 3.6vw, 24px);
+  }
+  .portal-intro p {
+    top: 15%;
+    font-size: 13px;
+  }
+}
+
+@media (max-height: 700px) and (min-width: 701px) {
+  .portal-auth-panel {
+    padding-top: 21px;
+    padding-bottom: 19px;
+  }
+  .portal-auth-form {
+    gap: 10px;
+  }
+  .portal-auth-tabs {
+    margin-bottom: 13px;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .rune-glyph,
-  .seal-radial-glow,
-  .portal-seal-trigger,
-  .portal-seal-trigger:disabled .seal-emblem-disc {
-    animation: none !important;
-    transition: none !important;
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }
