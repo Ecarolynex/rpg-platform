@@ -8,6 +8,7 @@
   display: inline-block;
   flex: 0 0 auto;
   vertical-align: middle;
+  shape-rendering: geometricPrecision;
 }
 
 /* Cards de atalho: Mapa, Bestiário, Loja, Dados */
@@ -16,23 +17,77 @@
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   border: 1px solid rgba(199, 166, 108, 0.45);
   border-radius: 6px;
-  background: rgba(6, 14, 12, 0.7);
+  background: rgba(6, 14, 12, 0.85);
   color: var(--camp-ouro);
   font-size: 0;
-  transition: border-color 0.2s ease, background 0.2s ease;
+  box-shadow: inset 0 1px 0 rgba(240, 219, 162, 0.15);
+  transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .tav-lounge:hover .tav-lounge-icon {
   border-color: var(--camp-ouro);
-  background: rgba(212, 175, 95, 0.14);
+  background: rgba(212, 175, 95, 0.16);
+  transform: scale(1.06);
+}
+
+/* Acentos individuais dos ícones dos Tomos Táticos */
+.tav-lounge[href*="/mapa"] .tav-lounge-icon {
+  border-color: rgba(130, 176, 138, 0.55);
+  background: rgba(12, 28, 20, 0.9);
+  color: #9fe2a9;
+  box-shadow: 0 0 10px rgba(130, 176, 138, 0.18), inset 0 1px 0 rgba(160, 220, 170, 0.2);
+}
+.tav-lounge[href*="/mapa"]:hover .tav-lounge-icon {
+  border-color: #9fe2a9;
+  background: rgba(18, 42, 30, 0.95);
+}
+
+.tav-lounge[href*="/bestiario"] .tav-lounge-icon {
+  border-color: rgba(212, 151, 85, 0.55);
+  background: rgba(28, 18, 10, 0.9);
+  color: #f7b975;
+  box-shadow: 0 0 10px rgba(212, 151, 85, 0.18), inset 0 1px 0 rgba(240, 180, 120, 0.2);
+}
+.tav-lounge[href*="/bestiario"]:hover .tav-lounge-icon {
+  border-color: #f7b975;
+  background: rgba(44, 26, 14, 0.95);
+}
+
+.tav-lounge[href*="/loja"] .tav-lounge-icon {
+  border-color: rgba(229, 195, 120, 0.55);
+  background: rgba(26, 20, 8, 0.9);
+  color: #fce8b2;
+  box-shadow: 0 0 10px rgba(229, 195, 120, 0.18), inset 0 1px 0 rgba(255, 235, 160, 0.2);
+}
+.tav-lounge[href*="/loja"]:hover .tav-lounge-icon {
+  border-color: #fce8b2;
+  background: rgba(40, 32, 10, 0.95);
+}
+
+.tav-lounge[href*="/dados"] .tav-lounge-icon {
+  border-color: rgba(104, 165, 160, 0.55);
+  background: rgba(8, 26, 26, 0.9);
+  color: #8ee2dc;
+  box-shadow: 0 0 10px rgba(104, 165, 160, 0.18), inset 0 1px 0 rgba(140, 220, 215, 0.2);
+}
+.tav-lounge[href*="/dados"]:hover .tav-lounge-icon {
+  border-color: #8ee2dc;
+  background: rgba(12, 38, 38, 0.95);
 }
 
 .tav-lounge-content {
   min-width: 0;
+}
+
+@media (max-width: 640px) {
+  .tav-lounge-icon {
+    width: 36px;
+    height: 36px;
+  }
 }
 
 /* Títulos de bloco com ícone ao lado (coroa do Mestre) */

@@ -16,8 +16,10 @@
   --camp-petroleo-card: #0c1a17;
   --camp-petroleo-elevado: #122622;
   --camp-marfim: #f4efe9;
-  --camp-suave: #9bb0a6;
-  --camp-muted: #758a80;
+  --camp-suave: #b8ccc2;
+  --camp-muted: #8fa89e;
+  --camp-borda-ouro: rgba(199, 166, 108, 0.45);
+  --camp-foco: #e5c378;
   --camp-accent: var(--camp-ouro);
   --camp-ruby: #9e2b36;
 
@@ -72,31 +74,32 @@
    ------------------------------------------------------------------------- */
 .campaign-detail-header {
   position: relative;
-  margin-bottom: 20px;
-  padding: 22px 26px 20px;
+  margin-bottom: 22px;
+  padding: 26px 30px 24px;
   border-radius: 8px;
-  border: 1px solid var(--camp-bronze-line);
+  border: 1px solid rgba(199, 166, 108, 0.4);
+  border-top: 2px solid rgba(212, 175, 95, 0.75);
   background:
-    radial-gradient(ellipse 70% 50% at 50% 0%, rgba(212, 175, 95, 0.1) 0%, transparent 70%),
-    linear-gradient(180deg, #122622 0%, #0a1715 100%);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(240, 219, 162, 0.15);
+    radial-gradient(ellipse 75% 60% at 50% -10%, rgba(212, 175, 95, 0.14) 0%, transparent 65%),
+    linear-gradient(180deg, #112823 0%, #071412 100%);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(240, 219, 162, 0.2);
 }
 
 .campaign-header-top-runes {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
+  gap: 10px;
+  margin-bottom: 10px;
   font-family: var(--font-title, "Cinzel", serif);
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.3em;
-  color: rgba(212, 175, 95, 0.75);
+  color: #d4af5f;
   user-select: none;
 }
 
 .campaign-header-top-runes .keystone-glyph {
   color: var(--camp-ouro);
-  font-size: 9px;
+  font-size: 10px;
 }
 
 .campaign-detail-nav {
@@ -105,21 +108,21 @@
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 12px;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
 
 .campaign-back-link {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-height: 34px;
-  padding: 4px 12px;
-  border: 1px solid rgba(199, 166, 108, 0.4);
+  min-height: 36px;
+  padding: 4px 14px;
+  border: 1px solid rgba(199, 166, 108, 0.45);
   border-radius: 4px;
-  background: rgba(6, 16, 14, 0.65);
+  background: rgba(6, 16, 14, 0.85);
   color: var(--camp-ouro);
   font-family: var(--font-title, "Cinzel", serif);
-  font-size: 0.8rem;
+  font-size: 0.82rem;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-decoration: none;
@@ -128,52 +131,62 @@
 
 .campaign-back-link:hover {
   border-color: var(--camp-ouro);
-  background: rgba(212, 175, 95, 0.15);
+  background: rgba(212, 175, 95, 0.2);
   transform: translateX(-2px);
 }
 
 .campaign-header-badges {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 }
 
 .campaign-badge {
-  padding: 4px 10px;
+  padding: 5px 12px;
   border: 1px solid rgba(199, 166, 108, 0.4);
   border-radius: 4px;
-  background: rgba(7, 16, 14, 0.8);
+  background: rgba(7, 16, 14, 0.85);
   color: var(--camp-marfim);
   font-family: var(--font-title, "Cinzel", serif);
-  font-size: 0.72rem;
+  font-size: 0.74rem;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
 .campaign-badge-master {
-  border-color: var(--camp-ouro);
-  background: rgba(212, 175, 95, 0.2);
-  color: var(--camp-ouro);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border: 1px solid rgba(212, 175, 95, 0.85);
+  border-radius: 4px;
+  background: linear-gradient(180deg, rgba(212, 175, 95, 0.28) 0%, rgba(138, 108, 56, 0.2) 100%);
+  color: #fff2cc;
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  box-shadow: 0 0 14px rgba(212, 175, 95, 0.25), inset 0 1px 0 rgba(255, 245, 215, 0.4);
 }
 
 .campaign-detail-title {
-  margin: 0 0 6px;
+  margin: 0 0 10px;
   font-family: var(--font-title, "Cinzel", Georgia, serif);
-  font-size: clamp(1.8rem, 4vw, 2.6rem);
+  font-size: clamp(2rem, 4.4vw, 2.9rem);
   font-weight: 700;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.03em;
   color: var(--camp-ouro);
-  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.9);
+  text-shadow: 0 3px 10px rgba(0, 0, 0, 0.95);
   overflow-wrap: anywhere;
 }
 
 .campaign-detail-desc {
-  max-width: 78ch;
-  margin: 0 0 18px;
-  color: var(--camp-suave);
-  font-size: 1.02rem;
-  line-height: 1.5;
+  max-width: 82ch;
+  margin: 0 0 22px;
+  color: #c7dbd2;
+  font-size: 1.08rem;
+  line-height: 1.6;
 }
 
 /* -------------------------------------------------------------------------
@@ -182,21 +195,23 @@
 .campaign-context-nav {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
+  gap: 14px;
 }
 
 .tav-lounge {
   display: flex;
   align-items: center;
   gap: 12px;
-  min-height: 54px;
-  padding: 10px 14px;
+  min-height: 62px;
+  padding: 12px 16px;
   border: 1px solid rgba(199, 166, 108, 0.35);
+  border-top: 2px solid rgba(212, 175, 95, 0.55);
   border-radius: 6px;
-  background: linear-gradient(180deg, #142a25 0%, #0d1e1a 100%);
+  background: linear-gradient(180deg, #132824 0%, #0a1715 100%);
   color: var(--camp-marfim);
   text-decoration: none;
-  transition: all 0.2s ease;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.35);
+  transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .tav-lounge-icon {
@@ -207,7 +222,7 @@
 .tav-lounge-nome {
   display: block;
   font-family: var(--font-title, "Cinzel", serif);
-  font-size: 0.95rem;
+  font-size: 1rem;
   font-weight: 700;
   letter-spacing: 0.04em;
   color: var(--camp-ouro);
@@ -216,73 +231,126 @@
 .tav-lounge-desc {
   display: block;
   color: var(--camp-muted);
-  font-size: 0.78rem;
+  font-size: 0.8rem;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.tav-lounge:hover {
-  border-color: var(--camp-ouro);
-  background: linear-gradient(180deg, #1a3831 0%, #112622 100%);
+/* Personalidade visual única por Tomo Tático */
+.tav-lounge[href*="/mapa"] {
+  border-top-color: #82b08a;
+}
+.tav-lounge[href*="/mapa"]:hover {
+  border-color: #82b08a;
+  background: linear-gradient(180deg, #173629 0%, #0c1f17 100%);
+  box-shadow: 0 8px 20px rgba(12, 35, 20, 0.6), inset 0 1px 0 rgba(160, 220, 170, 0.25);
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+.tav-lounge[href*="/mapa"] .tav-lounge-nome {
+  color: #bce5c2;
+}
+
+.tav-lounge[href*="/bestiario"] {
+  border-top-color: #d49755;
+}
+.tav-lounge[href*="/bestiario"]:hover {
+  border-color: #d49755;
+  background: linear-gradient(180deg, #301f14 0%, #170d07 100%);
+  box-shadow: 0 8px 20px rgba(45, 25, 12, 0.6), inset 0 1px 0 rgba(240, 180, 120, 0.25);
+  transform: translateY(-2px);
+}
+.tav-lounge[href*="/bestiario"] .tav-lounge-nome {
+  color: #f7ca97;
+}
+
+.tav-lounge[href*="/loja"] {
+  border-top-color: #e5c378;
+}
+.tav-lounge[href*="/loja"]:hover {
+  border-color: #e5c378;
+  background: linear-gradient(180deg, #2b2310 0%, #141006 100%);
+  box-shadow: 0 8px 20px rgba(45, 35, 10, 0.6), inset 0 1px 0 rgba(255, 235, 160, 0.25);
+  transform: translateY(-2px);
+}
+.tav-lounge[href*="/loja"] .tav-lounge-nome {
+  color: #fdf1cd;
+}
+
+.tav-lounge[href*="/dados"] {
+  border-top-color: #68a5a0;
+}
+.tav-lounge[href*="/dados"]:hover {
+  border-color: #68a5a0;
+  background: linear-gradient(180deg, #122e2c 0%, #081717 100%);
+  box-shadow: 0 8px 20px rgba(10, 35, 35, 0.6), inset 0 1px 0 rgba(140, 220, 215, 0.25);
+  transform: translateY(-2px);
+}
+.tav-lounge[href*="/dados"] .tav-lounge-nome {
+  color: #b5e9e5;
 }
 
 /* -------------------------------------------------------------------------
-   COCKPIT DO MESTRE (Ações Rápidas na Visão Geral)
+   COCKPIT DO MESTRE (Console de Decretos da Sala de Comando)
    ------------------------------------------------------------------------- */
 .dm-cockpit-shortcuts {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 10px;
-  margin-bottom: 14px;
-  padding: 12px 14px;
-  border: 1px solid rgba(199, 166, 108, 0.35);
+  gap: 14px;
+  margin-bottom: 20px;
+  padding: 14px 18px;
+  border: 1px solid rgba(199, 166, 108, 0.4);
+  border-left: 5px solid var(--camp-ouro-forte);
+  border-top: 1px solid rgba(212, 175, 95, 0.5);
   border-radius: 6px;
-  background: rgba(8, 18, 16, 0.75);
+  background: linear-gradient(180deg, #15322b 0%, #0a1c17 100%);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
 }
 
 .dm-cockpit-label {
   font-family: var(--font-title, "Cinzel", serif);
-  font-size: 0.76rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
   color: var(--camp-ouro);
   text-transform: uppercase;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
 }
 
 .dm-cockpit-btns {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 10px;
 }
 
 .dm-cockpit-btn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-height: 32px;
-  padding: 4px 12px;
-  border: 1px solid rgba(199, 166, 108, 0.4);
+  min-height: 38px;
+  padding: 6px 16px;
+  border: 1px solid rgba(199, 166, 108, 0.5);
   border-radius: 4px;
-  background: rgba(14, 30, 26, 0.85);
-  color: var(--camp-marfim);
+  background: rgba(8, 18, 15, 0.9);
+  color: #f4efe9;
   font-family: var(--font-title, "Cinzel", serif);
-  font-size: 0.78rem;
+  font-size: 0.82rem;
   font-weight: 700;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
   text-decoration: none;
   cursor: pointer;
-  transition: all 0.15s ease;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  transition: all 0.18s ease;
 }
 
 .dm-cockpit-btn:hover {
   border-color: var(--camp-ouro);
-  color: var(--camp-ouro);
-  background: rgba(212, 175, 95, 0.18);
+  color: #ffffff;
+  background: rgba(212, 175, 95, 0.25);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
 }
 
 /* -------------------------------------------------------------------------
@@ -290,14 +358,15 @@
    ------------------------------------------------------------------------- */
 .tav-section-nav {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   margin: 16px 0 20px;
-  padding: 4px;
-  border: 1px solid rgba(199, 166, 108, 0.25);
-  border-radius: 6px;
-  background: rgba(6, 14, 12, 0.75);
+  padding: 5px;
+  border: 1px solid rgba(199, 166, 108, 0.28);
+  border-radius: 8px;
+  background: rgba(6, 14, 12, 0.82);
   overflow-x: auto;
   scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
 }
 
 .tav-section-nav button {
@@ -308,13 +377,13 @@
   min-height: 38px;
   padding: 6px 14px;
   border: 1px solid transparent;
-  border-radius: 4px;
+  border-radius: 5px;
   background: transparent;
   color: var(--camp-suave);
   font-family: var(--font-title, "Cinzel", serif);
   font-size: 0.82rem;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.07em;
   text-transform: uppercase;
   cursor: pointer;
   transition: all 0.15s ease;
@@ -322,13 +391,14 @@
 
 .tav-section-nav button:hover {
   color: var(--camp-ouro);
-  background: rgba(212, 175, 95, 0.1);
+  background: rgba(212, 175, 95, 0.12);
 }
 
 .tav-section-nav button.is-active {
   color: #ffffff;
-  background: rgba(212, 175, 95, 0.22);
-  border-color: rgba(212, 175, 95, 0.5);
+  background: rgba(212, 175, 95, 0.24);
+  border-color: rgba(212, 175, 95, 0.6);
+  box-shadow: inset 0 1px 0 rgba(240, 219, 162, 0.2);
 }
 
 .tav-section-nav .tav-section-nav-perigo {
@@ -342,8 +412,9 @@
 
 .tav-section-nav .tav-section-nav-perigo.is-active {
   color: #ffffff;
-  background: rgba(180, 40, 50, 0.35);
-  border-color: rgba(220, 80, 90, 0.6);
+  background: rgba(180, 40, 50, 0.38);
+  border-color: rgba(220, 80, 90, 0.7);
+  box-shadow: inset 0 1px 0 rgba(255, 180, 180, 0.2);
 }
 
 /* -------------------------------------------------------------------------
@@ -353,6 +424,7 @@
   position: relative;
   margin-bottom: 14px;
   border: 1px solid var(--camp-bronze-line);
+  border-top: 1px solid rgba(212, 175, 95, 0.45);
   border-radius: 6px;
   background: rgba(10, 22, 19, 0.92);
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
@@ -506,66 +578,82 @@
 }
 
 /* -------------------------------------------------------------------------
-   METADADOS DA CAMPANHA (Cartões Compactos)
+   METADADOS DA CAMPANHA (Placas de Comando da Mesa)
    ------------------------------------------------------------------------- */
 .campaign-meta-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+  gap: 14px;
 }
 
 .campaign-meta-card {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 12px 14px;
-  border: 1px solid rgba(199, 166, 108, 0.35);
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 108px;
+  padding: 16px 20px;
+  border: 1px solid rgba(199, 166, 108, 0.4);
+  border-top: 3px solid rgba(212, 175, 95, 0.85);
   border-radius: 6px;
-  background: rgba(8, 18, 16, 0.85);
+  background: linear-gradient(180deg, #122822 0%, #071512 100%);
   color: var(--camp-marfim);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+  transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.campaign-meta-card:hover {
+  border-color: rgba(212, 175, 95, 0.9);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.55);
 }
 
 .campaign-meta-card span {
   font-family: var(--font-title, "Cinzel", serif);
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: rgba(212, 175, 95, 0.85);
+  color: #d4af5f;
 }
 
 .campaign-meta-card strong {
   font-family: var(--font-title, "Cinzel", serif);
-  font-size: 1.15rem;
+  font-size: 1.35rem;
   font-weight: 700;
-  color: var(--camp-ouro);
+  color: #ffffff;
   overflow-wrap: anywhere;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.8);
 }
 
 .campaign-code-highlight {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 10px;
 }
 
 .campaign-detail-page .campaign-copy-btn {
-  min-height: 30px;
-  padding: 2px 10px;
-  border: 1px solid rgba(199, 166, 108, 0.5);
+  min-height: 34px;
+  padding: 4px 14px;
+  border: 1px solid var(--camp-ouro);
   border-radius: 4px;
-  background: rgba(14, 30, 26, 0.9);
-  color: var(--camp-ouro);
+  background: linear-gradient(180deg, #c7a66c 0%, #8a6c38 100%);
+  color: #081210;
   font-family: var(--font-title, "Cinzel", serif);
-  font-size: 0.74rem;
-  font-weight: 700;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
   cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
   transition: all 0.15s ease;
 }
 
 .campaign-detail-page .campaign-copy-btn:hover {
-  background: rgba(212, 175, 95, 0.2);
-  border-color: var(--camp-ouro);
+  background: linear-gradient(180deg, #dfc288 0%, #a28148 100%);
+  border-color: #ffffff;
+  color: #000000;
+  transform: translateY(-1px);
 }
 
 .campaign-copy-feedback {
@@ -587,7 +675,7 @@
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: 14px;
 }
 
 .party-toolbar {
@@ -598,8 +686,8 @@
 }
 
 .party-search-input {
-  min-width: 240px;
-  height: 36px;
+  min-width: 260px;
+  height: 38px;
   padding: 6px 12px;
   border: 1px solid rgba(199, 166, 108, 0.35);
   border-radius: 4px;
@@ -607,23 +695,29 @@
   color: var(--camp-marfim);
   font-family: inherit;
   font-size: 0.92rem;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.party-search-input::placeholder {
+  color: rgba(184, 204, 194, 0.6);
 }
 
 .party-search-input:focus {
   border-color: var(--camp-ouro);
   outline: none;
+  box-shadow: 0 0 6px rgba(212, 175, 95, 0.2);
 }
 
 .party-reward-all-btn {
-  height: 36px;
-  padding: 6px 12px;
-  font-size: 0.8rem;
+  height: 38px;
+  padding: 6px 14px;
+  font-size: 0.82rem;
   white-space: nowrap;
 }
 
 .party-overview-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 310px), 1fr));
   gap: 14px;
   margin-top: 14px;
 }
@@ -631,23 +725,26 @@
 .party-char-card {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 14px 16px;
-  border: 1px solid rgba(199, 166, 108, 0.35);
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid rgba(199, 166, 108, 0.4);
+  border-top: 3px solid rgba(212, 175, 95, 0.75);
   border-radius: 6px;
-  background: linear-gradient(180deg, #122420 0%, #0a1614 100%);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-  transition: border-color 0.15s ease;
+  background: linear-gradient(180deg, #132b25 0%, #071512 100%);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
 }
 
 .party-char-card:hover {
-  border-color: var(--camp-ouro);
+  border-color: rgba(212, 175, 95, 0.9);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.65);
+  transform: translateY(-2px);
 }
 
 .party-char-head {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
 }
 
 .party-char-portrait {
@@ -655,16 +752,17 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  width: 48px;
-  height: 48px;
+  width: 52px;
+  height: 52px;
   overflow: hidden;
-  border: 1.5px solid var(--camp-ouro);
+  border: 2px solid var(--camp-ouro);
   border-radius: 50%;
-  background: #1a160f;
+  background: #141c19;
   color: var(--camp-ouro);
   font-family: var(--font-title, "Cinzel", serif);
-  font-size: 1.2rem;
+  font-size: 1.35rem;
   font-weight: 700;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.6), inset 0 0 6px rgba(0, 0, 0, 0.5);
 }
 
 .party-char-portrait img {
@@ -679,76 +777,102 @@
 
 .party-char-info h3 {
   margin: 0;
-  color: var(--camp-ouro);
+  color: #ffffff;
   font-family: var(--font-title, "Cinzel", serif);
-  font-size: 1.1rem;
+  font-size: 1.18rem;
   font-weight: 700;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
 }
 
 .party-char-meta {
-  margin: 2px 0 0;
+  margin: 3px 0 0;
   color: var(--camp-suave);
-  font-size: 0.85rem;
+  font-size: 0.9rem;
 }
 
 .party-char-stats-row {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 6px;
+  gap: 8px;
 }
 
 .party-stat-mini {
-  padding: 5px 6px;
-  border: 1px solid rgba(199, 166, 108, 0.25);
+  padding: 8px 10px;
+  border: 1px solid rgba(199, 166, 108, 0.3);
   border-radius: 4px;
-  background: rgba(6, 14, 12, 0.8);
+  background: rgba(4, 11, 9, 0.92);
   text-align: center;
+  box-shadow: inset 0 1px 0 rgba(240, 219, 162, 0.08);
 }
 
 .party-stat-mini span {
   display: block;
   color: var(--camp-muted);
   font-family: var(--font-title, "Cinzel", serif);
-  font-size: 0.65rem;
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
 .party-stat-mini strong {
   display: block;
-  color: var(--camp-marfim);
-  font-size: 0.92rem;
+  color: #ffffff;
+  font-size: 1.02rem;
+  font-weight: 700;
+  margin-top: 2px;
 }
 
 .party-stat-mini .party-stat-gold {
-  color: var(--camp-ouro);
+  color: #fce8b2;
 }
 
 .party-char-vitals {
   display: grid;
-  gap: 6px;
+  gap: 8px;
 }
 
 .party-char-actions {
   display: flex;
-  gap: 8px;
-  margin-top: 4px;
+  gap: 10px;
+  margin-top: 8px;
 }
 
 .party-char-actions .btn-primary {
   flex: 1;
-  min-height: 36px;
-  padding: 6px 10px;
-  font-size: 0.8rem;
+  min-height: 40px;
+  padding: 6px 14px;
+  font-size: 0.84rem;
+  font-weight: 800;
   text-align: center;
   justify-content: center;
   text-decoration: none;
+  background: linear-gradient(180deg, #c7a66c 0%, #8a6c38 100%);
+  color: #081210;
+  border: 1px solid var(--camp-ouro);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.4);
+}
+
+.party-char-actions .btn-primary:hover {
+  background: linear-gradient(180deg, #dfc288 0%, #a28148 100%);
+  border-color: #ffffff;
+  color: #000000;
 }
 
 .party-char-quick-reward {
   flex: 0 0 auto;
-  min-height: 36px;
-  padding: 6px 10px;
-  font-size: 0.8rem;
+  min-height: 40px;
+  padding: 6px 14px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  border: 1px solid rgba(199, 166, 108, 0.55);
+  background: rgba(8, 18, 15, 0.85);
+  color: var(--camp-ouro);
+}
+
+.party-char-quick-reward:hover {
+  background: rgba(212, 175, 95, 0.2);
+  border-color: var(--camp-ouro);
+  color: #ffffff;
 }
 
 /* -------------------------------------------------------------------------
@@ -915,22 +1039,23 @@
 }
 
 .status-available {
-  background: rgba(20, 50, 35, 0.8);
-  border: 1px solid rgba(60, 150, 90, 0.5);
-  color: #8ee8a2;
+  background: rgba(18, 55, 36, 0.88);
+  border: 1px solid rgba(80, 185, 115, 0.55);
+  color: #a3f7ba;
 }
 
 .status-blocked {
-  background: rgba(60, 30, 15, 0.8);
-  border: 1px solid rgba(190, 100, 40, 0.5);
-  color: #f5b878;
+  background: rgba(65, 30, 15, 0.88);
+  border: 1px solid rgba(220, 120, 50, 0.55);
+  color: #fed7aa;
 }
 
 .btn-action-availability {
-  padding: 4px 10px;
+  min-height: 32px;
+  padding: 5px 12px;
   border-radius: 4px;
   font-family: var(--font-title, "Cinzel", serif);
-  font-size: 0.72rem;
+  font-size: 0.74rem;
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -939,25 +1064,27 @@
 }
 
 .btn-lock {
-  border: 1px solid rgba(190, 80, 80, 0.5);
-  background: rgba(50, 18, 20, 0.8);
+  border: 1px solid rgba(220, 90, 90, 0.6);
+  background: rgba(55, 18, 22, 0.85);
   color: #fca5a5;
 }
 
 .btn-lock:hover:not(:disabled) {
-  background: rgba(80, 25, 28, 0.95);
+  background: rgba(85, 25, 30, 0.95);
   border-color: #f87171;
+  color: #ffffff;
 }
 
 .btn-unlock {
-  border: 1px solid rgba(60, 150, 90, 0.5);
-  background: rgba(18, 45, 30, 0.8);
+  border: 1px solid rgba(70, 165, 100, 0.6);
+  background: rgba(18, 48, 32, 0.85);
   color: #86efac;
 }
 
 .btn-unlock:hover:not(:disabled) {
-  background: rgba(25, 65, 42, 0.95);
+  background: rgba(25, 75, 48, 0.95);
   border-color: #4ade80;
+  color: #ffffff;
 }
 
 .btn-action-availability:disabled {
@@ -1119,12 +1246,14 @@
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: 14px;
-  margin-top: 12px;
-  padding: 16px 18px;
+  gap: 16px;
+  margin-top: 14px;
+  padding: 18px 20px;
   border: 1px solid rgba(199, 166, 108, 0.35);
+  border-top: 1px solid rgba(212, 175, 95, 0.45);
   border-radius: 6px;
-  background: rgba(8, 18, 16, 0.8);
+  background: linear-gradient(180deg, #102420 0%, #091714 100%);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
 }
 
 .master-reward-info h4 {
@@ -1138,7 +1267,7 @@
 .master-reward-info p {
   margin: 0;
   color: var(--camp-suave);
-  font-size: 0.9rem;
+  font-size: 0.92rem;
 }
 
 .master-reward-form {
@@ -1159,6 +1288,7 @@
   font-family: var(--font-title, "Cinzel", serif);
   font-size: 0.72rem;
   font-weight: 700;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
 }
 
@@ -1180,6 +1310,7 @@
   font-size: 1rem;
   font-weight: 700;
   text-align: right;
+  transition: border-color 0.15s ease;
 }
 
 .master-reward-unit {
@@ -1199,6 +1330,7 @@
   color: var(--camp-marfim);
   font-size: 0.92rem;
   cursor: pointer;
+  transition: border-color 0.15s ease;
 }
 
 .master-reward-input:focus,
@@ -1514,7 +1646,22 @@
   }
 
   .campaign-context-nav {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .tav-lounge {
+    padding: 8px 10px;
+    gap: 8px;
+    min-height: 52px;
+  }
+
+  .tav-lounge-nome {
+    font-size: 0.9rem;
+  }
+
+  .tav-lounge-desc {
+    font-size: 0.74rem;
   }
 
   .tav-secao-toggle {
