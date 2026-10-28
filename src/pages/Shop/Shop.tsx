@@ -1970,10 +1970,9 @@ export default function Shop() {
               Quantidade de PV/PM aplicada
               <input
                 type="number"
-                min={itemDraft.recurso ? 1 : undefined}
+                min="0"
                 step="1"
                 value={itemDraft.valorRecurso}
-                disabled={!itemDraft.recurso}
                 onChange={(event) => setItemDraft((current) => ({ ...current, valorRecurso: event.target.value }))}
               />
             </label>
@@ -2069,6 +2068,7 @@ export default function Shop() {
                   min={0}
                   required
                   disabled={itemSaving}
+                  aria-label="Preço em PO (para todas)"
                   value={reusePrice}
                   onChange={(event) => setReusePrice(event.target.value)}
                 />
@@ -2081,6 +2081,7 @@ export default function Shop() {
                   step={1}
                   required
                   disabled={itemSaving}
+                  aria-label="Estoque (para todas)"
                   value={reuseStock}
                   onChange={(event) => setReuseStock(event.target.value)}
                 />
