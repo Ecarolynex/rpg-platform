@@ -372,7 +372,6 @@
   text-align: center;
 }
 
-.portal-enter-button,
 .portal-submit-button {
   position: relative;
   display: flex;
@@ -401,24 +400,56 @@
   transition: border-color 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
 }
 
-.portal-enter-button {
+.portal-intro__stage {
   position: absolute;
   top: 50%;
   left: 50%;
-  display: grid;
-  width: 72px;
-  min-width: 0;
-  height: 72px;
-  min-height: 0;
+  width: max(110vw, calc(110vh * 16 / 9));
+  height: max(110vh, calc(110vw * 9 / 16));
+  transform: translate(-50%, -45.5%);
+  pointer-events: none;
+}
+
+.portal-enter-button {
+  position: absolute;
+  top: 17.85%;
+  left: 42.34%;
+  width: 15.32%;
+  height: 53.4%;
   padding: 0;
-  margin: -36px 0 0 -36px;
-  border-radius: 50%;
-  font-size: 32px;
-  line-height: 1;
+  margin: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  clip-path: polygon(
+    50% 0%,
+    59% 4%,
+    68% 8%,
+    76% 12.5%,
+    83% 17%,
+    89% 21.5%,
+    94% 26.5%,
+    97.5% 32%,
+    100% 38%,
+    100% 100%,
+    0% 100%,
+    0% 38%,
+    2.5% 32%,
+    6% 26.5%,
+    11% 21.5%,
+    17% 17%,
+    24% 12.5%,
+    32% 8%,
+    41% 4%
+  );
+  cursor: pointer;
   pointer-events: auto;
 }
 
-.portal-enter-button::before,
+.is-opened .portal-enter-button {
+  pointer-events: none;
+}
+
 .portal-submit-button::before {
   position: absolute;
   inset: 4px;
@@ -428,12 +459,6 @@
   pointer-events: none;
 }
 
-.portal-enter-button::before {
-  inset: 5px;
-  border-radius: 50%;
-}
-
-.portal-enter-button:hover,
 .portal-submit-button:hover:not(:disabled) {
   border-color: #fff0b9;
   filter: brightness(1.16);
@@ -810,12 +835,6 @@
     top: 17%;
     max-width: 320px;
     font-size: 15px;
-  }
-  .portal-enter-button {
-    width: 58px;
-    height: 58px;
-    margin: -29px 0 0 -29px;
-    font-size: 26px;
   }
   .portal-auth-panel {
     width: calc(100% - 28px);

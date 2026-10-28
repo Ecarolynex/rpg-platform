@@ -168,16 +168,14 @@ export default function Login() {
         <span className="portal-intro__eyebrow">ELEMENTUM · CRÔNICAS DO REINO</span>
         <h1>AS PORTAS DE OUTRO MUNDO AGUARDAM.</h1>
         <p>Além destas pedras antigas, uma nova lenda começa.</p>
-        <motion.button
-          className="portal-enter-button"
-          type="button"
-          aria-label="Entrar no reino"
-          onClick={enterRealm}
-          whileHover={reduceMotion ? undefined : { scale: 1.035 }}
-          whileTap={reduceMotion ? undefined : { scale: 0.96 }}
-        >
-          <span aria-hidden="true">✧</span>
-        </motion.button>
+        <div className="portal-intro__stage">
+          <button
+            className="portal-enter-button"
+            type="button"
+            aria-label="Entrar no reino"
+            onClick={enterRealm}
+          />
+        </div>
       </motion.section>
 
       <AnimatePresence>
