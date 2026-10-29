@@ -1,43 +1,85 @@
 @import url("https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&display=swap");
 
 /* ==========================================================
-   RPG Platform — CharacterSheet Epic Theme (Refinado)
-   Identidade: Verde-petróleo profundo, pedra mineral, ouro ancestral,
-   iluminação âmbar mística, rubi para vida e azul arcano para mana.
+   RPG Platform — CharacterSheet Epic Theme (Pergaminho sóbrio)
+   Papel envelhecido, tinta sépia, filetes finos e um único
+   acento vinho. Sem brilhos, sem gradientes pesados.
+
+   Para ajustar o clima da ficha, basta mexer nas variáveis
+   da seção ".sheet" logo abaixo.
    ========================================================== */
 
 .sheet {
-  --sheet-accent: #d4af37;
-  --sheet-accent-strong: #f0dba2;
-  --sheet-border: rgba(199, 166, 108, 0.42);
+  /* Papel */
+  --papel: #e6d8b8;
+  --papel-claro: #efe4cb;
+  --papel-escuro: #d6c49c;
 
-  --ep-ouro: #f0dba2;
-  --ep-ouro-forte: #d4af37;
-  --ep-ouro-escuro: #8c733e;
-  --ep-bronze: #5a482b;
-  --ep-petroleo-fundo: #071210;
-  --ep-petroleo-card: #0c1c18;
-  --ep-petroleo-elevado: #132a24;
-  --ep-marfim: #f4efe9;
-  --ep-suave: #a8b8b0;
+  /* Tinta */
+  --tinta: #2b2116;
+  --tinta-suave: #5c4b34;
+  --tinta-fraca: #7d6a4d;
+
+  /* Filetes */
+  --linha: rgba(90, 70, 40, 0.55);
+  --linha-suave: rgba(90, 70, 40, 0.28);
+
+  /* Acentos (usados com moderação) */
+  --vinho: #6e2b22;
+  --musgo: #4a6350;
+
   --ep-titulo: var(--font-title, "Cinzel", Georgia, serif);
-  --ep-corpo: var(--font-body, "EB Garamond", serif);
+  --ep-corpo: var(--font-body, "EB Garamond", Georgia, serif);
+
+  /* Aliases dos nomes antigos, caso outro arquivo ainda os use */
+  --sheet-accent: var(--vinho);
+  --sheet-accent-strong: var(--tinta);
+  --sheet-border: var(--linha);
+  --ep-ouro: var(--tinta);
+  --ep-ouro-forte: var(--linha);
+  --ep-ouro-escuro: var(--tinta-fraca);
+  --ep-marfim: var(--tinta);
+  --ep-suave: var(--tinta-suave);
 }
 
+/* ---------- folha de pergaminho ---------- */
+
 .ep-folio {
-  background: 
-    radial-gradient(ellipse 90% 60% at 50% 0%, rgba(26, 61, 53, 0.22) 0%, transparent 75%),
-    linear-gradient(180deg, #091714 0%, var(--ep-petroleo-fundo) 100%);
-  border: 1px solid rgba(199, 166, 108, 0.45);
-  border-radius: 12px;
-  overflow: hidden;
-  color: var(--ep-marfim);
-  box-shadow: 
-    0 20px 50px rgba(0, 0, 0, 0.85),
-    0 0 35px rgba(12, 35, 29, 0.5),
-    inset 0 0 35px rgba(0, 0, 0, 0.85),
-    inset 0 1px 0 rgba(240, 219, 162, 0.15);
+  /* Reaponta as variáveis globais para o papel, assim o CSS
+     compartilhado (layout, StatBar, ClassInfoBox, inventário)
+     se adapta sem precisar ser reescrito. */
+  --sheet-copy: var(--tinta);
+  --sheet-copy-muted: var(--tinta-suave);
+  --sheet-accent: var(--vinho);
+  --sheet-accent-strong: var(--vinho);
+  --sheet-surface-inset: rgba(255, 250, 235, 0.5);
+  --muted: var(--tinta-fraca);
+  --gold: #8a7350;
+  --gold-bright: #6e5530;
+  --ink: var(--papel-claro);
+  --ink-panel: var(--papel);
+  --ink-panel-raised: var(--papel-claro);
+  --border-bronze: var(--linha);
+  --border-subtle: var(--linha-suave);
+  --border-strong: var(--linha);
+  --wine: #7a2e24;
+  --wine-bright: #8f3a2e;
+  --forest: var(--musgo);
+  --parchment: var(--tinta);
+  --parchment-dim: var(--tinta-suave);
+
   position: relative;
+  overflow: hidden;
+  color: var(--tinta);
+  font-family: var(--ep-corpo);
+  font-size: 16px;
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 35%, var(--papel-claro) 0%, var(--papel) 70%, var(--papel-escuro) 100%);
+  border: 1px solid var(--linha);
+  border-radius: 3px;
+  box-shadow:
+    0 12px 30px rgba(0, 0, 0, 0.45),
+    inset 0 0 70px rgba(120, 85, 40, 0.28);
 }
 
 .ep-folio *,
@@ -46,7 +88,7 @@
   box-sizing: border-box;
 }
 
-/* ---------- cabeçalho monumental heroico ---------- */
+/* ---------- cabeçalho ---------- */
 
 .ep-topo {
   position: relative;
@@ -54,14 +96,10 @@
   align-items: flex-end;
   justify-content: space-between;
   gap: 20px;
-  min-height: 200px;
+  min-height: 190px;
   padding: 28px 26px 22px;
-  background: 
-    radial-gradient(ellipse 70% 65% at 50% 20%, rgba(212, 175, 55, 0.14) 0%, transparent 68%),
-    radial-gradient(circle at 12% 40%, rgba(30, 80, 70, 0.25) 0%, transparent 50%),
-    linear-gradient(180deg, #132823 0%, #0a1714 100%);
-  border-bottom: 1px solid rgba(199, 166, 108, 0.35);
-  box-shadow: inset 0 -10px 20px rgba(0, 0, 0, 0.45);
+  background: transparent;
+  border-bottom: 3px double var(--linha);
 }
 
 .ep-paisagem {
@@ -69,19 +107,20 @@
   inset: 0;
   width: 100%;
   height: 100%;
-  opacity: 0.12;
-  filter: contrast(1.15) brightness(0.9);
+  opacity: 0.09;
+  filter: sepia(1) saturate(0.5);
+  mix-blend-mode: multiply;
   pointer-events: none;
 }
 
 .ep-identidade {
   position: relative;
+  z-index: 2;
   display: flex;
   align-items: center;
   gap: 22px;
   min-width: 0;
   flex: 1;
-  z-index: 2;
 }
 
 .ep-retrato-wrap {
@@ -93,47 +132,26 @@
 }
 
 .ep-retrato {
-  width: 100px;
-  height: 100px;
-  border-radius: 50%;
-  border: 2px solid var(--ep-ouro-forte);
-  background: radial-gradient(circle at 35% 30%, #362916 0%, #0c1c18 78%);
-  color: var(--ep-ouro);
+  width: 96px;
+  height: 96px;
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
+  border: 1px solid var(--tinta-suave);
+  border-radius: 50%;
+  background: var(--papel-escuro);
+  color: var(--tinta-suave);
   font-family: var(--ep-titulo);
-  font-size: 40px;
-  box-shadow: 
-    0 0 20px rgba(212, 175, 55, 0.45),
-    0 6px 18px rgba(0, 0, 0, 0.9),
-    inset 0 0 14px rgba(0, 0, 0, 0.85);
+  font-size: 38px;
+  box-shadow: inset 0 0 12px rgba(90, 60, 25, 0.35);
 }
 
 .ep-retrato-img {
   width: 100%;
   height: 100%;
   object-fit: cover;
-}
-
-.ep-foto-btn {
-  font-family: var(--ep-titulo);
-  font-size: 10px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  padding: 4px 10px;
-  border-radius: 3px;
-  border-color: rgba(199, 166, 108, 0.35);
-  color: var(--ep-suave);
-  background: rgba(7, 18, 16, 0.6);
-  transition: all 0.2s ease;
-}
-
-.ep-foto-btn:hover {
-  border-color: var(--ep-ouro-forte);
-  color: var(--ep-ouro);
-  background: rgba(19, 42, 36, 0.8);
+  filter: sepia(0.35) contrast(0.95);
 }
 
 .ep-nome-grupo {
@@ -143,32 +161,27 @@
 .ep-nome-grupo h1 {
   margin: 0;
   font-family: var(--ep-titulo);
-  font-weight: 700;
-  font-size: clamp(26px, 3.8vw, 36px);
+  font-weight: 600;
+  font-size: clamp(24px, 3.6vw, 34px);
   line-height: 1.15;
-  color: var(--ep-ouro);
-  text-shadow: 
-    0 0 16px rgba(212, 175, 55, 0.4),
-    0 2px 10px rgba(0, 0, 0, 0.95);
-  letter-spacing: 0.03em;
+  letter-spacing: 0.05em;
+  color: var(--tinta);
   overflow-wrap: anywhere;
 }
 
 .ep-linhagem {
   margin: 5px 0 0;
-  color: #f7eedb;
   font-family: var(--ep-corpo);
-  font-size: 17px;
+  font-size: 18px;
   font-style: italic;
-  letter-spacing: 0.02em;
-  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
+  color: var(--tinta-suave);
 }
 
 .ep-extra {
   margin: 3px 0 0;
-  color: var(--ep-suave);
-  font-size: 13px;
-  letter-spacing: 0.04em;
+  font-size: 14px;
+  letter-spacing: 0.03em;
+  color: var(--tinta-fraca);
 }
 
 .ep-nivel {
@@ -177,23 +190,20 @@
   gap: 8px;
   margin-top: 10px;
   padding: 3px 10px;
-  border: 1px solid rgba(212, 175, 55, 0.55);
-  border-radius: 4px;
-  background: rgba(8, 20, 17, 0.88);
-  box-shadow: 
-    0 2px 8px rgba(0, 0, 0, 0.7),
-    inset 0 1px 3px rgba(0, 0, 0, 0.8);
+  border: 1px solid var(--linha);
+  border-radius: 2px;
+  background: transparent;
 }
 
 .ep-nivel-texto {
-  font-family: var(--ep-titulo);
-  font-size: 14px;
-  letter-spacing: 0.1em;
-  color: var(--ep-ouro);
   min-width: 74px;
   text-align: center;
-  font-weight: 700;
+  font-family: var(--ep-titulo);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
+  color: var(--vinho);
 }
 
 .ep-mini {
@@ -202,79 +212,84 @@
   padding: 0;
   line-height: 1;
   font-size: 16px;
-  color: var(--ep-ouro);
-  background: #112822;
-  border: 1px solid rgba(199, 166, 108, 0.45);
-  border-radius: 3px;
+  color: var(--tinta);
+  background: transparent;
+  border: 1px solid var(--linha);
+  border-radius: 2px;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background 0.15s ease, color 0.15s ease;
 }
 
 .ep-mini:hover:not(:disabled) {
-  background: var(--ep-ouro-forte);
-  color: #071210;
-  box-shadow: 0 0 8px rgba(212, 175, 55, 0.6);
+  background: var(--tinta);
+  color: var(--papel-claro);
 }
 
 .ep-mini:disabled {
-  opacity: 0.3;
+  opacity: 0.35;
   cursor: default;
 }
 
-/* ---------- saquinho de moedas ---------- */
+/* ---------- bolsa de moedas ---------- */
 
 .ep-bolsa {
   position: relative;
+  z-index: 3;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 4px;
   flex: none;
-  color: var(--ep-ouro);
-  z-index: 3;
+  color: var(--tinta-suave);
 }
 
 .ep-bolsa-botao {
   padding: 4px;
   border: none;
-  border-radius: 6px;
+  border-radius: 4px;
   background: none;
   color: inherit;
   cursor: pointer;
-  filter: drop-shadow(0 0 10px rgba(212, 175, 55, 0.35));
-  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: color 0.15s ease;
 }
 
 .ep-bolsa-botao:hover {
-  transform: scale(1.08);
-  color: #fff6db;
+  color: var(--vinho);
+}
+
+/* o corpo do saquinho (2º path) ganha cor de papel, os traços seguem a tinta */
+.ep-bolsa-botao svg path:nth-of-type(2) {
+  fill: var(--papel-escuro);
 }
 
 .ep-bolsa-saldo {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 14px;
   font-family: var(--ep-titulo);
+  font-size: 13px;
+  letter-spacing: 0.08em;
 }
 
 .ep-bolsa-input {
   width: 86px;
-  padding: 4px 6px;
+  padding: 3px 6px;
   text-align: center;
   font: inherit;
-  font-size: 14px;
-  color: var(--ep-ouro);
-  background: rgba(7, 16, 14, 0.92);
-  border: 1px solid rgba(199, 166, 108, 0.4);
-  border-radius: 4px;
-  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.8);
+  font-size: 15px;
+  color: var(--tinta);
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--linha);
+  border-radius: 0;
   appearance: textfield;
   -moz-appearance: textfield;
 }
 
-.ep-bolsa-input:hover:not(:disabled) {
-  border-color: var(--ep-ouro-forte);
+.ep-bolsa-input:hover:not(:disabled),
+.ep-bolsa-input:focus {
+  border-bottom-color: var(--vinho);
+  outline: none;
 }
 
 .ep-bolsa-input::-webkit-outer-spin-button,
@@ -292,16 +307,14 @@
   align-items: center;
   gap: 8px;
   margin-top: 8px;
-  padding: 10px 14px;
-  background: #0d1e1a;
-  border: 1px solid rgba(212, 175, 55, 0.55);
-  border-radius: 6px;
-  box-shadow: 
-    0 10px 30px rgba(0, 0, 0, 0.95),
-    0 0 14px rgba(212, 175, 55, 0.25);
+  padding: 10px 12px;
+  background: var(--papel-claro);
+  border: 1px solid var(--linha);
+  border-radius: 2px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
 }
 
-/* ---------- divisor místico de rocha e luz ---------- */
+/* ---------- divisor ---------- */
 
 .ep-divisor {
   display: flex;
@@ -313,26 +326,22 @@
 .ep-divisor span {
   flex: 1;
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(199, 166, 108, 0.5) 40%, rgba(199, 166, 108, 0.5) 60%, transparent);
+  background: var(--linha-suave);
 }
 
-.ep-divisor svg {
-  filter: drop-shadow(0 0 6px rgba(240, 219, 162, 0.6));
+.ep-divisor svg path {
+  stroke: var(--tinta-fraca);
 }
 
-/* ---------- cartões integrados à arquitetura ---------- */
+/* ---------- cartões ---------- */
 
 .ep-card {
   margin: 0 26px 18px;
   padding: 20px 22px;
-  background: 
-    radial-gradient(ellipse at 50% 10%, rgba(26, 58, 50, 0.25) 0%, transparent 60%),
-    linear-gradient(180deg, var(--ep-petroleo-card) 0%, #081412 100%);
-  border: 1px solid rgba(199, 166, 108, 0.28);
-  border-radius: 8px;
-  box-shadow: 
-    0 6px 20px rgba(0, 0, 0, 0.6),
-    inset 0 1px 0 rgba(240, 219, 162, 0.08);
+  background: rgba(255, 248, 230, 0.22);
+  border: 1px solid var(--linha-suave);
+  border-radius: 2px;
+  box-shadow: none;
 }
 
 .ep-blocos .ep-card {
@@ -341,28 +350,27 @@
 
 .ep-card-head {
   margin-bottom: 16px;
-  text-align: center;
-  border-bottom: 1px solid rgba(199, 166, 108, 0.18);
   padding-bottom: 10px;
+  text-align: center;
+  border-bottom: 1px solid var(--linha-suave);
 }
 
 .ep-card-head h2 {
   margin: 0;
   font-family: var(--ep-titulo);
   font-weight: 600;
-  font-size: 15px;
-  letter-spacing: 0.16em;
+  font-size: 14px;
+  letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: var(--ep-ouro);
-  text-shadow: 0 0 12px rgba(212, 175, 55, 0.35);
+  color: var(--tinta);
 }
 
-/* ---------- atributos esculpidos em relevo heráldico ---------- */
+/* ---------- atributos ---------- */
 
 .ep-attr-grid {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 16px;
+  gap: 14px;
 }
 
 .ep-attr {
@@ -370,44 +378,32 @@
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  padding: 16px 10px;
-  background: 
-    radial-gradient(circle at 50% 15%, rgba(212, 175, 55, 0.08) 0%, transparent 65%),
-    linear-gradient(180deg, var(--ep-petroleo-elevado) 0%, #0b1a17 100%);
-  border: 1px solid rgba(199, 166, 108, 0.35);
-  border-radius: 6px;
-  box-shadow: 
-    inset 0 2px 8px rgba(0, 0, 0, 0.8),
-    0 3px 10px rgba(0, 0, 0, 0.5);
-  transition: all 0.2s ease;
+  padding: 14px 8px;
+  background: transparent;
+  border: 1px solid var(--linha-suave);
+  border-radius: 2px;
+  transition: border-color 0.15s ease;
 }
 
 .ep-attr:hover {
-  border-color: rgba(212, 175, 55, 0.7);
-  box-shadow: 
-    inset 0 2px 8px rgba(0, 0, 0, 0.8),
-    0 0 14px rgba(212, 175, 55, 0.25);
-  transform: translateY(-1px);
+  border-color: var(--linha);
 }
 
 .ep-attr-nome {
   font-family: var(--ep-titulo);
-  font-size: 13px;
-  letter-spacing: 0.12em;
-  color: var(--ep-suave);
-  text-transform: uppercase;
+  font-size: 12px;
   font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--tinta-suave);
 }
 
 .ep-attr-total {
   font-family: var(--ep-titulo);
   font-weight: 700;
-  font-size: 36px;
+  font-size: 34px;
   line-height: 1.1;
-  color: var(--ep-ouro);
-  text-shadow: 
-    0 0 14px rgba(240, 219, 162, 0.5),
-    0 2px 6px rgba(0, 0, 0, 0.9);
+  color: var(--tinta);
 }
 
 .ep-attr-soma {
@@ -415,54 +411,57 @@
   flex-direction: column;
   align-items: center;
   gap: 4px;
+  width: 100%;
   margin-top: 6px;
   font-size: 13px;
-  width: 100%;
 }
 
 .ep-attr-input {
   width: 52px;
-  padding: 3px 4px;
+  padding: 2px 4px;
   text-align: center;
   font-family: var(--ep-titulo);
   font-size: 13px;
-  color: var(--ep-marfim);
-  background: rgba(6, 14, 12, 0.94);
-  border: 1px solid rgba(199, 166, 108, 0.35);
-  border-radius: 3px;
+  color: var(--tinta);
+  background: rgba(255, 250, 235, 0.45);
+  border: 1px solid var(--linha-suave);
+  border-radius: 2px;
   appearance: textfield;
   -moz-appearance: textfield;
 }
 
 .ep-attr-input:focus {
   outline: none;
-  border-color: var(--ep-ouro-forte);
-  box-shadow: 0 0 8px rgba(212, 175, 55, 0.5);
+  border-color: var(--vinho);
+}
+
+.ep-attr-input::-webkit-outer-spin-button,
+.ep-attr-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }
 
 .ep-attr-base {
-  color: var(--ep-suave);
-  font-size: 13px;
+  font-size: 14px;
+  color: var(--tinta-suave);
 }
 
 .ep-bonus {
-  font-size: 11px;
-  color: var(--ep-ouro);
-  background: rgba(0, 0, 0, 0.35);
-  border: 1px solid rgba(199, 166, 108, 0.18);
-  padding: 2px 7px;
-  border-radius: 3px;
+  font-size: 12px;
+  font-style: italic;
   white-space: nowrap;
+  color: var(--vinho);
+  background: none;
+  border: none;
+  padding: 0;
 }
 
 .ep-legenda {
   margin: 16px 0 0;
   text-align: center;
-  font-size: 12px;
-  color: var(--ep-suave);
-  font-family: var(--ep-corpo);
+  font-size: 13px;
   font-style: italic;
-  opacity: 0.85;
+  color: var(--tinta-fraca);
 }
 
 /* ---------- vitalidade e perícias ---------- */
@@ -480,13 +479,91 @@
   gap: 18px;
 }
 
+.sheet .ep-folio .cs-vital-card,
+.sheet .ep-folio .cs-vital-direct {
+  background: transparent;
+  border: 1px solid var(--linha-suave);
+  border-radius: 2px;
+  box-shadow: none;
+}
+
+.sheet .ep-folio .cs-vital-card--wine {
+  border-left: 3px solid #7a2e24;
+  box-shadow: none;
+}
+
+.sheet .ep-folio .cs-vital-card--forest {
+  border-left: 3px solid var(--musgo);
+  box-shadow: none;
+}
+
+.sheet .ep-folio .cs-vital-title {
+  font-family: var(--ep-titulo);
+  font-size: 13px;
+  letter-spacing: 0.12em;
+  color: var(--tinta);
+}
+
+.sheet .ep-folio .cs-vital-field label {
+  color: var(--tinta-fraca);
+}
+
+.sheet .ep-folio .cs-vital-input {
+  background: rgba(255, 250, 235, 0.5);
+  border: 1px solid var(--linha);
+  color: var(--tinta);
+}
+
+.sheet .ep-folio .cs-vital-total {
+  color: var(--tinta-suave);
+}
+
+/* barras de vida/mana: cor chapada, sem gradiente */
+.sheet .ep-folio .stat-bar-head {
+  color: var(--tinta-suave);
+}
+
+.sheet .ep-folio .stat-bar-track {
+  height: 8px;
+  background: rgba(60, 40, 20, 0.12);
+  border: 1px solid var(--linha-suave);
+  border-radius: 1px;
+}
+
+.sheet .ep-folio .stat-bar-fill--wine {
+  background: #7a2e24;
+}
+
+.sheet .ep-folio .stat-bar-fill--forest {
+  background: var(--musgo);
+}
+
+/* botões de passo e ação */
+.sheet .ep-folio .cs-btn-stepper,
+.sheet .ep-folio .cs-btn-action {
+  background: transparent;
+  border: 1px solid var(--linha);
+  border-radius: 2px;
+  color: var(--tinta-suave);
+  font-family: var(--ep-corpo);
+  font-size: 14px;
+}
+
+.sheet .ep-folio .cs-btn-stepper:hover:not(:disabled),
+.sheet .ep-folio .cs-btn-action:hover:not(:disabled) {
+  background: var(--tinta);
+  border-color: var(--tinta);
+  color: var(--papel-claro);
+}
+
+/* perícias */
 .ep-pericias-lista {
   margin: 0;
   padding: 0;
   list-style: none;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
-  gap: 8px 24px;
+  gap: 6px 28px;
 }
 
 .ep-pericia {
@@ -494,13 +571,8 @@
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  padding: 6px 6px;
-  border-bottom: 1px solid rgba(199, 166, 108, 0.15);
-  transition: background 0.15s ease;
-}
-
-.ep-pericia:hover {
-  background: rgba(26, 61, 53, 0.18);
+  padding: 6px 4px;
+  border-bottom: 1px dotted var(--linha);
 }
 
 .ep-pericia-nome {
@@ -512,87 +584,271 @@
 
 .ep-pericia-nome strong {
   font-weight: 500;
-  font-size: 14px;
-  color: var(--ep-marfim);
-  letter-spacing: 0.02em;
+  font-size: 16px;
+  color: var(--tinta);
 }
 
 .ep-pericia-nome small {
-  font-size: 11px;
-  color: var(--ep-suave);
-  text-transform: uppercase;
-  font-family: var(--ep-titulo);
+  font-size: 12px;
+  font-style: italic;
+  color: var(--tinta-fraca);
 }
 
-.ep-pericias .cs-skill-input {
+.sheet .ep-folio .ep-pericias .cs-skill-input {
   width: 54px;
   flex: none;
+  padding: 3px 0;
   text-align: center;
   font-family: var(--ep-titulo);
-  color: var(--ep-ouro);
-  background: rgba(7, 16, 14, 0.9);
-  border: 1px solid rgba(199, 166, 108, 0.35);
-  border-radius: 3px;
-  padding: 4px 0;
+  color: var(--tinta);
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--linha);
+  border-radius: 0;
 }
 
-.ep-pericias .cs-skill-input:focus {
-  border-color: var(--ep-ouro-forte);
-  box-shadow: 0 0 6px rgba(212, 175, 55, 0.4);
+.sheet .ep-folio .ep-pericias .cs-skill-input:focus {
+  outline: none;
+  border-bottom-color: var(--vinho);
 }
 
-/* ---------- grimório de abas ancestral ---------- */
+/* ---------- abas ---------- */
 
 .ep-abas {
   padding: 0;
-  border-color: rgba(199, 166, 108, 0.4);
-  background: var(--ep-petroleo-card);
 }
 
-.sheet .ep-abas .sheet-tabs {
+.sheet .ep-folio .ep-abas .sheet-tabs {
   display: flex;
-  gap: 4px;
-  padding: 8px 14px 0;
-  border-bottom: 1px solid rgba(199, 166, 108, 0.3);
+  gap: 2px;
+  padding: 0 14px;
   overflow-x: auto;
-  background: #071311;
+  background: transparent;
+  border-bottom: 1px solid var(--linha);
 }
 
-.sheet .ep-abas button.sheet-tab {
+.sheet .ep-folio .ep-abas .sheet-tab {
   flex: 1;
-  min-width: 108px;
-  padding: 12px 14px 11px;
+  min-width: 104px;
+  padding: 12px 12px 10px;
   text-align: center;
   font-family: var(--ep-titulo);
   font-size: 12px;
   font-weight: 600;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--ep-suave);
+  color: var(--tinta-fraca);
   background: transparent;
-  border: 1px solid transparent;
-  border-bottom: none;
-  border-radius: 6px 6px 0 0;
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: color 0.15s ease, border-color 0.15s ease;
 }
 
-.sheet .ep-abas button.sheet-tab:hover {
-  color: var(--ep-ouro);
-  background: rgba(26, 61, 53, 0.25);
+.sheet .ep-folio .ep-abas .sheet-tab:hover {
+  color: var(--tinta);
 }
 
-.sheet .ep-abas button.sheet-tab--active {
-  color: #fff6de;
-  background: var(--ep-petroleo-card);
-  border-color: rgba(199, 166, 108, 0.45);
-  border-top: 2px solid var(--ep-ouro-forte);
-  text-shadow: 0 0 10px rgba(240, 219, 162, 0.5);
+.sheet .ep-folio .ep-abas .sheet-tab--active {
+  color: var(--tinta);
+  background: transparent;
+  border-bottom-color: var(--vinho);
 }
 
 .ep-abas .sheet-content {
+  min-height: 280px;
   padding: 22px;
-  min-height: 290px;
+}
+
+/* ---------- conteúdo dentro das abas ---------- */
+
+.sheet .ep-folio .btn-ghost {
+  background: transparent;
+  border: 1px solid var(--linha);
+  border-radius: 2px;
+  color: var(--tinta-suave);
+  font-family: var(--ep-corpo);
+}
+
+.sheet .ep-folio .btn-ghost:hover:not(:disabled) {
+  background: var(--tinta);
+  border-color: var(--tinta);
+  color: var(--papel-claro);
+}
+
+.sheet .ep-folio .btn-primary {
+  background: var(--tinta);
+  border: 1px solid var(--tinta);
+  border-radius: 2px;
+  color: var(--papel-claro);
+  font-family: var(--ep-corpo);
+}
+
+.sheet .ep-folio .btn-primary:hover:not(:disabled) {
+  background: var(--vinho);
+  border-color: var(--vinho);
+}
+
+.ep-foto-btn {
+  padding: 3px 10px;
+  font-family: var(--ep-titulo);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.sheet .ep-folio .cs-section-head {
+  border-bottom: 1px solid var(--linha-suave);
+}
+
+.sheet .ep-folio .cs-section-title h4 {
+  font-family: var(--ep-titulo);
+  font-size: 1rem;
+  letter-spacing: 0.08em;
+  color: var(--tinta);
+}
+
+.sheet .ep-folio .cs-section-title small {
+  color: var(--tinta-fraca);
+}
+
+.sheet .ep-folio .cs-section-divider {
+  background: var(--linha-suave);
+}
+
+.sheet .ep-folio .sheet-list--spells > li,
+.sheet .ep-folio .sheet-list--abilities > li,
+.sheet .ep-folio .cs-class-ability-item {
+  background: rgba(255, 248, 230, 0.25);
+  border: 1px solid var(--linha-suave);
+  border-radius: 2px;
+}
+
+.sheet .ep-folio .sheet-list--spells > li p,
+.sheet .ep-folio .sheet-list--abilities > li p,
+.sheet .ep-folio .cs-class-ability-item p {
+  color: var(--tinta-suave);
+}
+
+.sheet .ep-folio .sheet-spell-head,
+.sheet .ep-folio .cs-class-ability-header strong {
+  color: var(--tinta);
+}
+
+.sheet .ep-folio .sheet-list-tag {
+  font-family: var(--ep-titulo);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  color: var(--vinho);
+}
+
+.sheet .ep-folio .cs-class-abilities-available {
+  background: transparent;
+  border: 1px dashed var(--linha);
+  border-radius: 2px;
+}
+
+.sheet .ep-folio .cs-class-abilities-available h5 {
+  font-family: var(--ep-titulo);
+  letter-spacing: 0.08em;
+  color: var(--tinta);
+}
+
+.sheet .ep-folio .cs-class-ability-item--owned {
+  opacity: 0.8;
+  border-color: var(--musgo);
+}
+
+.sheet .ep-folio .cs-badge-acquired {
+  color: var(--musgo);
+}
+
+.sheet .ep-folio .cs-badge-locked {
+  color: var(--tinta-fraca);
+}
+
+.sheet .ep-folio .cs-inline-form {
+  background: rgba(255, 250, 235, 0.3);
+  border: 1px dashed var(--linha);
+}
+
+.sheet .ep-folio .cs-inline-form input,
+.sheet .ep-folio .field input,
+.sheet .ep-folio .field select,
+.sheet .ep-folio .field textarea {
+  background: rgba(255, 250, 235, 0.55);
+  border: 1px solid var(--linha-suave);
+  border-radius: 2px;
+  color: var(--tinta);
+}
+
+.sheet .ep-folio .cs-inline-form input:focus,
+.sheet .ep-folio .field input:focus,
+.sheet .ep-folio .field textarea:focus {
+  border-color: var(--vinho);
+  outline: 1px solid var(--vinho);
+  outline-offset: 0;
+}
+
+.sheet .ep-folio .field > span,
+.sheet .ep-folio .field label {
+  color: var(--tinta-suave);
+}
+
+.sheet .ep-folio .cs-btn-icon {
+  background: transparent;
+  border: 1px solid var(--linha);
+  border-radius: 2px;
+  color: var(--tinta-suave);
+}
+
+.sheet .ep-folio .cs-btn-icon:hover {
+  border-color: var(--vinho);
+  color: var(--vinho);
+}
+
+.sheet .ep-folio .cs-story h3 {
+  font-family: var(--ep-titulo);
+  letter-spacing: 0.1em;
+  color: var(--tinta);
+}
+
+.sheet .ep-folio .sheet-notes {
+  color: var(--tinta);
+}
+
+.sheet .ep-folio .sheet-empty,
+.sheet .ep-folio .class-info-empty {
+  font-style: italic;
+  color: var(--tinta-fraca);
+}
+
+.sheet .ep-folio .class-info {
+  background: rgba(255, 248, 230, 0.25);
+  border: 1px solid var(--linha-suave);
+  border-left: 3px solid var(--linha);
+  color: var(--tinta);
+}
+
+.sheet .ep-folio .class-info-name,
+.sheet .ep-folio .class-info-text,
+.sheet .ep-folio .class-info-abilities li strong,
+.sheet .ep-folio .inventory-item-title,
+.sheet .ep-folio .inventory-item-description {
+  color: var(--tinta);
+}
+
+.sheet .ep-folio .class-info-name {
+  font-family: var(--ep-titulo);
+  letter-spacing: 0.08em;
+}
+
+.sheet .ep-folio .class-info-chip {
+  background: transparent;
+  border: 1px solid var(--linha);
+  border-radius: 2px;
+  color: var(--tinta-suave);
 }
 
 /* ---------- rodapé ---------- */
@@ -602,19 +858,20 @@
   justify-content: space-between;
   gap: 12px;
   padding: 12px 26px;
-  border-top: 1px solid rgba(199, 166, 108, 0.22);
+  border-top: 3px double var(--linha);
   font-family: var(--ep-titulo);
   font-size: 11px;
-  letter-spacing: 0.1em;
-  color: var(--ep-suave);
-  background: #06100e;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--tinta-fraca);
+  background: transparent;
 }
 
 .ep-rodape span:last-child {
-  color: var(--ep-ouro);
+  color: var(--vinho);
 }
 
-/* ---------- responsividade refinada ---------- */
+/* ---------- responsividade ---------- */
 
 @media (max-width: 960px) {
   .ep-attr-grid {
@@ -626,8 +883,8 @@
   .ep-topo {
     flex-direction: column;
     align-items: stretch;
-    padding: 20px 16px;
     gap: 16px;
+    padding: 20px 16px;
   }
 
   .ep-bolsa {
@@ -657,14 +914,8 @@
     padding: 16px;
   }
 
-  .ep-blocos {
-    padding-inline: 14px;
-  }
-
-  .ep-divisor {
-    padding-inline: 14px;
-  }
-
+  .ep-blocos,
+  .ep-divisor,
   .ep-rodape {
     padding-inline: 14px;
   }

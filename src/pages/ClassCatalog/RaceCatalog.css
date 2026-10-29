@@ -1,0 +1,30 @@
+/* Complementa ClassCatalog.css: só o que é específico de raças. */
+
+.race-editor-description {
+  display: grid;
+  gap: 4px;
+  margin-top: 14px;
+  color: var(--muted, rgba(236, 223, 192, 0.75));
+  font-size: 0.8rem;
+}
+
+.race-editor-description textarea {
+  width: 100%;
+  resize: vertical;
+}
+
+/* Traço racial: nome + botão de remover (sem coluna de nível) */
+.class-editor-entry.is-trait {
+  grid-template-columns: minmax(0, 1fr) 36px;
+  align-items: center;
+}
+
+.class-editor-new.is-trait {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@media (max-width: 600px) {
+  .class-editor-new.is-trait {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

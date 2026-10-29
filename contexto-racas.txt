@@ -1,0 +1,3206 @@
+﻿CONTEXTO RACAS - gerado em 10/28/2026 23:09:15
+
+
+===== src/data/raceCatalog.ts =====
+import { ATTRIBUTE_CONFIG, type BaseAttributeKey } from "./personaRules";
+
+export interface RaceTraitDefinition {
+  id: string;
+  nome: string;
+  descricao: string;
+}
+
+export interface RaceDefinition {
+  id: string;
+  nome: string;
+  /** Nomes antigos ou grafias alternativas ("Meio-orc"): personagens guardam a raça pelo nome. */
+  aliases: string[];
+  descricao: string;
+  atributoBonus: Record<BaseAttributeKey, number>;
+  hpBonus: number;
+  mpBonus: number;
+  tracos: RaceTraitDefinition[];
+}
+
+const ATRIBUTOS: BaseAttributeKey[] = ATTRIBUTE_CONFIG.map(({ key }) => key);
+
+function bonusZerado(): Record<BaseAttributeKey, number> {
+  return Object.fromEntries(ATRIBUTOS.map((key) => [key, 0])) as Record<BaseAttributeKey, number>;
+}
+
+function racaPadrao(
+  id: string,
+  nome: string,
+  opcoes: {
+    aliases?: string[];
+    atributos?: Partial<Record<BaseAttributeKey, number>>;
+    hp?: number;
+    mp?: number;
+    traco?: { nome: string; descricao: string };
+  } = {},
+): RaceDefinition {
+  return {
+    id,
+    nome,
+    aliases: opcoes.aliases ?? [],
+    descricao: "",
+    atributoBonus: { ...bonusZerado(), ...opcoes.atributos },
+    hpBonus: opcoes.hp ?? 0,
+    mpBonus: opcoes.mp ?? 0,
+    tracos: opcoes.traco
+      ? [{ id: `traco-${id}-1`, nome: opcoes.traco.nome, descricao: opcoes.traco.descricao }]
+      : [],
+  };
+}
+
+/**
+ * União das duas listas que existiam no código (RACAS do seletor e RACE_BONUSES das regras).
+ * Os bônus são exatamente os de RACE_BONUSES; raças que só existiam no seletor
+ * (Gnomo, Halfling, Meio-elfo, Tiefling) começam sem bônus, como já se comportavam.
+ */
+export const DEFAULT_RACE_CATALOG: RaceDefinition[] = [
+  racaPadrao("anao", "Anão", {
+    atributos: { constituicao: 2 },
+    hp: 10,
+    traco: { nome: "Vigor da Montanha", descricao: "+2 em Constituição e +10 Pontos de Vida (PV)" },
+  }),
+  racaPadrao("draconato", "Draconato", {
+    atributos: { forca: 2, carisma: 1 },
+    traco: { nome: "Herança Dracônica", descricao: "+2 em Força e +1 em Carisma" },
+  }),
+  racaPadrao("elfo", "Elfo", {
+    atributos: { destreza: 2 },
+    mp: 5,
+    traco: { nome: "Graça Élfica", descricao: "+2 em Destreza e +5 Pontos de Mana (PM)" },
+  }),
+  racaPadrao("gnomo", "Gnomo"),
+  racaPadrao("halfling", "Halfling"),
+  racaPadrao("humano", "Humano", {
+    atributos: { forca: 1, destreza: 1, constituicao: 1, inteligencia: 1, carisma: 1 },
+    traco: {
+      nome: "Versatilidade Humana",
+      descricao: "+1 em Força, Destreza, Constituição, Inteligência e Carisma",
+    },
+  }),
+  racaPadrao("meio-elfo", "Meio-elfo"),
+  racaPadrao("meio-orc", "Meio-Orc", {
+    aliases: ["Meio-orc"],
+    atributos: { forca: 2, constituicao: 1 },
+    traco: { nome: "Fúria Implacável", descricao: "+2 em Força e +1 em Constituição" },
+  }),
+  racaPadrao("orc", "Orc", {
+    atributos: { forca: 2 },
+    hp: 6,
+    traco: { nome: "Brutalidade Primitiva", descricao: "+2 em Força e +6 Pontos de Vida (PV)" },
+  }),
+  racaPadrao("tiefling", "Tiefling"),
+];
+
+/** Ignora acentos, maiúsculas e espaços nas pontas ("Meio-orc" = "meio-Orc", "Anão" = "ANAO"). */
+export function chaveDeRaca(nome: string | null | undefined): string {
+  return (nome ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLocaleLowerCase();
+}
+
+export function findRaceDefinition(
+  nome: string | null | undefined,
+  catalogo: RaceDefinition[] = DEFAULT_RACE_CATALOG,
+): RaceDefinition | undefined {
+  const chave = chaveDeRaca(nome);
+  if (!chave) return undefined;
+  return catalogo.find(
+    (raca) =>
+      chaveDeRaca(raca.nome) === chave
+      || raca.aliases.some((alias) => chaveDeRaca(alias) === chave),
+  );
+}
+
+function textoSeguro(valor: unknown): string {
+  return typeof valor === "string" ? valor.trim().slice(0, 500) : "";
+}
+
+function numeroSeguro(valor: unknown, fallback = 0): number {
+  return typeof valor === "number" && Number.isFinite(valor) ? Math.trunc(valor) : fallback;
+}
+
+export function normalizarCatalogoRacas(valor: unknown): RaceDefinition[] {
+  if (!Array.isArray(valor)) return DEFAULT_RACE_CATALOG;
+
+  return valor.flatMap((item): RaceDefinition[] => {
+    if (typeof item !== "object" || item === null) return [];
+    const entrada = item as Record<string, unknown>;
+    const id = textoSeguro(entrada.id);
+    const nome = textoSeguro(entrada.nome);
+    if (!id || !nome) return [];
+
+    const bonusEntrada =
+      typeof entrada.atributoBonus === "object" && entrada.atributoBonus !== null
+        ? (entrada.atributoBonus as Record<string, unknown>)
+        : {};
+    const atributoBonus = Object.fromEntries(
+      ATRIBUTOS.map((atributo) => [atributo, numeroSeguro(bonusEntrada[atributo])]),
+    ) as Record<BaseAttributeKey, number>;
+
+    const tracos: RaceTraitDefinition[] = Array.isArray(entrada.tracos)
+      ? entrada.tracos.flatMap((itemTraco): RaceTraitDefinition[] => {
+          if (typeof itemTraco !== "object" || itemTraco === null) return [];
+          const traco = itemTraco as Record<string, unknown>;
+          const tracoId = textoSeguro(traco.id);
+          const nomeTraco = textoSeguro(traco.nome);
+          if (!tracoId || !nomeTraco) return [];
+          return [{ id: tracoId, nome: nomeTraco, descricao: textoSeguro(traco.descricao) }];
+        })
+      : [];
+
+    return [{
+      id,
+      nome,
+      aliases: Array.isArray(entrada.aliases)
+        ? [...new Set(entrada.aliases.map(textoSeguro).filter(Boolean))]
+        : [],
+      descricao: textoSeguro(entrada.descricao),
+      atributoBonus,
+      hpBonus: numeroSeguro(entrada.hpBonus),
+      mpBonus: numeroSeguro(entrada.mpBonus),
+      tracos,
+    }];
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Raças por campanha: o Mestre libera/bloqueia raças do catálogo global,
+// ajusta bônus só para a mesa e cria raças exclusivas da campanha.
+// ---------------------------------------------------------------------------
+
+export interface CampaignRaceOverride {
+  /** Impede escolher a raça em NOVOS personagens. Fichas existentes não mudam. */
+  bloqueada?: boolean;
+  /** Bônus de atributo que substituem os do catálogo global (só nesta campanha). */
+  atributoBonus?: Partial<Record<BaseAttributeKey, number>>;
+  hpBonus?: number;
+  mpBonus?: number;
+}
+
+export interface CampaignRaceConfig {
+  /** Chave = id da raça (estável mesmo se o nome mudar). */
+  overrides: Record<string, CampaignRaceOverride>;
+  exclusivas: RaceDefinition[];
+}
+
+export const EMPTY_CAMPAIGN_RACE_CONFIG: CampaignRaceConfig = { overrides: {}, exclusivas: [] };
+
+export interface RaceResolvida extends RaceDefinition {
+  origem: "GLOBAL" | "CAMPANHA";
+  bloqueada: boolean;
+  /** true quando o Mestre trocou os bônus do catálogo global nesta campanha. */
+  personalizada: boolean;
+}
+
+function overrideTemConteudo(o: CampaignRaceOverride): boolean {
+  return (
+    Boolean(o.bloqueada)
+    || o.atributoBonus !== undefined
+    || o.hpBonus !== undefined
+    || o.mpBonus !== undefined
+  );
+}
+
+export function normalizarConfigRacasCampanha(valor: unknown): CampaignRaceConfig {
+  if (typeof valor !== "object" || valor === null) return EMPTY_CAMPAIGN_RACE_CONFIG;
+  const entrada = valor as Record<string, unknown>;
+
+  const overrides: Record<string, CampaignRaceOverride> = {};
+  if (typeof entrada.overrides === "object" && entrada.overrides !== null) {
+    for (const [id, bruto] of Object.entries(entrada.overrides)) {
+      if (typeof bruto !== "object" || bruto === null) continue;
+      const o = bruto as Record<string, unknown>;
+      const resultado: CampaignRaceOverride = {};
+
+      if (o.bloqueada === true) resultado.bloqueada = true;
+
+      if (typeof o.atributoBonus === "object" && o.atributoBonus !== null) {
+        const bonus = o.atributoBonus as Record<string, unknown>;
+        const parcial: Partial<Record<BaseAttributeKey, number>> = {};
+        for (const atributo of ATRIBUTOS) {
+          const v = bonus[atributo];
+          if (typeof v === "number" && Number.isFinite(v)) parcial[atributo] = Math.trunc(v);
+        }
+        if (Object.keys(parcial).length > 0) resultado.atributoBonus = parcial;
+      }
+
+      if (typeof o.hpBonus === "number" && Number.isFinite(o.hpBonus)) {
+        resultado.hpBonus = Math.trunc(o.hpBonus);
+      }
+      if (typeof o.mpBonus === "number" && Number.isFinite(o.mpBonus)) {
+        resultado.mpBonus = Math.trunc(o.mpBonus);
+      }
+
+      if (overrideTemConteudo(resultado)) overrides[id] = resultado;
+    }
+  }
+
+  const exclusivas = Array.isArray(entrada.exclusivas)
+    ? normalizarCatalogoRacas(entrada.exclusivas)
+    : [];
+
+  return { overrides, exclusivas };
+}
+
+/**
+ * Raças válidas numa campanha: catálogo global (com os ajustes do Mestre) + raças exclusivas.
+ * Raças bloqueadas continuam na lista (com bloqueada = true) para que fichas existentes
+ * mantenham os bônus; quem monta o seletor de criação é que filtra as bloqueadas.
+ */
+export function racasDaCampanha(
+  catalogo: RaceDefinition[],
+  config: CampaignRaceConfig = EMPTY_CAMPAIGN_RACE_CONFIG,
+): RaceResolvida[] {
+  const globais: RaceResolvida[] = catalogo.map((raca) => {
+    const o = config.overrides[raca.id];
+    return {
+      ...raca,
+      atributoBonus: o?.atributoBonus
+        ? { ...raca.atributoBonus, ...o.atributoBonus }
+        : raca.atributoBonus,
+      hpBonus: o?.hpBonus ?? raca.hpBonus,
+      mpBonus: o?.mpBonus ?? raca.mpBonus,
+      origem: "GLOBAL",
+      bloqueada: Boolean(o?.bloqueada),
+      personalizada:
+        o?.atributoBonus !== undefined || o?.hpBonus !== undefined || o?.mpBonus !== undefined,
+    };
+  });
+
+  const nomesGlobais = new Set(catalogo.map((raca) => chaveDeRaca(raca.nome)));
+  const exclusivas: RaceResolvida[] = config.exclusivas
+    .filter((raca) => !nomesGlobais.has(chaveDeRaca(raca.nome)))
+    .map((raca) => ({
+      ...raca,
+      origem: "CAMPANHA",
+      bloqueada: Boolean(config.overrides[raca.id]?.bloqueada),
+      personalizada: false,
+    }));
+
+  return [...globais, ...exclusivas];
+}
+
+
+
+===== src/pages/Campaign/CampaignRaces.tsx =====
+import { Fragment, useEffect, useMemo, useState, type FormEvent } from "react";
+import { ATTRIBUTE_CONFIG, type BaseAttributeKey } from "../../data/personaRules";
+import { salvarRacasCampanha } from "../../services/api";
+import {
+  chaveDeRaca,
+  racasDaCampanha,
+  type CampaignRaceConfig,
+  type CampaignRaceOverride,
+  type RaceDefinition,
+  type RaceResolvida,
+} from "../../data/raceCatalog";
+import "./CampaignRaces.css";
+
+interface CampaignRacesProps {
+  campanhaId: string;
+  isMaster: boolean;
+  catalogo: RaceDefinition[];
+  config: CampaignRaceConfig;
+  /** true quando a configuração não pôde ser lida: bloqueia o salvamento para não apagar o que já existe. */
+  falhaCarga: boolean;
+  onSaved: (config: CampaignRaceConfig) => void;
+}
+
+type Filtro = "TODAS" | "DISPONIVEIS" | "BLOQUEADAS";
+
+function criarId() {
+  const uuid = globalThis.crypto?.randomUUID?.()
+    ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  return `raca-campanha-${uuid}`;
+}
+
+function bonusZerado(): Record<BaseAttributeKey, number> {
+  return Object.fromEntries(
+    ATTRIBUTE_CONFIG.map(({ key }) => [key, 0]),
+  ) as Record<BaseAttributeKey, number>;
+}
+
+function formatar(valor: number) {
+  return valor > 0 ? `+${valor}` : `${valor}`;
+}
+
+function resumoAtributos(raca: RaceResolvida) {
+  const partes = ATTRIBUTE_CONFIG
+    .filter(({ key }) => raca.atributoBonus[key] !== 0)
+    .map(({ key, abbr }) => `${abbr} ${formatar(raca.atributoBonus[key])}`);
+  return partes.length > 0 ? partes.join(" · ") : "Sem bônus";
+}
+
+function limparOverrides(overrides: Record<string, CampaignRaceOverride>) {
+  return Object.fromEntries(
+    Object.entries(overrides).filter(
+      ([, o]) =>
+        o.bloqueada
+        || o.atributoBonus !== undefined
+        || o.hpBonus !== undefined
+        || o.mpBonus !== undefined,
+    ),
+  );
+}
+
+export default function CampaignRaces({
+  campanhaId,
+  isMaster,
+  catalogo,
+  config,
+  falhaCarga,
+  onSaved,
+}: CampaignRacesProps) {
+  const [rascunho, setRascunho] = useState<CampaignRaceConfig>(config);
+  const [filtro, setFiltro] = useState<Filtro>("TODAS");
+  const [busca, setBusca] = useState("");
+  const [editando, setEditando] = useState<string | null>(null);
+  const [salvando, setSalvando] = useState(false);
+  const [mensagem, setMensagem] = useState("");
+  const [erro, setErro] = useState("");
+
+  const [nomeNova, setNomeNova] = useState("");
+  const [descricaoNova, setDescricaoNova] = useState("");
+  const [bonusNova, setBonusNova] = useState<Record<BaseAttributeKey, number>>(bonusZerado);
+  const [hpNova, setHpNova] = useState(0);
+  const [mpNova, setMpNova] = useState(0);
+  const [erroNova, setErroNova] = useState("");
+
+  // Só volta ao que está salvo quando o servidor trouxer algo diferente
+  // (recarregar a página de campanha por outro motivo não apaga edições em andamento).
+  const configSalva = JSON.stringify(config);
+  useEffect(() => {
+    setRascunho(JSON.parse(configSalva) as CampaignRaceConfig);
+  }, [configSalva]);
+
+  const alterado = JSON.stringify(rascunho) !== configSalva;
+  const podeEditar = isMaster && !falhaCarga;
+
+  const resolvidas = useMemo(() => racasDaCampanha(catalogo, rascunho), [catalogo, rascunho]);
+  const totalBloqueadas = resolvidas.filter((raca) => raca.bloqueada).length;
+  const totalDisponiveis = resolvidas.length - totalBloqueadas;
+
+  const termo = chaveDeRaca(busca);
+  const visiveis = resolvidas.filter((raca) => {
+    if (filtro === "DISPONIVEIS" && raca.bloqueada) return false;
+    if (filtro === "BLOQUEADAS" && !raca.bloqueada) return false;
+    return !termo || chaveDeRaca(raca.nome).includes(termo);
+  });
+
+  function mudarOverride(id: string, alterar: (atual: CampaignRaceOverride) => CampaignRaceOverride) {
+    setMensagem("");
+    setRascunho((atual) => ({
+      ...atual,
+      overrides: limparOverrides({
+        ...atual.overrides,
+        [id]: alterar(atual.overrides[id] ?? {}),
+      }),
+    }));
+  }
+
+  function alternarBloqueio(raca: RaceResolvida) {
+    mudarOverride(raca.id, (o) => {
+      const proximo = { ...o };
+      if (raca.bloqueada) delete proximo.bloqueada;
+      else proximo.bloqueada = true;
+      return proximo;
+    });
+  }
+
+  function editarBonus(raca: RaceResolvida, campo: BaseAttributeKey | "hp" | "mp", valor: number) {
+    setMensagem("");
+    if (raca.origem === "CAMPANHA") {
+      setRascunho((atual) => ({
+        ...atual,
+        exclusivas: atual.exclusivas.map((item) => {
+          if (item.id !== raca.id) return item;
+          if (campo === "hp") return { ...item, hpBonus: valor };
+          if (campo === "mp") return { ...item, mpBonus: valor };
+          return { ...item, atributoBonus: { ...item.atributoBonus, [campo]: valor } };
+        }),
+      }));
+      return;
+    }
+    mudarOverride(raca.id, (o) => {
+      if (campo === "hp") return { ...o, hpBonus: valor };
+      if (campo === "mp") return { ...o, mpBonus: valor };
+      return { ...o, atributoBonus: { ...raca.atributoBonus, ...o.atributoBonus, [campo]: valor } };
+    });
+  }
+
+  function restaurarPadrao(raca: RaceResolvida) {
+    mudarOverride(raca.id, (o) => {
+      const proximo = { ...o };
+      delete proximo.atributoBonus;
+      delete proximo.hpBonus;
+      delete proximo.mpBonus;
+      return proximo;
+    });
+  }
+
+  function removerExclusiva(raca: RaceResolvida) {
+    const confirmado = window.confirm(
+      `Remover a raça "${raca.nome}" desta campanha?\n\nPersonagens que já usam essa raça mantêm o nome, mas deixam de receber os bônus dela.`,
+    );
+    if (!confirmado) return;
+    setMensagem("");
+    setEditando((atual) => (atual === raca.id ? null : atual));
+    setRascunho((atual) => ({
+      overrides: limparOverrides(
+        Object.fromEntries(Object.entries(atual.overrides).filter(([id]) => id !== raca.id)),
+      ),
+      exclusivas: atual.exclusivas.filter((item) => item.id !== raca.id),
+    }));
+  }
+
+  function adicionarExclusiva(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const nome = nomeNova.trim();
+    if (!nome) return;
+    if (resolvidas.some((raca) => chaveDeRaca(raca.nome) === chaveDeRaca(nome))) {
+      setErroNova(`Já existe uma raça chamada "${nome}" nesta campanha.`);
+      return;
+    }
+    const nova: RaceDefinition = {
+      id: criarId(),
+      nome,
+      aliases: [],
+      descricao: descricaoNova.trim(),
+      atributoBonus: { ...bonusNova },
+      hpBonus: hpNova,
+      mpBonus: mpNova,
+      tracos: [],
+    };
+    setMensagem("");
+    setRascunho((atual) => ({ ...atual, exclusivas: [...atual.exclusivas, nova] }));
+    setNomeNova("");
+    setDescricaoNova("");
+    setBonusNova(bonusZerado());
+    setHpNova(0);
+    setMpNova(0);
+    setErroNova("");
+  }
+
+  async function salvar() {
+    if (!podeEditar || salvando || !alterado) return;
+    setSalvando(true);
+    setErro("");
+    setMensagem("");
+    try {
+      const salva = await salvarRacasCampanha(campanhaId, rascunho);
+      onSaved(salva);
+      setRascunho(salva);
+      setMensagem("Raças da campanha salvas.");
+    } catch (error) {
+      setErro(error instanceof Error ? error.message : "Não foi possível salvar as raças.");
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  function descartar() {
+    setRascunho(JSON.parse(configSalva) as CampaignRaceConfig);
+    setErro("");
+    setMensagem("");
+  }
+
+  return (
+    <div className="cr-root">
+      <p className="cr-intro">
+        {isMaster
+          ? "Libere ou bloqueie as raças do catálogo global para novos personagens, ajuste os bônus só para esta mesa ou crie raças exclusivas desta campanha. Bloquear uma raça nunca altera fichas que já existem."
+          : "Estas são as raças que o Mestre definiu para esta campanha."}
+      </p>
+
+      {falhaCarga && (
+        <p className="cr-alert" role="alert">
+          Não foi possível carregar a configuração de raças desta campanha. A edição está
+          desativada para não apagar o que já estava salvo. Recarregue a página para tentar de novo.
+        </p>
+      )}
+
+      {isMaster && (
+        <div className="cr-actionbar">
+          <span className={`cr-badge${alterado ? " is-dirty" : ""}`}>
+            {alterado ? "Alterações não salvas" : "Tudo salvo"}
+          </span>
+          <div className="cr-actions">
+            {alterado && (
+              <button type="button" className="btn-ghost" onClick={descartar} disabled={salvando}>
+                Descartar
+              </button>
+            )}
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={() => void salvar()}
+              disabled={!podeEditar || salvando || !alterado}
+            >
+              {salvando ? "Salvando..." : "Salvar raças"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {erro && <p className="cr-alert" role="alert">{erro}</p>}
+      {mensagem && <p className="cr-ok" role="status">{mensagem}</p>}
+
+      <div className="cr-filters">
+        <input
+          type="search"
+          value={busca}
+          onChange={(event) => setBusca(event.target.value)}
+          placeholder="Filtrar raças pelo nome..."
+          aria-label="Filtrar raças pelo nome"
+        />
+        <div className="cr-pills">
+          <button type="button" className={filtro === "TODAS" ? "is-active" : ""} onClick={() => setFiltro("TODAS")}>
+            Todas ({resolvidas.length})
+          </button>
+          <button type="button" className={filtro === "DISPONIVEIS" ? "is-active" : ""} onClick={() => setFiltro("DISPONIVEIS")}>
+            Disponíveis ({totalDisponiveis})
+          </button>
+          <button type="button" className={filtro === "BLOQUEADAS" ? "is-active" : ""} onClick={() => setFiltro("BLOQUEADAS")}>
+            Bloqueadas ({totalBloqueadas})
+          </button>
+        </div>
+      </div>
+
+      <div className="cr-table-wrap">
+        <table className="cr-table">
+          <thead>
+            <tr>
+              <th>Raça</th>
+              <th>Origem</th>
+              <th>Bônus de atributos</th>
+              <th>Recursos</th>
+              <th>Disponibilidade</th>
+              {podeEditar && <th>Ações</th>}
+            </tr>
+          </thead>
+          <tbody>
+            {visiveis.map((raca) => (
+              <Fragment key={raca.id}>
+                <tr className={raca.bloqueada ? "is-blocked" : ""}>
+                  <td>
+                    <strong>{raca.nome}</strong>
+                    {raca.descricao && <small className="cr-desc">{raca.descricao}</small>}
+                  </td>
+                  <td>
+                    <span className={`cr-pill ${raca.origem === "GLOBAL" ? "is-global" : "is-campaign"}`}>
+                      {raca.origem === "GLOBAL" ? "Catálogo global" : "Exclusiva da campanha"}
+                    </span>
+                    {raca.personalizada && <span className="cr-pill is-custom">Bônus ajustados</span>}
+                  </td>
+                  <td>{resumoAtributos(raca)}</td>
+                  <td>
+                    PV {formatar(raca.hpBonus)} · PM {formatar(raca.mpBonus)}
+                  </td>
+                  <td>
+                    <span className={`cr-status ${raca.bloqueada ? "is-blocked" : "is-available"}`}>
+                      {raca.bloqueada ? "Bloqueada na criação" : "Disponível"}
+                    </span>
+                  </td>
+                  {podeEditar && (
+                    <td>
+                      <div className="cr-row-actions">
+                        <button type="button" onClick={() => alternarBloqueio(raca)}>
+                          {raca.bloqueada ? "Liberar" : "Bloquear"}
+                        </button>
+                        <button
+                          type="button"
+                          aria-expanded={editando === raca.id}
+                          onClick={() => setEditando((atual) => (atual === raca.id ? null : raca.id))}
+                        >
+                          {editando === raca.id ? "Fechar bônus" : "Editar bônus"}
+                        </button>
+                        {raca.origem === "CAMPANHA" && (
+                          <button type="button" className="is-danger" onClick={() => removerExclusiva(raca)}>
+                            Remover
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  )}
+                </tr>
+                {podeEditar && editando === raca.id && (
+                  <tr className="cr-edit-row">
+                    <td colSpan={6}>
+                      <div className="cr-bonus-grid" role="group" aria-label={`Bônus de ${raca.nome} nesta campanha`}>
+                        {ATTRIBUTE_CONFIG.map(({ key, label }) => (
+                          <label key={key}>
+                            <span>{label}</span>
+                            <input
+                              type="number"
+                              aria-label={`${raca.nome} - ${label}`}
+                              value={raca.atributoBonus[key]}
+                              onChange={(event) => editarBonus(raca, key, Number(event.target.value) || 0)}
+                            />
+                          </label>
+                        ))}
+                        <label>
+                          <span>Vida (PV)</span>
+                          <input
+                            type="number"
+                            aria-label={`${raca.nome} - Vida`}
+                            value={raca.hpBonus}
+                            onChange={(event) => editarBonus(raca, "hp", Number(event.target.value) || 0)}
+                          />
+                        </label>
+                        <label>
+                          <span>Mana (PM)</span>
+                          <input
+                            type="number"
+                            aria-label={`${raca.nome} - Mana`}
+                            value={raca.mpBonus}
+                            onChange={(event) => editarBonus(raca, "mp", Number(event.target.value) || 0)}
+                          />
+                        </label>
+                      </div>
+                      {raca.personalizada && (
+                        <button type="button" className="cr-restore" onClick={() => restaurarPadrao(raca)}>
+                          Restaurar bônus do catálogo global
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
+            ))}
+            {visiveis.length === 0 && (
+              <tr>
+                <td colSpan={podeEditar ? 6 : 5} className="cr-empty">
+                  Nenhuma raça encontrada com esse filtro.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {podeEditar && (
+        <form className="cr-new" onSubmit={adicionarExclusiva}>
+          <h4>Criar raça exclusiva desta campanha</h4>
+          <div className="cr-new-grid">
+            <label className="cr-wide">
+              <span>Nome da raça</span>
+              <input
+                value={nomeNova}
+                onChange={(event) => {
+                  setNomeNova(event.target.value);
+                  setErroNova("");
+                }}
+                maxLength={100}
+                required
+              />
+            </label>
+            <label className="cr-wide">
+              <span>Descrição (opcional)</span>
+              <textarea
+                rows={2}
+                maxLength={500}
+                value={descricaoNova}
+                onChange={(event) => setDescricaoNova(event.target.value)}
+              />
+            </label>
+            {ATTRIBUTE_CONFIG.map(({ key, label }) => (
+              <label key={key}>
+                <span>{label}</span>
+                <input
+                  type="number"
+                  aria-label={`Bônus de ${label} da nova raça`}
+                  value={bonusNova[key]}
+                  onChange={(event) =>
+                    setBonusNova((atual) => ({ ...atual, [key]: Number(event.target.value) || 0 }))
+                  }
+                />
+              </label>
+            ))}
+            <label>
+              <span>Vida (PV)</span>
+              <input
+                type="number"
+                aria-label="Bônus de PV da nova raça"
+                value={hpNova}
+                onChange={(event) => setHpNova(Number(event.target.value) || 0)}
+              />
+            </label>
+            <label>
+              <span>Mana (PM)</span>
+              <input
+                type="number"
+                aria-label="Bônus de PM da nova raça"
+                value={mpNova}
+                onChange={(event) => setMpNova(Number(event.target.value) || 0)}
+              />
+            </label>
+          </div>
+          {erroNova && <p className="cr-alert" role="alert">{erroNova}</p>}
+          <button type="submit" className="btn-ghost" disabled={!nomeNova.trim()}>
+            Adicionar raça à campanha
+          </button>
+          <p className="cr-hint">A raça só passa a valer depois de clicar em “Salvar raças”.</p>
+        </form>
+      )}
+    </div>
+  );
+}
+
+
+
+===== src/data/personaRules.ts =====
+export const CLASSES = [
+  "Bardo",
+  "Artífice",
+  "Paladino",
+  "Necromante",
+  "Bárbaro",
+  "Clérigo",
+  "Mago",
+  "Ladino",
+  "Guerreiro",
+] as const;
+export type CharacterClass = (typeof CLASSES)[number];
+
+export const RACES = [
+  "Humano",
+  "Elfo",
+  "Anão",
+  "Meio-Orc",
+  "Orc",
+  "Draconato",
+] as const;
+export type CharacterRace = (typeof RACES)[number];
+
+export const AFFILIATIONS = [
+  "Colégio de Magos Arcanum",
+  "Ordem da Presa do Lobo",
+  "Sombras Urbanas",
+] as const;
+export type CharacterAffiliation = (typeof AFFILIATIONS)[number];
+
+export type BaseAttributeKey = "forca" | "destreza" | "constituicao" | "inteligencia" | "carisma";
+
+export interface ClassBonusConfig {
+  atributoBonus: Record<BaseAttributeKey, number>;
+  hpBonus: number;
+  mpBonus: number;
+  bloqueada?: boolean;
+}
+
+export type CampaignClassBonuses = Record<string, ClassBonusConfig>;
+
+export interface ClassSkillDefinition {
+  id: string;
+  nome: string;
+  atributo: BaseAttributeKey;
+  descricao: string;
+}
+
+export interface ClassAbilityDefinition {
+  id: string;
+  nome: string;
+  descricao: string;
+  nivel: number;
+}
+
+export interface ClassSpellDefinition {
+  id: string;
+  nome: string;
+  descricao: string;
+  custo: number;
+  nivel: number;
+}
+
+export interface ClassDefinition extends ClassBonusConfig {
+  id: string;
+  nome: string;
+  aliases: string[];
+  usaMagia: boolean;
+  pericias: ClassSkillDefinition[];
+  habilidades: ClassAbilityDefinition[];
+  magias: ClassSpellDefinition[];
+}
+
+export const ATTRIBUTE_CONFIG: {
+  key: BaseAttributeKey;
+  label: string;
+  abbr: string;
+}[] = [
+  { key: "forca", label: "Força", abbr: "FOR" },
+  { key: "destreza", label: "Destreza", abbr: "DES" },
+  { key: "constituicao", label: "Constituição", abbr: "CON" },
+  { key: "inteligencia", label: "Inteligência", abbr: "INT" },
+  { key: "carisma", label: "Carisma", abbr: "CAR" },
+];
+
+export interface FixedSkillDefinition {
+  id: string;
+  nome: string;
+  atributo: BaseAttributeKey;
+  atributoSigla: string;
+}
+
+export const FIXED_SKILLS: FixedSkillDefinition[] = [
+  { id: "acrobacia", nome: "Acrobacia", atributo: "destreza", atributoSigla: "DES" },
+  { id: "arcanismo", nome: "Arcanismo", atributo: "inteligencia", atributoSigla: "INT" },
+  { id: "atletismo", nome: "Atletismo", atributo: "forca", atributoSigla: "FOR" },
+  { id: "atuacao", nome: "Atuação", atributo: "carisma", atributoSigla: "CAR" },
+  { id: "blefar", nome: "Blefar", atributo: "carisma", atributoSigla: "CAR" },
+  { id: "furtividade", nome: "Furtividade", atributo: "destreza", atributoSigla: "DES" },
+  { id: "historia", nome: "História", atributo: "inteligencia", atributoSigla: "INT" },
+  { id: "intimidacao", nome: "Intimidação", atributo: "carisma", atributoSigla: "CAR" },
+  { id: "investigacao", nome: "Investigação", atributo: "inteligencia", atributoSigla: "INT" },
+  { id: "persuasao", nome: "Persuasão", atributo: "carisma", atributoSigla: "CAR" },
+  { id: "religiao", nome: "Religião", atributo: "inteligencia", atributoSigla: "INT" },
+];
+
+export interface PersonaBonusDefinition {
+  origem: "Classe" | "Raça" | "Filiação";
+  nome: string;
+  categoria: string;
+  descricao: string;
+  atributoBonus?: Partial<Record<BaseAttributeKey, number>>;
+  hpBonus?: number;
+  mpBonus?: number;
+}
+
+/**
+ * Tabelas de Bônus Automáticos para Persona.
+ * Estruturadas de forma modular para fácil substituição/atualização
+ * assim que as tabelas finais forem fornecidas.
+ */
+export const RACE_BONUSES: Record<string, PersonaBonusDefinition> = {
+  Humano: {
+    origem: "Raça",
+    categoria: "Humano",
+    nome: "Versatilidade Humana",
+    descricao: "+1 em Força, Destreza, Constituição, Inteligência e Carisma",
+    atributoBonus: { forca: 1, destreza: 1, constituicao: 1, inteligencia: 1, carisma: 1 },
+  },
+  Elfo: {
+    origem: "Raça",
+    categoria: "Elfo",
+    nome: "Graça Élfica",
+    descricao: "+2 em Destreza e +5 Pontos de Mana (PM)",
+    atributoBonus: { destreza: 2 },
+    mpBonus: 5,
+  },
+  Anão: {
+    origem: "Raça",
+    categoria: "Anão",
+    nome: "Vigor da Montanha",
+    descricao: "+2 em Constituição e +10 Pontos de Vida (PV)",
+    atributoBonus: { constituicao: 2 },
+    hpBonus: 10,
+  },
+  "Meio-Orc": {
+    origem: "Raça",
+    categoria: "Meio-Orc",
+    nome: "Fúria Implacável",
+    descricao: "+2 em Força e +1 em Constituição",
+    atributoBonus: { forca: 2, constituicao: 1 },
+  },
+  Orc: {
+    origem: "Raça",
+    categoria: "Orc",
+    nome: "Brutalidade Primitiva",
+    descricao: "+2 em Força e +6 Pontos de Vida (PV)",
+    atributoBonus: { forca: 2 },
+    hpBonus: 6,
+  },
+  Draconato: {
+    origem: "Raça",
+    categoria: "Draconato",
+    nome: "Herança Dracônica",
+    descricao: "+2 em Força e +1 em Carisma",
+    atributoBonus: { forca: 2, carisma: 1 },
+  },
+};
+
+export const CLASS_BONUSES: Record<string, PersonaBonusDefinition> = {
+  Bardo: {
+    origem: "Classe",
+    categoria: "Bardo",
+    nome: "Inspiração Artística",
+    descricao: "+2 em Carisma e +6 Pontos de Mana (PM)",
+    atributoBonus: { carisma: 2 },
+    mpBonus: 6,
+  },
+  Artífice: {
+    origem: "Classe",
+    categoria: "Artífice",
+    nome: "Engenho Arcano",
+    descricao: "+2 em Inteligência e +5 Pontos de Mana (PM)",
+    atributoBonus: { inteligencia: 2 },
+    mpBonus: 5,
+  },
+  Paladino: {
+    origem: "Classe",
+    categoria: "Paladino",
+    nome: "Juramento Divino",
+    descricao: "+2 em Força, +1 em Carisma e +8 Pontos de Vida (PV)",
+    atributoBonus: { forca: 2, carisma: 1 },
+    hpBonus: 8,
+  },
+  Necromante: {
+    origem: "Classe",
+    categoria: "Necromante",
+    nome: "Comunhão Sombria",
+    descricao: "+2 em Inteligência e +8 Pontos de Mana (PM)",
+    atributoBonus: { inteligencia: 2 },
+    mpBonus: 8,
+  },
+  Bárbaro: {
+    origem: "Classe",
+    categoria: "Bárbaro",
+    nome: "Fúria Berserker",
+    descricao: "+2 em Força e +12 Pontos de Vida (PV)",
+    atributoBonus: { forca: 2 },
+    hpBonus: 12,
+  },
+  Clérigo: {
+    origem: "Classe",
+    categoria: "Clérigo",
+    nome: "Bênção da Fé",
+    descricao: "+1 em Constituição, +1 em Carisma, +5 PV e +5 PM",
+    atributoBonus: { constituicao: 1, carisma: 1 },
+    hpBonus: 5,
+    mpBonus: 5,
+  },
+  Mago: {
+    origem: "Classe",
+    categoria: "Mago",
+    nome: "Arcanismo Primordial",
+    descricao: "+2 em Inteligência e +10 Pontos de Mana (PM)",
+    atributoBonus: { inteligencia: 2 },
+    mpBonus: 10,
+  },
+  Ladino: {
+    origem: "Classe",
+    categoria: "Ladino",
+    nome: "Astúcia das Sombras",
+    descricao: "+2 em Destreza e +1 em Carisma",
+    atributoBonus: { destreza: 2, carisma: 1 },
+  },
+  Guerreiro: {
+    origem: "Classe",
+    categoria: "Guerreiro",
+    nome: "Técnica de Combate",
+    descricao: "+2 em Força e +10 Pontos de Vida (PV)",
+    atributoBonus: { forca: 2 },
+    hpBonus: 10,
+  },
+};
+
+const classeId = (nome: string) =>
+  nome.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+
+export const DEFAULT_CLASS_CATALOG: ClassDefinition[] = Object.entries(
+  CLASS_BONUSES,
+).map(([nome, bonus]) => ({
+  id: classeId(nome),
+  nome,
+  aliases: [],
+  usaMagia: false,
+  atributoBonus: {
+    forca: bonus.atributoBonus?.forca ?? 0,
+    destreza: bonus.atributoBonus?.destreza ?? 0,
+    constituicao: bonus.atributoBonus?.constituicao ?? 0,
+    inteligencia: bonus.atributoBonus?.inteligencia ?? 0,
+    carisma: bonus.atributoBonus?.carisma ?? 0,
+  },
+  hpBonus: bonus.hpBonus ?? 0,
+  mpBonus: bonus.mpBonus ?? 0,
+  pericias: [],
+  habilidades: [],
+  magias: [],
+}));
+
+function textoSeguro(valor: unknown): string {
+  return typeof valor === "string" ? valor.trim().slice(0, 500) : "";
+}
+
+function numeroSeguro(valor: unknown, fallback = 0): number {
+  return typeof valor === "number" && Number.isFinite(valor)
+    ? Math.trunc(valor)
+    : fallback;
+}
+
+const ATRIBUTOS_BASE: BaseAttributeKey[] = [
+  "forca",
+  "destreza",
+  "constituicao",
+  "inteligencia",
+  "carisma",
+];
+
+export function normalizarCatalogoClasses(valor: unknown): ClassDefinition[] {
+  if (!Array.isArray(valor)) return DEFAULT_CLASS_CATALOG;
+
+  return valor.flatMap((item): ClassDefinition[] => {
+    if (typeof item !== "object" || item === null) return [];
+    const entrada = item as Record<string, unknown>;
+    const id = textoSeguro(entrada.id);
+    const nome = textoSeguro(entrada.nome);
+    if (!id || !nome) return [];
+    const bonusEntrada =
+      typeof entrada.atributoBonus === "object" && entrada.atributoBonus !== null
+        ? (entrada.atributoBonus as Record<string, unknown>)
+        : {};
+    const atributoBonus = Object.fromEntries(
+      ATRIBUTOS_BASE.map((atributo) => [
+        atributo,
+        numeroSeguro(bonusEntrada[atributo]),
+      ]),
+    ) as Record<BaseAttributeKey, number>;
+    const pericias: ClassSkillDefinition[] = Array.isArray(entrada.pericias)
+      ? entrada.pericias.flatMap((itemPericia): ClassSkillDefinition[] => {
+          if (typeof itemPericia !== "object" || itemPericia === null) return [];
+          const pericia = itemPericia as Record<string, unknown>;
+          const periciaId = textoSeguro(pericia.id);
+          const nomePericia = textoSeguro(pericia.nome);
+          const atributo = pericia.atributo;
+          if (
+            !periciaId ||
+            !nomePericia ||
+            typeof atributo !== "string" ||
+            !ATRIBUTOS_BASE.includes(atributo as BaseAttributeKey)
+          ) return [];
+          return [{
+            id: periciaId,
+            nome: nomePericia,
+            atributo: atributo as BaseAttributeKey,
+            descricao: textoSeguro(pericia.descricao),
+          }];
+        })
+      : [];
+    const habilidades: ClassAbilityDefinition[] = Array.isArray(entrada.habilidades)
+      ? entrada.habilidades.flatMap((itemHabilidade): ClassAbilityDefinition[] => {
+          if (typeof itemHabilidade !== "object" || itemHabilidade === null) return [];
+          const habilidade = itemHabilidade as Record<string, unknown>;
+          const habilidadeId = textoSeguro(habilidade.id);
+          const nomeHabilidade = textoSeguro(habilidade.nome);
+          if (!habilidadeId || !nomeHabilidade) return [];
+          return [{
+            id: habilidadeId,
+            nome: nomeHabilidade,
+            descricao: textoSeguro(habilidade.descricao),
+            nivel: Math.max(1, Math.min(20, numeroSeguro(habilidade.nivel, 1))),
+          }];
+        })
+      : [];
+    const magias: ClassSpellDefinition[] = Array.isArray(entrada.magias)
+      ? entrada.magias.flatMap((itemMagia): ClassSpellDefinition[] => {
+          if (typeof itemMagia !== "object" || itemMagia === null) return [];
+          const magia = itemMagia as Record<string, unknown>;
+          const magiaId = textoSeguro(magia.id);
+          const nomeMagia = textoSeguro(magia.nome);
+          if (!magiaId || !nomeMagia) return [];
+          return [{
+            id: magiaId,
+            nome: nomeMagia,
+            descricao: textoSeguro(magia.descricao),
+            custo: Math.max(0, numeroSeguro(magia.custo)),
+            nivel: Math.max(1, Math.min(20, numeroSeguro(magia.nivel, 1))),
+          }];
+        })
+      : [];
+
+    return [{
+      id,
+      nome,
+      aliases: Array.isArray(entrada.aliases)
+        ? entrada.aliases.map(textoSeguro).filter(Boolean)
+        : [],
+      usaMagia: entrada.usaMagia === true,
+      atributoBonus,
+      hpBonus: numeroSeguro(entrada.hpBonus),
+      mpBonus: numeroSeguro(entrada.mpBonus),
+      pericias,
+      habilidades,
+      magias,
+    }];
+  });
+}
+
+export function normalizarBonusClassesCampanha(
+  valores?: unknown,
+  incluirPadroes = true,
+): CampaignClassBonuses {
+  const entrada =
+    typeof valores === "object" && valores !== null
+      ? (valores as Record<string, unknown>)
+      : {};
+  const resultado: CampaignClassBonuses = {};
+
+  for (const [classe, definicao] of incluirPadroes
+    ? Object.entries(CLASS_BONUSES)
+    : []) {
+    const personalizado =
+      typeof entrada[classe] === "object" && entrada[classe] !== null
+        ? (entrada[classe] as Record<string, unknown>)
+        : {};
+    const atributosPersonalizados =
+      typeof personalizado.atributoBonus === "object" &&
+      personalizado.atributoBonus !== null
+        ? (personalizado.atributoBonus as Record<string, unknown>)
+        : {};
+    const atributoBonus: Record<BaseAttributeKey, number> = {
+      forca: definicao.atributoBonus?.forca ?? 0,
+      destreza: definicao.atributoBonus?.destreza ?? 0,
+      constituicao: definicao.atributoBonus?.constituicao ?? 0,
+      inteligencia: definicao.atributoBonus?.inteligencia ?? 0,
+      carisma: definicao.atributoBonus?.carisma ?? 0,
+    };
+
+    for (const atributo of Object.keys(atributoBonus) as BaseAttributeKey[]) {
+      const valor = atributosPersonalizados[atributo];
+      if (typeof valor === "number" && Number.isFinite(valor)) {
+        atributoBonus[atributo] = Math.trunc(valor);
+      }
+    }
+
+    resultado[classe] = {
+      atributoBonus,
+      hpBonus:
+        typeof personalizado.hpBonus === "number" &&
+        Number.isFinite(personalizado.hpBonus)
+          ? Math.trunc(personalizado.hpBonus)
+          : definicao.hpBonus ?? 0,
+      mpBonus:
+        typeof personalizado.mpBonus === "number" &&
+        Number.isFinite(personalizado.mpBonus)
+          ? Math.trunc(personalizado.mpBonus)
+          : definicao.mpBonus ?? 0,
+      bloqueada: Boolean(personalizado.bloqueada),
+    };
+  }
+
+  for (const [classe, entradaClasse] of Object.entries(entrada)) {
+    if (classe in resultado || typeof entradaClasse !== "object" || entradaClasse === null) {
+      continue;
+    }
+    const personalizado = entradaClasse as Record<string, unknown>;
+    const atributos =
+      typeof personalizado.atributoBonus === "object" && personalizado.atributoBonus !== null
+        ? (personalizado.atributoBonus as Record<string, unknown>)
+        : {};
+    const atributoBonus = Object.fromEntries(
+      ATRIBUTOS_BASE.map((atributo) => [
+        atributo,
+        numeroSeguro(atributos[atributo]),
+      ]),
+    ) as Record<BaseAttributeKey, number>;
+    resultado[classe] = {
+      atributoBonus,
+      hpBonus: numeroSeguro(personalizado.hpBonus),
+      mpBonus: numeroSeguro(personalizado.mpBonus),
+      bloqueada: Boolean(personalizado.bloqueada),
+    };
+  }
+
+  return resultado;
+}
+
+
+export const AFFILIATION_BONUSES: Record<string, PersonaBonusDefinition> = {
+  "Colégio de Magos Arcanum": {
+    origem: "Filiação",
+    categoria: "Colégio de Magos Arcanum",
+    nome: "Segredos da Academia",
+    descricao: "+1 em Inteligência e +6 Pontos de Mana (PM)",
+    atributoBonus: { inteligencia: 1 },
+    mpBonus: 6,
+  },
+  "Ordem da Presa do Lobo": {
+    origem: "Filiação",
+    categoria: "Ordem da Presa do Lobo",
+    nome: "Instinto de Caça",
+    descricao: "+1 em Constituição e +6 Pontos de Vida (PV)",
+    atributoBonus: { constituicao: 1 },
+    hpBonus: 6,
+  },
+  "Sombras Urbanas": {
+    origem: "Filiação",
+    categoria: "Sombras Urbanas",
+    nome: "Rede Clandestina",
+    descricao: "+1 em Destreza e +1 em Carisma",
+    atributoBonus: { destreza: 1, carisma: 1 },
+  },
+};
+
+
+
+===== src/types/character.ts =====
+export interface Attributes {
+  forca: number;
+  destreza: number;
+  constituicao: number;
+  inteligencia: number;
+  carisma: number;
+}
+
+export interface Skill {
+  id: string;
+  nome: string;
+  atributo: keyof Attributes;
+  descricao?: string;
+  treinada: boolean;
+  bonus: number;
+  bonusManual?: number;
+}
+
+export interface InventoryItem {
+  id: string;
+  nome: string;
+  quantidade: number;
+  descricao?: string;
+  imagemUrl?: string;
+  equipado?: boolean;
+  bonusAtributos?: Partial<Record<keyof Attributes, number>>;
+  cargas?: number | null;
+  cargasMaximas?: number | null;
+  efeitoMecanico?: ItemEffect | null;
+}
+
+export type ItemEffect =
+  | { tipo: "ATRIBUTO"; atributo: keyof Attributes; valor: number }
+  | { tipo: "RECURSO"; recurso: "hp" | "mp"; valor: number }
+  | { tipo: "NENHUM" };
+
+export interface Spell {
+  id: string;
+  nome: string;
+  custo: number;
+  descricao: string;
+}
+
+/** Carteira no estilo D&D: cobre, prata, electro, ouro e platina. */
+export interface Wallet {
+  pc: number;
+  pp: number;
+  pe: number;
+  po: number;
+  pl: number;
+}
+
+export interface CharacterAbility {
+  id?: string;
+  nome: string;
+  descricao?: string;
+  nivel?: number;
+}
+
+export interface Character {
+  id: string;
+  /** Versão otimista da linha em `personagens`, não persistida dentro de `dados`. */
+  dataVersion?: number;
+  nome: string;
+  raca: string;
+  classe: string;
+  classeId?: string;
+  nivel: number;
+  /** XP vive na coluna relacional `personagens.xp`, não no JSON de ficha. */
+  xp?: number;
+  portraitUrl?: string;
+  /** null = personagem ainda sem campanha; vem da coluna campanha_id do banco. */
+  campanhaId?: string | null;
+  alinhamento?: string;
+  qualidades?: string;
+  origem?: string;
+  idade?: string;
+  historia?: string;
+  aparencia?: string;
+  objetivo?: string;
+  defeito?: string;
+  filiacao?: string;
+  altura?: number;
+  tracos?: string;
+  defeitos?: string;
+  hp: { atual: number; max: number; temp?: number };
+  mp: { atual: number; max: number; temp?: number };
+  attributes: Attributes;
+  skills: Skill[];
+  inventory: InventoryItem[];
+  spells: Spell[];
+  habilidades?: CharacterAbility[];
+  carteira?: Wallet;
+  notas: string;
+}
+
+export interface CharacterDataV1 extends Omit<Character, "id" | "campanhaId" | "dataVersion" | "xp" | "hp" | "mp"> {
+  schemaVersion: 1;
+  hp: { atual: number; max: number; temp?: number };
+  mp: { atual: number; max: number; temp?: number };
+  /** Campos futuros/legados fora do contrato conhecido são preservados. */
+  [key: string]: unknown;
+}
+
+export interface User {
+  id: string;
+  nome: string;
+  email?: string;
+}
+
+
+
+===== USOS NO CODIGO =====
+C:\Users\casa\rpg-platform\src\data\dnd.ts:3: export const RACAS = [
+C:\Users\casa\rpg-platform\src\data\raceCatalog.ts:9: export interface RaceDefinition {
+C:\Users\casa\rpg-platform\src\data\raceCatalog.ts:37: ): RaceDefinition {
+C:\Users\casa\rpg-platform\src\data\raceCatalog.ts:53: * União das duas listas que existiam no código (RACAS do seletor e RACE_BONUSES das regras).
+C:\Users\casa\rpg-platform\src\data\raceCatalog.ts:57: export const DEFAULT_RACE_CATALOG: RaceDefinition[] = [
+C:\Users\casa\rpg-platform\src\data\raceCatalog.ts:104: export function findRaceDefinition(
+C:\Users\casa\rpg-platform\src\data\raceCatalog.ts:106: catalogo: RaceDefinition[] = DEFAULT_RACE_CATALOG,
+C:\Users\casa\rpg-platform\src\data\raceCatalog.ts:107: ): RaceDefinition | undefined {
+C:\Users\casa\rpg-platform\src\data\raceCatalog.ts:125: export function normalizarCatalogoRacas(valor: unknown): RaceDefinition[] {
+C:\Users\casa\rpg-platform\src\data\raceCatalog.ts:128: return valor.flatMap((item): RaceDefinition[] => {
+C:\Users\casa\rpg-platform\src\data\raceCatalog.ts:186: exclusivas: RaceDefinition[];
+C:\Users\casa\rpg-platform\src\data\raceCatalog.ts:191: export interface RaceResolvida extends RaceDefinition {
+C:\Users\casa\rpg-platform\src\data\raceCatalog.ts:207: export function normalizarConfigRacasCampanha(valor: unknown): CampaignRaceConfig {
+C:\Users\casa\rpg-platform\src\data\raceCatalog.ts:242: ? normalizarCatalogoRacas(entrada.exclusivas)
+C:\Users\casa\rpg-platform\src\data\raceCatalog.ts:253: export function racasDaCampanha(
+C:\Users\casa\rpg-platform\src\data\raceCatalog.ts:254: catalogo: RaceDefinition[],
+C:\Users\casa\rpg-platform\src\pages\Campaign\CampaignRaces.tsx:3: import { salvarRacasCampanha } from "../../services/api";
+C:\Users\casa\rpg-platform\src\pages\Campaign\CampaignRaces.tsx:6: racasDaCampanha,
+C:\Users\casa\rpg-platform\src\pages\Campaign\CampaignRaces.tsx:9: type RaceDefinition,
+C:\Users\casa\rpg-platform\src\pages\Campaign\CampaignRaces.tsx:11: } from "../../data/raceCatalog";
+C:\Users\casa\rpg-platform\src\pages\Campaign\CampaignRaces.tsx:17: catalogo: RaceDefinition[];
+C:\Users\casa\rpg-platform\src\pages\Campaign\CampaignRaces.tsx:94: const resolvidas = useMemo(() => racasDaCampanha(catalogo, rascunho), [catalogo, rascunho]);
+C:\Users\casa\rpg-platform\src\pages\Campaign\CampaignRaces.tsx:179: const nova: RaceDefinition = {
+C:\Users\casa\rpg-platform\src\pages\Campaign\CampaignRaces.tsx:205: const salva = await salvarRacasCampanha(campanhaId, rascunho);
+C:\Users\casa\rpg-platform\src\pages\CharacterSheet\CharacterSheet.tsx:32: RACAS,
+C:\Users\casa\rpg-platform\src\pages\CharacterSheet\CharacterSheet.tsx:1252: options={RACAS}
+C:\Users\casa\rpg-platform\src\pages\ClassCatalog\RaceCatalog.tsx:10: canManageGlobalRaceCatalog,
+C:\Users\casa\rpg-platform\src\pages\ClassCatalog\RaceCatalog.tsx:11: getCatalogoGlobalRacas,
+C:\Users\casa\rpg-platform\src\pages\ClassCatalog\RaceCatalog.tsx:12: salvarCatalogoGlobalRacas,
+C:\Users\casa\rpg-platform\src\pages\ClassCatalog\RaceCatalog.tsx:17: type RaceDefinition,
+C:\Users\casa\rpg-platform\src\pages\ClassCatalog\RaceCatalog.tsx:19: } from "../../data/raceCatalog";
+C:\Users\casa\rpg-platform\src\pages\ClassCatalog\RaceCatalog.tsx:22: import "./RaceCatalog.css";
+C:\Users\casa\rpg-platform\src\pages\ClassCatalog\RaceCatalog.tsx:44: export default function RaceCatalog() {
+C:\Users\casa\rpg-platform\src\pages\ClassCatalog\RaceCatalog.tsx:45: const [racas, setRacas] = useState<RaceDefinition[]>([]);
+C:\Users\casa\rpg-platform\src\pages\ClassCatalog\RaceCatalog.tsx:65: getCatalogoGlobalRacas(),
+C:\Users\casa\rpg-platform\src\pages\ClassCatalog\RaceCatalog.tsx:66: canManageGlobalRaceCatalog(),
+C:\Users\casa\rpg-platform\src\pages\ClassCatalog\RaceCatalog.tsx:68: setRacas(dados);
+C:\Users\casa\rpg-platform\src\pages\ClassCatalog\RaceCatalog.tsx:84: () => !falhaCarga && JSON.stringify(racas) !== snapshot,
+C:\Users\casa\rpg-platform\src\pages\ClassCatalog\RaceCatalog.tsx:85: [racas, snapshot, falhaCarga],
+C:\Users\casa\rpg-platform\src\pages\ClassCatalog\RaceCatalog.tsx:90: for (const raca of racas) {
+C:\Users\casa\rpg-platform\src\pages\ClassCatalog\RaceCatalog.tsx:97: }, [racas]);
+C:\Users\casa\rpg-platform\src\pages\ClassCatalog\RaceCatalog.tsx:99: const temNomeVazio = racas.some((raca) => !raca.nome.trim());
+C:\Users\casa\rpg-platform\src\pages\ClassCatalog\RaceCatalog.tsx:100: const semRacas = racas.length === 0;
+C:\Users\casa\rpg-platform\src\pages\ClassCatalog\RaceCatalog.tsx:101: const invalido = nomesRepetidos.size > 0 || temNomeVazio || semRacas;
+C:\Users\casa\rpg-platform\src\pages\ClassCatalog\RaceCatalog.tsx:105: ? racas.filter(
+C:\Users\casa\rpg-platform\src\pages\ClassCatalog\RaceCatalog.tsx:110: : racas;
+C:\Users\casa\rpg-platform\src\pages\ClassCatalog\RaceCatalog.tsx:136: const salvas = await salvarCatalogoGlobalRacas(racas);
+C:\Users\casa\rpg-platform\src\pages\ClassCatalog\RaceCatalog.tsx:137: setRacas(salvas);
+C:\Users\casa\rpg-platform\src\pages\ClassCatalog\RaceCatalog.tsx:158: function atualizarRaca(id: string, alterar: (raca: RaceDefinition) => RaceDefinition) {
+C:\Users\casa\rpg-platform\src\pages\ClassCatalog\RaceCatalog.tsx:160: setRacas((atuais) => atuais.map((raca) => (raca.id === id ? alterar(raca) : raca)));
+C:\Users\casa\rpg-platform\src\pages\ClassCatalog\RaceCatalog.tsx:178: if (racas.some((raca) => chaveDeRaca(raca.nome) === chaveDeRaca(nome))) {
+C:\Users\casa\rpg-platform\src\pages\ClassCatalog\RaceCatalog.tsx:186: setRacas((atuais) => [
+C:\Users\casa\rpg-platform\src\pages\ClassCatalog\RaceCatalog.tsx:197: function duplicarRaca(origem: RaceDefinition) {
+C:\Users\casa\rpg-platform\src\pages\ClassCatalog\RaceCatalog.tsx:199: const existentes = new Set(racas.map((raca) => chaveDeRaca(raca.nome)));
+C:\Users\casa\rpg-platform\src\pages\ClassCatalog\RaceCatalog.tsx:207: const copia: RaceDefinition = {
+C:\Users\casa\rpg-platform\src\pages\ClassCatalog\RaceCatalog.tsx:217: setRacas((atuais) => [...atuais, copia]);
+C:\Users\casa\rpg-platform\src\pages\ClassCatalog\RaceCatalog.tsx:221: function removerRaca(raca: RaceDefinition) {
+C:\Users\casa\rpg-platform\src\pages\ClassCatalog\RaceCatalog.tsx:227: setRacas((atuais) => atuais.filter((item) => item.id !== raca.id));
+C:\Users\casa\rpg-platform\src\pages\ClassCatalog\RaceCatalog.tsx:232: setRacas(JSON.parse(snapshot) as RaceDefinition[]);
+C:\Users\casa\rpg-platform\src\pages\ClassCatalog\RaceCatalog.tsx:250: const totalTracos = racas.reduce((soma, raca) => soma + raca.tracos.length, 0);
+C:\Users\casa\rpg-platform\src\pages\ClassCatalog\RaceCatalog.tsx:262: <div><dt>Raças</dt><dd>{racas.length}</dd></div>
+C:\Users\casa\rpg-platform\src\pages\ClassCatalog\RaceCatalog.tsx:276: {semRacas
+C:\Users\casa\rpg-platform\src\pages\ClassCatalog\RaceCatalog.tsx:356: {racas.length > 1 && (
+C:\Users\casa\rpg-platform\src\pages\ClassCatalog\RaceCatalog.tsx:363: onClick={() => setRecolhidas(new Set(racas.map((raca) => raca.id)))}
+C:\Users\casa\rpg-platform\src\pages\ClassCatalog\RaceCatalog.tsx:389: {racas.length === 0 && !falhaCarga && (
+C:\Users\casa\rpg-platform\src\pages\ClassCatalog\RaceCatalog.tsx:396: {racas.length > 0 && visiveis.length === 0 && (
+C:\Users\casa\rpg-platform\src\pages\ClassCatalog\RaceCatalog.tsx:439: raca: RaceDefinition;
+C:\Users\casa\rpg-platform\src\pages\ClassCatalog\RaceCatalog.tsx:444: onChange: (alterar: (raca: RaceDefinition) => RaceDefinition) => void;
+C:\Users\casa\rpg-platform\src\pages\Dashboard\Dashboard.tsx:26: RACAS,
+C:\Users\casa\rpg-platform\src\pages\Dashboard\Dashboard.tsx:862: options={RACAS}
+
+
+===== C:\Users\casa\rpg-platform\supabase\migrations\202609300004_campaign_class_bonuses.sql =====
+alter table public.campanhas
+  add column if not exists bonus_classes jsonb not null default '{}'::jsonb
+  check (jsonb_typeof(bonus_classes) = 'object');
+
+drop policy if exists "campanhas_update_mestre" on public.campanhas;
+
+create policy "campanhas_update_mestre"
+  on public.campanhas
+  for update
+  to authenticated
+  using (
+    exists (
+      select 1
+      from public.campanha_membros membro
+      where membro.campanha_id = campanhas.id
+        and membro.user_id = auth.uid()
+        and membro.papel = 'MESTRE'
+        and membro.status = 'ATIVO'
+    )
+  )
+  with check (
+    exists (
+      select 1
+      from public.campanha_membros membro
+      where membro.campanha_id = campanhas.id
+        and membro.user_id = auth.uid()
+        and membro.papel = 'MESTRE'
+        and membro.status = 'ATIVO'
+    )
+  );
+
+
+
+===== C:\Users\casa\rpg-platform\supabase\migrations\202610010002_shared_class_catalog.sql =====
+create table if not exists public.global_class_catalog (
+  id text primary key check (id = 'global'),
+  dados jsonb not null default '[]'::jsonb
+    check (jsonb_typeof(dados) = 'array'),
+  updated_at timestamptz not null default now()
+);
+
+alter table public.global_class_catalog enable row level security;
+grant select, insert, update, delete on public.global_class_catalog to authenticated;
+
+drop policy if exists "global_class_catalog_select_authenticated"
+  on public.global_class_catalog;
+create policy "global_class_catalog_select_authenticated"
+  on public.global_class_catalog
+  for select to authenticated
+  using (true);
+
+drop policy if exists "global_class_catalog_write_authenticated"
+  on public.global_class_catalog;
+create policy "global_class_catalog_write_authenticated"
+  on public.global_class_catalog
+  for all to authenticated
+  using (true)
+  with check (true);
+
+create table if not exists public.campanha_classes_conteudos (
+  id uuid primary key default gen_random_uuid(),
+  campanha_id uuid not null references public.campanhas(id) on delete cascade,
+  classe_id text not null,
+  tipo text not null check (tipo in ('CLASSE', 'PERICIA', 'HABILIDADE')),
+  nome text not null check (length(trim(nome)) between 1 and 100),
+  descricao text not null default '',
+  atributo text check (
+    atributo is null or atributo in (
+      'forca', 'destreza', 'constituicao', 'inteligencia', 'carisma'
+    )
+  ),
+  nivel integer check (nivel is null or nivel between 1 and 20),
+  bonus_atributos jsonb not null default '{}'::jsonb
+    check (jsonb_typeof(bonus_atributos) = 'object'),
+  bonus_hp integer not null default 0,
+  bonus_mp integer not null default 0,
+  created_by uuid not null references auth.users(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  check (tipo != 'PERICIA' or atributo is not null),
+  check (tipo != 'HABILIDADE' or nivel is not null)
+);
+
+create index if not exists campanha_classes_conteudos_campanha_idx
+  on public.campanha_classes_conteudos (campanha_id, classe_id, tipo);
+
+alter table public.campanha_classes_conteudos enable row level security;
+grant select, insert, delete on public.campanha_classes_conteudos to authenticated;
+
+drop policy if exists "campanha_classes_conteudos_select_membro"
+  on public.campanha_classes_conteudos;
+create policy "campanha_classes_conteudos_select_membro"
+  on public.campanha_classes_conteudos
+  for select to authenticated
+  using (
+    exists (
+      select 1
+      from public.campanha_membros membro
+      where membro.campanha_id = campanha_classes_conteudos.campanha_id
+        and membro.user_id = auth.uid()
+        and membro.status = 'ATIVO'
+    )
+  );
+
+drop policy if exists "campanha_classes_conteudos_insert_membro"
+  on public.campanha_classes_conteudos;
+drop policy if exists "campanha_classes_conteudos_insert_mestre"
+  on public.campanha_classes_conteudos;
+create policy "campanha_classes_conteudos_insert_mestre"
+  on public.campanha_classes_conteudos
+  for insert to authenticated
+  with check (
+    created_by = auth.uid()
+    and exists (
+      select 1
+      from public.campanha_membros membro
+      where membro.campanha_id = campanha_classes_conteudos.campanha_id
+        and membro.user_id = auth.uid()
+        and membro.papel = 'MESTRE'
+        and membro.status = 'ATIVO'
+    )
+  );
+
+drop policy if exists "campanha_classes_conteudos_delete_membro"
+  on public.campanha_classes_conteudos;
+drop policy if exists "campanha_classes_conteudos_delete_mestre"
+  on public.campanha_classes_conteudos;
+create policy "campanha_classes_conteudos_delete_mestre"
+  on public.campanha_classes_conteudos
+  for delete to authenticated
+  using (
+    exists (
+      select 1
+      from public.campanha_membros membro
+      where membro.campanha_id = campanha_classes_conteudos.campanha_id
+        and membro.user_id = auth.uid()
+        and membro.papel = 'MESTRE'
+        and membro.status = 'ATIVO'
+    )
+  );
+
+
+
+===== C:\Users\casa\rpg-platform\supabase\migrations\202610100002_server_authoritative_item_resource_maxima.sql =====
+-- Resource caps for item use are derived from persisted character and rules data.
+-- The legacy p_hp_max/p_mp_max arguments remain optional and ignored so old
+-- clients can continue calling the existing four-argument RPC safely.
+
+create or replace function public._integer_from_jsonb(
+  p_value jsonb,
+  p_fallback integer,
+  p_min integer,
+  p_max integer
+)
+returns integer
+language plpgsql
+immutable
+set search_path = pg_catalog, public
+as $$
+declare
+  v_value numeric;
+begin
+  if p_value is null or jsonb_typeof(p_value) is distinct from 'number' then
+    return p_fallback;
+  end if;
+
+  v_value := (p_value #>> '{}')::numeric;
+  return greatest(p_min, least(p_max, trunc(v_value)))::integer;
+exception
+  when numeric_value_out_of_range or invalid_text_representation then
+    return p_fallback;
+end;
+$$;
+
+create or replace function public._character_rule_key(p_value text)
+returns text
+language sql
+immutable
+set search_path = pg_catalog
+as $$
+  select translate(
+    lower(trim(coalesce(p_value, ''))),
+    'áàâãäéèêëíìîïóòôõöúùûüç',
+    'aaaaaeeeeiiiiooooouuuuc'
+  );
+$$;
+
+create or replace function public._builtin_character_bonus(
+  p_source text,
+  p_name text
+)
+returns jsonb
+language plpgsql
+immutable
+set search_path = pg_catalog, public
+as $$
+declare
+  v_key text := public._character_rule_key(p_name);
+begin
+  if p_source = 'RACA' then
+    return case v_key
+      when 'humano' then '{"atributoBonus":{"forca":1,"destreza":1,"constituicao":1,"inteligencia":1,"carisma":1},"hpBonus":0,"mpBonus":0}'::jsonb
+      when 'elfo' then '{"atributoBonus":{"destreza":2},"hpBonus":0,"mpBonus":5}'::jsonb
+      when 'anao' then '{"atributoBonus":{"constituicao":2},"hpBonus":10,"mpBonus":0}'::jsonb
+      when 'meio-orc' then '{"atributoBonus":{"forca":2,"constituicao":1},"hpBonus":0,"mpBonus":0}'::jsonb
+      when 'orc' then '{"atributoBonus":{"forca":2},"hpBonus":6,"mpBonus":0}'::jsonb
+      when 'draconato' then '{"atributoBonus":{"forca":2,"carisma":1},"hpBonus":0,"mpBonus":0}'::jsonb
+      else '{"atributoBonus":{},"hpBonus":0,"mpBonus":0}'::jsonb
+    end;
+  elsif p_source = 'FILIACAO' then
+    return case v_key
+      when 'colegio de magos arcanum' then '{"atributoBonus":{"inteligencia":1},"hpBonus":0,"mpBonus":6}'::jsonb
+      when 'ordem da presa do lobo' then '{"atributoBonus":{"constituicao":1},"hpBonus":6,"mpBonus":0}'::jsonb
+      when 'sombras urbanas' then '{"atributoBonus":{"destreza":1,"carisma":1},"hpBonus":0,"mpBonus":0}'::jsonb
+      else '{"atributoBonus":{},"hpBonus":0,"mpBonus":0}'::jsonb
+    end;
+  end if;
+
+  return case v_key
+    when 'bardo' then '{"atributoBonus":{"carisma":2},"hpBonus":0,"mpBonus":6}'::jsonb
+    when 'artifice' then '{"atributoBonus":{"inteligencia":2},"hpBonus":0,"mpBonus":5}'::jsonb
+    when 'paladino' then '{"atributoBonus":{"forca":2,"carisma":1},"hpBonus":8,"mpBonus":0}'::jsonb
+    when 'necromante' then '{"atributoBonus":{"inteligencia":2},"hpBonus":0,"mpBonus":8}'::jsonb
+    when 'barbaro' then '{"atributoBonus":{"forca":2},"hpBonus":12,"mpBonus":0}'::jsonb
+    when 'clerigo' then '{"atributoBonus":{"constituicao":1,"carisma":1},"hpBonus":5,"mpBonus":5}'::jsonb
+    when 'mago' then '{"atributoBonus":{"inteligencia":2},"hpBonus":0,"mpBonus":10}'::jsonb
+    when 'ladino' then '{"atributoBonus":{"destreza":2,"carisma":1},"hpBonus":0,"mpBonus":0}'::jsonb
+    when 'guerreiro' then '{"atributoBonus":{"forca":2},"hpBonus":10,"mpBonus":0}'::jsonb
+    else '{"atributoBonus":{},"hpBonus":0,"mpBonus":0}'::jsonb
+  end;
+end;
+$$;
+
+create or replace function public._calcular_maximos_recursos_personagem(
+  p_personagem_id uuid,
+  p_dados jsonb,
+  p_nivel integer,
+  p_campanha_id uuid
+)
+returns table (hp_max integer, mp_max integer)
+language plpgsql
+security invoker
+set search_path = pg_catalog, public
+as $$
+declare
+  v_classe text := coalesce(p_dados ->> 'classe', 'Aventureiro');
+  v_classe_id text := p_dados ->> 'classeId';
+  v_raca text := coalesce(p_dados ->> 'raca', '');
+  v_filiacao text := coalesce(p_dados ->> 'filiacao', '');
+  v_bonus_raca jsonb;
+  v_bonus_classe jsonb;
+  v_bonus_filiacao jsonb;
+  v_override jsonb;
+  v_conteudo_campanha jsonb;
+  v_classe_global jsonb;
+  v_catalogo_global jsonb;
+  v_bonus_campanha jsonb := '{}'::jsonb;
+  v_tem_override boolean := false;
+  v_tem_conteudo_campanha boolean := false;
+  v_tem_catalogo_global boolean := false;
+  v_tem_classe_global boolean := false;
+  v_chave_classe text := public._character_rule_key(v_classe);
+  v_forca numeric;
+  v_destreza numeric;
+  v_constituicao numeric;
+  v_inteligencia numeric;
+  v_carisma numeric;
+  v_bonus_equip_constituicao numeric := 0;
+  v_bonus_equip_inteligencia numeric := 0;
+  v_bonus_atributo jsonb;
+  v_dado_vida integer;
+  v_nivel integer := greatest(1, coalesce(p_nivel, 1));
+  v_modificador_con numeric;
+  v_por_nivel numeric;
+  v_hp numeric;
+  v_mp numeric;
+begin
+  v_bonus_raca := public._builtin_character_bonus('RACA', v_raca);
+  v_bonus_filiacao := public._builtin_character_bonus('FILIACAO', v_filiacao);
+
+  if p_campanha_id is not null then
+    select coalesce(campanha.bonus_classes, '{}'::jsonb)
+      into v_bonus_campanha
+    from public.campanhas campanha
+    where campanha.id = p_campanha_id
+    for share;
+
+    select entrada.value
+      into v_override
+    from jsonb_each(
+      case when jsonb_typeof(v_bonus_campanha) = 'object'
+        then v_bonus_campanha else '{}'::jsonb end
+    ) as entrada(key, value)
+    where jsonb_typeof(entrada.value) = 'object'
+      and public._character_rule_key(entrada.key) in (
+        v_chave_classe,
+        public._character_rule_key(v_classe_id)
+      )
+    order by case
+      when public._character_rule_key(entrada.key) = public._character_rule_key(v_classe_id) then 0
+      else 1
+    end
+    limit 1;
+    v_tem_override := found;
+
+    select jsonb_build_object(
+      'atributoBonus', conteudo.bonus_atributos,
+      'hpBonus', conteudo.bonus_hp,
+      'mpBonus', conteudo.bonus_mp
+    )
+      into v_conteudo_campanha
+    from public.campanha_classes_conteudos conteudo
+    where conteudo.campanha_id = p_campanha_id
+      and conteudo.tipo = 'CLASSE'
+      and (
+        (v_classe_id is not null and conteudo.classe_id = v_classe_id)
+        or public._character_rule_key(conteudo.nome) = v_chave_classe
+      )
+    order by conteudo.created_at, conteudo.id
+    limit 1;
+    v_tem_conteudo_campanha := found;
+  end if;
+
+  select catalogo.dados
+    into v_catalogo_global
+  from public.global_class_catalog catalogo
+  where catalogo.id = 'global'
+  for share;
+  v_tem_catalogo_global := found;
+
+  if v_tem_catalogo_global then
+    select entrada.value
+      into v_classe_global
+    from jsonb_array_elements(
+      case when jsonb_typeof(v_catalogo_global) = 'array'
+        then v_catalogo_global else '[]'::jsonb end
+    ) with ordinality as entrada(value, ordem)
+    where (
+      (v_classe_id is not null and entrada.value ->> 'id' = v_classe_id)
+      or public._character_rule_key(entrada.value ->> 'nome') = v_chave_classe
+      or exists (
+        select 1
+        from jsonb_array_elements_text(
+          case when jsonb_typeof(entrada.value -> 'aliases') = 'array'
+            then entrada.value -> 'aliases' else '[]'::jsonb end
+        ) as class_alias(nome)
+        where public._character_rule_key(class_alias.nome) = v_chave_classe
+      )
+    )
+    order by entrada.ordem
+    limit 1;
+    v_tem_classe_global := found;
+  end if;
+
+  if v_tem_override then
+    v_bonus_classe := v_override;
+  elsif v_tem_conteudo_campanha then
+    v_bonus_classe := v_conteudo_campanha;
+  elsif v_tem_classe_global then
+    v_bonus_classe := v_classe_global;
+  else
+    -- The frontend falls back to built-in bonuses when the catalog is absent
+    -- or does not contain this class, even when other global classes exist.
+    v_bonus_classe := public._builtin_character_bonus('CLASSE', v_classe);
+  end if;
+
+  v_bonus_atributo := coalesce(v_bonus_raca -> 'atributoBonus', '{}'::jsonb);
+  v_forca := public._integer_from_jsonb(p_dados #> '{attributes,forca}', 10, 1, 30)
+    + public._integer_from_jsonb(v_bonus_atributo -> 'forca', 0, -999999, 999999);
+  v_destreza := public._integer_from_jsonb(p_dados #> '{attributes,destreza}', 10, 1, 30)
+    + public._integer_from_jsonb(v_bonus_atributo -> 'destreza', 0, -999999, 999999);
+  v_constituicao := public._integer_from_jsonb(p_dados #> '{attributes,constituicao}', 10, 1, 30)
+    + public._integer_from_jsonb(v_bonus_atributo -> 'constituicao', 0, -999999, 999999);
+  v_inteligencia := public._integer_from_jsonb(p_dados #> '{attributes,inteligencia}', 10, 1, 30)
+    + public._integer_from_jsonb(v_bonus_atributo -> 'inteligencia', 0, -999999, 999999);
+  v_carisma := public._integer_from_jsonb(p_dados #> '{attributes,carisma}', 10, 1, 30)
+    + public._integer_from_jsonb(v_bonus_atributo -> 'carisma', 0, -999999, 999999);
+
+  v_bonus_atributo := coalesce(v_bonus_classe -> 'atributoBonus', '{}'::jsonb);
+  v_forca := v_forca + public._integer_from_jsonb(v_bonus_atributo -> 'forca', 0, -999999, 999999);
+  v_destreza := v_destreza + public._integer_from_jsonb(v_bonus_atributo -> 'destreza', 0, -999999, 999999);
+  v_constituicao := v_constituicao + public._integer_from_jsonb(v_bonus_atributo -> 'constituicao', 0, -999999, 999999);
+  v_inteligencia := v_inteligencia + public._integer_from_jsonb(v_bonus_atributo -> 'inteligencia', 0, -999999, 999999);
+  v_carisma := v_carisma + public._integer_from_jsonb(v_bonus_atributo -> 'carisma', 0, -999999, 999999);
+
+  v_bonus_atributo := coalesce(v_bonus_filiacao -> 'atributoBonus', '{}'::jsonb);
+  v_forca := v_forca + public._integer_from_jsonb(v_bonus_atributo -> 'forca', 0, -999999, 999999);
+  v_destreza := v_destreza + public._integer_from_jsonb(v_bonus_atributo -> 'destreza', 0, -999999, 999999);
+  v_constituicao := v_constituicao + public._integer_from_jsonb(v_bonus_atributo -> 'constituicao', 0, -999999, 999999);
+  v_inteligencia := v_inteligencia + public._integer_from_jsonb(v_bonus_atributo -> 'inteligencia', 0, -999999, 999999);
+  v_carisma := v_carisma + public._integer_from_jsonb(v_bonus_atributo -> 'carisma', 0, -999999, 999999);
+
+  select
+    coalesce(sum(public._integer_from_jsonb(item.bonus_atributos -> 'constituicao', 0, -999999, 999999)), 0),
+    coalesce(sum(public._integer_from_jsonb(item.bonus_atributos -> 'inteligencia', 0, -999999, 999999)), 0)
+    into v_bonus_equip_constituicao, v_bonus_equip_inteligencia
+  from public.inventarios inventario
+  join public.itens item on item.id = inventario.item_id
+  where inventario.personagem_id = p_personagem_id
+    and inventario.equipado = true
+    and inventario.quantidade > 0;
+
+  v_constituicao := v_constituicao + v_bonus_equip_constituicao;
+  v_inteligencia := v_inteligencia + v_bonus_equip_inteligencia;
+
+  v_bonus_raca := coalesce(v_bonus_raca, '{}'::jsonb);
+  v_bonus_filiacao := coalesce(v_bonus_filiacao, '{}'::jsonb);
+  v_bonus_classe := coalesce(v_bonus_classe, '{}'::jsonb);
+
+  v_dado_vida := case v_classe
+    when 'Bárbaro' then 12
+    when 'Guerreiro' then 10
+    when 'Paladino' then 10
+    when 'Patrulheiro' then 10
+    when 'Bardo' then 8
+    when 'Bruxo' then 8
+    when 'Clérigo' then 8
+    when 'Druida' then 8
+    when 'Ladino' then 8
+    when 'Monge' then 8
+    when 'Feiticeiro' then 6
+    when 'Mago' then 6
+    else 8
+  end;
+
+  v_modificador_con := floor((v_constituicao - 10) / 2);
+  v_por_nivel := greatest(1, floor(v_dado_vida / 2.0) + 1 + v_modificador_con);
+  v_hp := greatest(
+    1,
+    least(
+      200,
+      v_dado_vida + v_modificador_con + (v_nivel - 1) * v_por_nivel
+      + public._integer_from_jsonb(v_bonus_raca -> 'hpBonus', 0, -999999, 999999)
+      + public._integer_from_jsonb(v_bonus_classe -> 'hpBonus', 0, -999999, 999999)
+      + public._integer_from_jsonb(v_bonus_filiacao -> 'hpBonus', 0, -999999, 999999)
+    )
+  );
+  v_mp := greatest(
+    0,
+    least(
+      200,
+      8 + v_inteligencia
+      + public._integer_from_jsonb(v_bonus_raca -> 'mpBonus', 0, -999999, 999999)
+      + public._integer_from_jsonb(v_bonus_classe -> 'mpBonus', 0, -999999, 999999)
+      + public._integer_from_jsonb(v_bonus_filiacao -> 'mpBonus', 0, -999999, 999999)
+    )
+  );
+
+  return query select v_hp::integer, v_mp::integer;
+end;
+$$;
+
+create or replace function public.aplicar_limites_recursos_personagem()
+returns trigger
+language plpgsql
+security definer
+set search_path = pg_catalog, public, pg_temp
+as $$
+declare
+  v_hp_max integer;
+  v_mp_max integer;
+  v_hp jsonb;
+  v_mp jsonb;
+begin
+  if new.dados is null or jsonb_typeof(new.dados) is distinct from 'object' then
+    return new;
+  end if;
+
+  select maxima.hp_max, maxima.mp_max
+    into v_hp_max, v_mp_max
+  from public._calcular_maximos_recursos_personagem(
+    new.id,
+    new.dados,
+    new.nivel,
+    new.campanha_id
+  ) maxima;
+
+  v_hp := case
+    when jsonb_typeof(new.dados -> 'hp') = 'object' then new.dados -> 'hp'
+    else '{}'::jsonb
+  end;
+  v_mp := case
+    when jsonb_typeof(new.dados -> 'mp') = 'object' then new.dados -> 'mp'
+    else '{}'::jsonb
+  end;
+  v_hp := jsonb_set(
+    v_hp - 'max',
+    '{atual}',
+    to_jsonb(public._integer_from_jsonb(v_hp -> 'atual', 0, 0, v_hp_max)),
+    true
+  );
+  v_mp := jsonb_set(
+    v_mp - 'max',
+    '{atual}',
+    to_jsonb(public._integer_from_jsonb(v_mp -> 'atual', 0, 0, v_mp_max)),
+    true
+  );
+  new.dados := jsonb_set(
+    jsonb_set(new.dados, '{hp}', v_hp, true),
+    '{mp}',
+    v_mp,
+    true
+  );
+  return new;
+end;
+$$;
+
+revoke all on function public.aplicar_limites_recursos_personagem() from public;
+drop trigger if exists personagens_limitar_recursos_insert on public.personagens;
+drop trigger if exists personagens_limitar_recursos_update on public.personagens;
+drop trigger if exists personagens_00_limitar_recursos_insert on public.personagens;
+create trigger personagens_00_limitar_recursos_insert
+  before insert on public.personagens
+  for each row execute function public.aplicar_limites_recursos_personagem();
+drop trigger if exists personagens_00_limitar_recursos_update on public.personagens;
+create trigger personagens_00_limitar_recursos_update
+  before update of dados, nivel, campanha_id on public.personagens
+  for each row execute function public.aplicar_limites_recursos_personagem();
+
+revoke all on function public._integer_from_jsonb(jsonb, integer, integer, integer) from public;
+revoke all on function public._character_rule_key(text) from public;
+revoke all on function public._builtin_character_bonus(text, text) from public;
+revoke all on function public._calcular_maximos_recursos_personagem(uuid, jsonb, integer, uuid) from public;
+
+create or replace function public.usar_item_personagem(
+  p_personagem_id uuid,
+  p_item_id uuid,
+  p_hp_max integer default null,
+  p_mp_max integer default null
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = pg_catalog, public, pg_temp
+as $$
+declare
+  v_usuario_id uuid := auth.uid();
+  v_personagem public.personagens%rowtype;
+  v_inventario public.inventarios%rowtype;
+  v_item public.itens%rowtype;
+  v_campanha_id uuid;
+  v_dados jsonb;
+  v_recurso jsonb;
+  v_cargas integer;
+  v_quantidade integer;
+  v_novo_valor integer;
+  v_maximo integer;
+  v_hp_max integer;
+  v_mp_max integer;
+  v_delta integer;
+begin
+  if v_usuario_id is null then
+    raise exception 'Usuário não autenticado.';
+  end if;
+
+  select * into v_personagem
+  from public.personagens
+  where id = p_personagem_id
+  for update;
+  if not found then
+    raise exception 'Personagem não encontrado.';
+  end if;
+  v_campanha_id := v_personagem.campanha_id;
+
+  if v_personagem.user_id is distinct from v_usuario_id and not exists (
+    select 1 from public.campanha_membros membro
+    where membro.campanha_id = v_campanha_id
+      and membro.user_id = v_usuario_id
+      and membro.papel = 'MESTRE'
+      and membro.status = 'ATIVO'
+  ) then
+    raise exception 'Você não pode usar itens deste personagem.';
+  end if;
+
+  -- Serialize equipped-item changes against the authoritative equipment bonuses.
+  perform inventario.item_id
+  from public.inventarios inventario
+  where inventario.personagem_id = p_personagem_id
+  order by inventario.item_id
+  for update;
+
+  select * into v_inventario
+  from public.inventarios
+  where personagem_id = p_personagem_id and item_id = p_item_id
+  for update;
+  if not found or v_inventario.quantidade <= 0 then
+    raise exception 'Item não encontrado no inventário.';
+  end if;
+
+  select * into v_item from public.itens where id = p_item_id;
+  if not found then
+    raise exception 'Definição do item não encontrada.';
+  end if;
+  if v_item.tipo is distinct from 'CONSUMIVEL' and v_item.cargas_maximas is null then
+    raise exception 'Este item não pode ser consumido.';
+  end if;
+
+  select maxima.hp_max, maxima.mp_max
+    into v_hp_max, v_mp_max
+  from public._calcular_maximos_recursos_personagem(
+    p_personagem_id,
+    coalesce(v_personagem.dados, '{}'::jsonb),
+    v_personagem.nivel,
+    v_campanha_id
+  ) maxima;
+
+  v_dados := coalesce(v_personagem.dados, '{}'::jsonb);
+  v_delta := public._integer_from_jsonb(
+    v_item.efeito_mecanico -> 'valor', 0, -999999, 999999
+  );
+  if v_item.efeito_mecanico ->> 'tipo' = 'RECURSO' then
+    if v_item.efeito_mecanico ->> 'recurso' not in ('hp', 'mp') then
+      raise exception 'O recurso deste item é inválido.';
+    end if;
+
+    if v_item.efeito_mecanico ->> 'recurso' = 'hp' then
+      v_recurso := case
+        when jsonb_typeof(v_dados -> 'hp') = 'object' then v_dados -> 'hp'
+        else '{}'::jsonb
+      end;
+      v_maximo := v_hp_max;
+    else
+      v_recurso := case
+        when jsonb_typeof(v_dados -> 'mp') = 'object' then v_dados -> 'mp'
+        else '{}'::jsonb
+      end;
+      v_maximo := v_mp_max;
+    end if;
+
+    v_novo_valor := greatest(
+      0,
+      least(
+        v_maximo,
+        public._integer_from_jsonb(v_recurso -> 'atual', 0, 0, 200)
+          + greatest(v_delta, 0)
+      )
+    );
+    v_recurso := jsonb_set(v_recurso, '{atual}', to_jsonb(v_novo_valor), true);
+    if v_item.efeito_mecanico ->> 'recurso' = 'hp' then
+      v_dados := jsonb_set(v_dados, '{hp}', v_recurso, true);
+    else
+      v_dados := jsonb_set(v_dados, '{mp}', v_recurso, true);
+    end if;
+  end if;
+
+  if v_item.cargas_maximas is not null then
+    v_cargas := coalesce(
+      v_inventario.cargas_atuais,
+      v_item.cargas_maximas * v_inventario.quantidade
+    );
+    if v_cargas <= 0 then
+      raise exception 'Este item está sem cargas.';
+    end if;
+    v_cargas := v_cargas - 1;
+    v_quantidade := least(
+      v_inventario.quantidade,
+      ceil(v_cargas::numeric / v_item.cargas_maximas)::integer
+    );
+    if v_quantidade <= 0 then
+      delete from public.inventarios
+      where personagem_id = p_personagem_id and item_id = p_item_id;
+    else
+      update public.inventarios
+      set quantidade = v_quantidade,
+          cargas_atuais = v_cargas,
+          updated_at = now()
+      where personagem_id = p_personagem_id and item_id = p_item_id;
+    end if;
+  elsif v_item.tipo = 'CONSUMIVEL' then
+    v_quantidade := v_inventario.quantidade - 1;
+    if v_quantidade <= 0 then
+      delete from public.inventarios
+      where personagem_id = p_personagem_id and item_id = p_item_id;
+    else
+      update public.inventarios
+      set quantidade = v_quantidade,
+          updated_at = now()
+      where personagem_id = p_personagem_id and item_id = p_item_id;
+    end if;
+  end if;
+
+  update public.personagens
+  set dados = v_dados
+  where id = p_personagem_id;
+
+  return jsonb_build_object(
+    'personagem_id', p_personagem_id,
+    'hp', v_dados -> 'hp',
+    'mp', v_dados -> 'mp',
+    'quantidade', greatest(0, v_quantidade),
+    'hp_max', v_hp_max,
+    'mp_max', v_mp_max
+  );
+end;
+$$;
+
+-- Retain the four-argument PostgreSQL identity for rolling client deployments.
+-- p_hp_max and p_mp_max are accepted for compatibility and never consulted.
+revoke all on function public.usar_item_personagem(uuid, uuid, integer, integer) from public;
+grant execute on function public.usar_item_personagem(uuid, uuid, integer, integer) to authenticated;
+comment on function public.usar_item_personagem(uuid, uuid, integer, integer) is
+  'Consumes an item atomically and derives HP/MP maxima from persisted rules; legacy maximum arguments are ignored.';
+
+-- The global catalog determines server-enforced resource caps; only explicitly
+-- provisioned trusted operators may change it through the authenticated client.
+drop policy if exists "global_class_catalog_write_authenticated"
+  on public.global_class_catalog;
+create policy "global_class_catalog_write_trusted_admin"
+  on public.global_class_catalog
+  for all to authenticated
+  using (
+    coalesce(auth.jwt() -> 'app_metadata' ->> 'global_rules_admin', 'false') = 'true'
+  )
+  with check (
+    coalesce(auth.jwt() -> 'app_metadata' ->> 'global_rules_admin', 'false') = 'true'
+  );
+
+notify pgrst, 'reload schema';
+
+
+
+===== C:\Users\casa\rpg-platform\supabase\migrations\202610110001_repair_character_resources_and_reward_rpcs.sql =====
+-- Forward-only repair for the remotely confirmed missing character-resource
+-- functions/triggers and campaign reward objects. This file is deliberately
+-- additive: it does not drop existing objects, rewrite unrelated RLS policies,
+-- or delete application data.
+--
+-- Apply only after reviewing this migration. The preflight below aborts if the
+-- rule/catalog tables and columns required by the authoritative max calculation
+-- are not present.
+
+do $preflight$
+declare
+  v_missing_tables text;
+  v_missing_columns text;
+begin
+  select string_agg(required.table_name, ', ' order by required.table_name)
+    into v_missing_tables
+  from (values
+    ('public.personagens'),
+    ('public.campanhas'),
+    ('public.campanha_membros'),
+    ('public.itens'),
+    ('public.inventarios'),
+    ('public.campanha_classes_conteudos'),
+    ('public.global_class_catalog'),
+    ('auth.users')
+  ) as required(table_name)
+  where to_regclass(required.table_name) is null;
+
+  if v_missing_tables is not null then
+    raise exception 'Migração cancelada; tabelas pré-requisito ausentes: %', v_missing_tables;
+  end if;
+
+  select string_agg(format('%I.%I', required.table_name, required.column_name), ', '
+                    order by required.table_name, required.column_name)
+    into v_missing_columns
+  from (values
+    ('personagens', 'id'),
+    ('personagens', 'campanha_id'),
+    ('personagens', 'user_id'),
+    ('personagens', 'dados'),
+    ('personagens', 'nome'),
+    ('personagens', 'nivel'),
+    ('campanhas', 'id'),
+    ('campanhas', 'bonus_classes'),
+    ('campanha_membros', 'campanha_id'),
+    ('campanha_membros', 'user_id'),
+    ('campanha_membros', 'papel'),
+    ('campanha_membros', 'status'),
+    ('itens', 'id'),
+    ('itens', 'bonus_atributos'),
+    ('inventarios', 'personagem_id'),
+    ('inventarios', 'item_id'),
+    ('inventarios', 'quantidade'),
+    ('inventarios', 'equipado'),
+    ('inventarios', 'updated_at'),
+    ('campanha_classes_conteudos', 'campanha_id'),
+    ('campanha_classes_conteudos', 'classe_id'),
+    ('campanha_classes_conteudos', 'tipo'),
+    ('campanha_classes_conteudos', 'nome'),
+    ('campanha_classes_conteudos', 'bonus_atributos'),
+    ('campanha_classes_conteudos', 'bonus_hp'),
+    ('campanha_classes_conteudos', 'bonus_mp'),
+    ('campanha_classes_conteudos', 'created_at'),
+    ('campanha_classes_conteudos', 'id'),
+    ('global_class_catalog', 'id'),
+    ('global_class_catalog', 'dados')
+  ) as required(table_name, column_name)
+  left join information_schema.columns column_info
+    on column_info.table_schema = 'public'
+   and column_info.table_name = required.table_name
+   and column_info.column_name = required.column_name
+  where column_info.column_name is null;
+
+  if v_missing_columns is not null then
+    raise exception 'Migração cancelada; colunas pré-requisito ausentes: %', v_missing_columns;
+  end if;
+end;
+$preflight$;
+
+-- Missing additive character contract fields from the earlier migrations.
+alter table public.personagens
+  add column if not exists dados_version bigint not null default 1,
+  add column if not exists xp integer not null default 0;
+
+-- Shared helpers used by server-side resource calculations.
+create or replace function public._integer_from_jsonb(
+  p_value jsonb,
+  p_fallback integer,
+  p_min integer,
+  p_max integer
+)
+returns integer
+language plpgsql
+immutable
+set search_path = pg_catalog, public
+as $$
+declare
+  v_value numeric;
+begin
+  if p_value is null or jsonb_typeof(p_value) is distinct from 'number' then
+    return p_fallback;
+  end if;
+
+  v_value := (p_value #>> '{}')::numeric;
+  return greatest(p_min, least(p_max, trunc(v_value)))::integer;
+exception
+  when numeric_value_out_of_range or invalid_text_representation then
+    return p_fallback;
+end;
+$$;
+
+create or replace function public._character_rule_key(p_value text)
+returns text
+language sql
+immutable
+set search_path = pg_catalog
+as $$
+  select translate(
+    lower(trim(coalesce(p_value, ''))),
+    'áàâãäéèêëíìîïóòôõöúùûüç',
+    'aaaaaeeeeiiiiooooouuuuc'
+  );
+$$;
+
+create or replace function public._builtin_character_bonus(
+  p_source text,
+  p_name text
+)
+returns jsonb
+language plpgsql
+immutable
+set search_path = pg_catalog, public
+as $$
+declare
+  v_key text := public._character_rule_key(p_name);
+begin
+  if p_source = 'RACA' then
+    return case v_key
+      when 'humano' then '{"atributoBonus":{"forca":1,"destreza":1,"constituicao":1,"inteligencia":1,"carisma":1},"hpBonus":0,"mpBonus":0}'::jsonb
+      when 'elfo' then '{"atributoBonus":{"destreza":2},"hpBonus":0,"mpBonus":5}'::jsonb
+      when 'anao' then '{"atributoBonus":{"constituicao":2},"hpBonus":10,"mpBonus":0}'::jsonb
+      when 'meio-orc' then '{"atributoBonus":{"forca":2,"constituicao":1},"hpBonus":0,"mpBonus":0}'::jsonb
+      when 'orc' then '{"atributoBonus":{"forca":2},"hpBonus":6,"mpBonus":0}'::jsonb
+      when 'draconato' then '{"atributoBonus":{"forca":2,"carisma":1},"hpBonus":0,"mpBonus":0}'::jsonb
+      else '{"atributoBonus":{},"hpBonus":0,"mpBonus":0}'::jsonb
+    end;
+  elsif p_source = 'FILIACAO' then
+    return case v_key
+      when 'colegio de magos arcanum' then '{"atributoBonus":{"inteligencia":1},"hpBonus":0,"mpBonus":6}'::jsonb
+      when 'ordem da presa do lobo' then '{"atributoBonus":{"constituicao":1},"hpBonus":6,"mpBonus":0}'::jsonb
+      when 'sombras urbanas' then '{"atributoBonus":{"destreza":1,"carisma":1},"hpBonus":0,"mpBonus":0}'::jsonb
+      else '{"atributoBonus":{},"hpBonus":0,"mpBonus":0}'::jsonb
+    end;
+  end if;
+
+  return case v_key
+    when 'bardo' then '{"atributoBonus":{"carisma":2},"hpBonus":0,"mpBonus":6}'::jsonb
+    when 'artifice' then '{"atributoBonus":{"inteligencia":2},"hpBonus":0,"mpBonus":5}'::jsonb
+    when 'paladino' then '{"atributoBonus":{"forca":2,"carisma":1},"hpBonus":8,"mpBonus":0}'::jsonb
+    when 'necromante' then '{"atributoBonus":{"inteligencia":2},"hpBonus":0,"mpBonus":8}'::jsonb
+    when 'barbaro' then '{"atributoBonus":{"forca":2},"hpBonus":12,"mpBonus":0}'::jsonb
+    when 'clerigo' then '{"atributoBonus":{"constituicao":1,"carisma":1},"hpBonus":5,"mpBonus":5}'::jsonb
+    when 'mago' then '{"atributoBonus":{"inteligencia":2},"hpBonus":0,"mpBonus":10}'::jsonb
+    when 'ladino' then '{"atributoBonus":{"destreza":2,"carisma":1},"hpBonus":0,"mpBonus":0}'::jsonb
+    when 'guerreiro' then '{"atributoBonus":{"forca":2},"hpBonus":10,"mpBonus":0}'::jsonb
+    else '{"atributoBonus":{},"hpBonus":0,"mpBonus":0}'::jsonb
+  end;
+end;
+$$;
+
+create or replace function public._calcular_maximos_recursos_personagem(
+  p_personagem_id uuid,
+  p_dados jsonb,
+  p_nivel integer,
+  p_campanha_id uuid
+)
+returns table (hp_max integer, mp_max integer)
+language plpgsql
+security invoker
+set search_path = pg_catalog, public
+as $$
+declare
+  v_classe text := coalesce(p_dados ->> 'classe', 'Aventureiro');
+  v_classe_id text := p_dados ->> 'classeId';
+  v_raca text := coalesce(p_dados ->> 'raca', '');
+  v_filiacao text := coalesce(p_dados ->> 'filiacao', '');
+  v_bonus_raca jsonb;
+  v_bonus_classe jsonb;
+  v_bonus_filiacao jsonb;
+  v_override jsonb;
+  v_conteudo_campanha jsonb;
+  v_classe_global jsonb;
+  v_catalogo_global jsonb;
+  v_bonus_campanha jsonb := '{}'::jsonb;
+  v_tem_override boolean := false;
+  v_tem_conteudo_campanha boolean := false;
+  v_tem_catalogo_global boolean := false;
+  v_tem_classe_global boolean := false;
+  v_chave_classe text := public._character_rule_key(v_classe);
+  v_forca numeric;
+  v_destreza numeric;
+  v_constituicao numeric;
+  v_inteligencia numeric;
+  v_carisma numeric;
+  v_bonus_equip_constituicao numeric := 0;
+  v_bonus_equip_inteligencia numeric := 0;
+  v_bonus_atributo jsonb;
+  v_dado_vida integer;
+  v_nivel integer := greatest(1, coalesce(p_nivel, 1));
+  v_modificador_con numeric;
+  v_por_nivel numeric;
+  v_hp numeric;
+  v_mp numeric;
+begin
+  v_bonus_raca := public._builtin_character_bonus('RACA', v_raca);
+  v_bonus_filiacao := public._builtin_character_bonus('FILIACAO', v_filiacao);
+
+  if p_campanha_id is not null then
+    select coalesce(campanha.bonus_classes, '{}'::jsonb)
+      into v_bonus_campanha
+    from public.campanhas campanha
+    where campanha.id = p_campanha_id
+    for share;
+
+    select entrada.value
+      into v_override
+    from jsonb_each(
+      case when jsonb_typeof(v_bonus_campanha) = 'object'
+        then v_bonus_campanha else '{}'::jsonb end
+    ) as entrada(key, value)
+    where jsonb_typeof(entrada.value) = 'object'
+      and public._character_rule_key(entrada.key) in (
+        v_chave_classe,
+        public._character_rule_key(v_classe_id)
+      )
+    order by case
+      when public._character_rule_key(entrada.key) = public._character_rule_key(v_classe_id) then 0
+      else 1
+    end
+    limit 1;
+    v_tem_override := found;
+
+    select jsonb_build_object(
+      'atributoBonus', conteudo.bonus_atributos,
+      'hpBonus', conteudo.bonus_hp,
+      'mpBonus', conteudo.bonus_mp
+    )
+      into v_conteudo_campanha
+    from public.campanha_classes_conteudos conteudo
+    where conteudo.campanha_id = p_campanha_id
+      and conteudo.tipo = 'CLASSE'
+      and (
+        (v_classe_id is not null and conteudo.classe_id = v_classe_id)
+        or public._character_rule_key(conteudo.nome) = v_chave_classe
+      )
+    order by conteudo.created_at, conteudo.id
+    limit 1;
+    v_tem_conteudo_campanha := found;
+  end if;
+
+  select catalogo.dados
+    into v_catalogo_global
+  from public.global_class_catalog catalogo
+  where catalogo.id = 'global'
+  for share;
+  v_tem_catalogo_global := found;
+
+  if v_tem_catalogo_global then
+    select entrada.value
+      into v_classe_global
+    from jsonb_array_elements(
+      case when jsonb_typeof(v_catalogo_global) = 'array'
+        then v_catalogo_global else '[]'::jsonb end
+    ) with ordinality as entrada(value, ordem)
+    where (
+      (v_classe_id is not null and entrada.value ->> 'id' = v_classe_id)
+      or public._character_rule_key(entrada.value ->> 'nome') = v_chave_classe
+      or exists (
+        select 1
+        from jsonb_array_elements_text(
+          case when jsonb_typeof(entrada.value -> 'aliases') = 'array'
+            then entrada.value -> 'aliases' else '[]'::jsonb end
+        ) as class_alias(nome)
+        where public._character_rule_key(class_alias.nome) = v_chave_classe
+      )
+    )
+    order by entrada.ordem
+    limit 1;
+    v_tem_classe_global := found;
+  end if;
+
+  if v_tem_override then
+    v_bonus_classe := v_override;
+  elsif v_tem_conteudo_campanha then
+    v_bonus_classe := v_conteudo_campanha;
+  elsif v_tem_classe_global then
+    v_bonus_classe := v_classe_global;
+  else
+    v_bonus_classe := public._builtin_character_bonus('CLASSE', v_classe);
+  end if;
+
+  v_bonus_atributo := coalesce(v_bonus_raca -> 'atributoBonus', '{}'::jsonb);
+  v_forca := public._integer_from_jsonb(p_dados #> '{attributes,forca}', 10, 1, 30)
+    + public._integer_from_jsonb(v_bonus_atributo -> 'forca', 0, -999999, 999999);
+  v_destreza := public._integer_from_jsonb(p_dados #> '{attributes,destreza}', 10, 1, 30)
+    + public._integer_from_jsonb(v_bonus_atributo -> 'destreza', 0, -999999, 999999);
+  v_constituicao := public._integer_from_jsonb(p_dados #> '{attributes,constituicao}', 10, 1, 30)
+    + public._integer_from_jsonb(v_bonus_atributo -> 'constituicao', 0, -999999, 999999);
+  v_inteligencia := public._integer_from_jsonb(p_dados #> '{attributes,inteligencia}', 10, 1, 30)
+    + public._integer_from_jsonb(v_bonus_atributo -> 'inteligencia', 0, -999999, 999999);
+  v_carisma := public._integer_from_jsonb(p_dados #> '{attributes,carisma}', 10, 1, 30)
+    + public._integer_from_jsonb(v_bonus_atributo -> 'carisma', 0, -999999, 999999);
+
+  v_bonus_atributo := coalesce(v_bonus_classe -> 'atributoBonus', '{}'::jsonb);
+  v_forca := v_forca + public._integer_from_jsonb(v_bonus_atributo -> 'forca', 0, -999999, 999999);
+  v_destreza := v_destreza + public._integer_from_jsonb(v_bonus_atributo -> 'destreza', 0, -999999, 999999);
+  v_constituicao := v_constituicao + public._integer_from_jsonb(v_bonus_atributo -> 'constituicao', 0, -999999, 999999);
+  v_inteligencia := v_inteligencia + public._integer_from_jsonb(v_bonus_atributo -> 'inteligencia', 0, -999999, 999999);
+  v_carisma := v_carisma + public._integer_from_jsonb(v_bonus_atributo -> 'carisma', 0, -999999, 999999);
+
+  v_bonus_atributo := coalesce(v_bonus_filiacao -> 'atributoBonus', '{}'::jsonb);
+  v_forca := v_forca + public._integer_from_jsonb(v_bonus_atributo -> 'forca', 0, -999999, 999999);
+  v_destreza := v_destreza + public._integer_from_jsonb(v_bonus_atributo -> 'destreza', 0, -999999, 999999);
+  v_constituicao := v_constituicao + public._integer_from_jsonb(v_bonus_atributo -> 'constituicao', 0, -999999, 999999);
+  v_inteligencia := v_inteligencia + public._integer_from_jsonb(v_bonus_atributo -> 'inteligencia', 0, -999999, 999999);
+  v_carisma := v_carisma + public._integer_from_jsonb(v_bonus_atributo -> 'carisma', 0, -999999, 999999);
+
+  select
+    coalesce(sum(public._integer_from_jsonb(item.bonus_atributos -> 'constituicao', 0, -999999, 999999)), 0),
+    coalesce(sum(public._integer_from_jsonb(item.bonus_atributos -> 'inteligencia', 0, -999999, 999999)), 0)
+    into v_bonus_equip_constituicao, v_bonus_equip_inteligencia
+  from public.inventarios inventario
+  join public.itens item on item.id = inventario.item_id
+  where inventario.personagem_id = p_personagem_id
+    and inventario.equipado = true
+    and inventario.quantidade > 0;
+
+  v_constituicao := v_constituicao + v_bonus_equip_constituicao;
+  v_inteligencia := v_inteligencia + v_bonus_equip_inteligencia;
+
+  v_bonus_raca := coalesce(v_bonus_raca, '{}'::jsonb);
+  v_bonus_filiacao := coalesce(v_bonus_filiacao, '{}'::jsonb);
+  v_bonus_classe := coalesce(v_bonus_classe, '{}'::jsonb);
+
+  v_dado_vida := case v_classe
+    when 'Bárbaro' then 12
+    when 'Guerreiro' then 10
+    when 'Paladino' then 10
+    when 'Patrulheiro' then 10
+    when 'Bardo' then 8
+    when 'Bruxo' then 8
+    when 'Clérigo' then 8
+    when 'Druida' then 8
+    when 'Ladino' then 8
+    when 'Monge' then 8
+    when 'Feiticeiro' then 6
+    when 'Mago' then 6
+    else 8
+  end;
+
+  v_modificador_con := floor((v_constituicao - 10) / 2);
+  v_por_nivel := greatest(1, floor(v_dado_vida / 2.0) + 1 + v_modificador_con);
+  v_hp := greatest(
+    1,
+    least(
+      200,
+      v_dado_vida + v_modificador_con + (v_nivel - 1) * v_por_nivel
+      + public._integer_from_jsonb(v_bonus_raca -> 'hpBonus', 0, -999999, 999999)
+      + public._integer_from_jsonb(v_bonus_classe -> 'hpBonus', 0, -999999, 999999)
+      + public._integer_from_jsonb(v_bonus_filiacao -> 'hpBonus', 0, -999999, 999999)
+    )
+  );
+  v_mp := greatest(
+    0,
+    least(
+      200,
+      8 + v_inteligencia
+      + public._integer_from_jsonb(v_bonus_raca -> 'mpBonus', 0, -999999, 999999)
+      + public._integer_from_jsonb(v_bonus_classe -> 'mpBonus', 0, -999999, 999999)
+      + public._integer_from_jsonb(v_bonus_filiacao -> 'mpBonus', 0, -999999, 999999)
+    )
+  );
+
+  return query select v_hp::integer, v_mp::integer;
+end;
+$$;
+
+create or replace function public.aplicar_limites_recursos_personagem()
+returns trigger
+language plpgsql
+security definer
+set search_path = pg_catalog, public, pg_temp
+as $$
+declare
+  v_hp_max integer;
+  v_mp_max integer;
+  v_hp jsonb;
+  v_mp jsonb;
+begin
+  if new.dados is null or jsonb_typeof(new.dados) is distinct from 'object' then
+    return new;
+  end if;
+
+  select maxima.hp_max, maxima.mp_max
+    into v_hp_max, v_mp_max
+  from public._calcular_maximos_recursos_personagem(
+    new.id,
+    new.dados,
+    new.nivel,
+    new.campanha_id
+  ) maxima;
+
+  v_hp := case
+    when jsonb_typeof(new.dados -> 'hp') = 'object' then new.dados -> 'hp'
+    else '{}'::jsonb
+  end;
+  v_mp := case
+    when jsonb_typeof(new.dados -> 'mp') = 'object' then new.dados -> 'mp'
+    else '{}'::jsonb
+  end;
+  v_hp := jsonb_set(
+    v_hp - 'max',
+    '{atual}',
+    to_jsonb(public._integer_from_jsonb(v_hp -> 'atual', 0, 0, v_hp_max)),
+    true
+  );
+  v_mp := jsonb_set(
+    v_mp - 'max',
+    '{atual}',
+    to_jsonb(public._integer_from_jsonb(v_mp -> 'atual', 0, 0, v_mp_max)),
+    true
+  );
+  new.dados := jsonb_set(
+    jsonb_set(new.dados, '{hp}', v_hp, true),
+    '{mp}',
+    v_mp,
+    true
+  );
+  return new;
+end;
+$$;
+
+create or replace function public.incrementar_versao_dados_personagem()
+returns trigger
+language plpgsql
+set search_path = public, pg_temp
+as $$
+begin
+  if row(new.dados, new.nome, new.nivel, new.campanha_id)
+     is distinct from row(old.dados, old.nome, old.nivel, old.campanha_id) then
+    new.dados_version := old.dados_version + 1;
+  else
+    new.dados_version := old.dados_version;
+  end if;
+  return new;
+end;
+$$;
+
+revoke all on function public.aplicar_limites_recursos_personagem() from public;
+revoke all on function public.incrementar_versao_dados_personagem() from public;
+revoke all on function public._integer_from_jsonb(jsonb, integer, integer, integer) from public;
+revoke all on function public._character_rule_key(text) from public;
+revoke all on function public._builtin_character_bonus(text, text) from public;
+revoke all on function public._calcular_maximos_recursos_personagem(uuid, jsonb, integer, uuid) from public;
+
+do $create_character_triggers$
+begin
+  if not exists (
+    select 1 from pg_trigger
+    where tgrelid = 'public.personagens'::regclass
+      and tgname = 'personagens_incrementar_versao_dados'
+      and not tgisinternal
+  ) then
+    execute 'create trigger personagens_incrementar_versao_dados
+      before update of dados, nome, nivel, campanha_id on public.personagens
+      for each row execute function public.incrementar_versao_dados_personagem()';
+  end if;
+
+  if not exists (
+    select 1 from pg_trigger
+    where tgrelid = 'public.personagens'::regclass
+      and tgname = 'personagens_00_limitar_recursos_insert'
+      and not tgisinternal
+  ) then
+    execute 'create trigger personagens_00_limitar_recursos_insert
+      before insert on public.personagens
+      for each row execute function public.aplicar_limites_recursos_personagem()';
+  end if;
+
+  if not exists (
+    select 1 from pg_trigger
+    where tgrelid = 'public.personagens'::regclass
+      and tgname = 'personagens_00_limitar_recursos_update'
+      and not tgisinternal
+  ) then
+    execute 'create trigger personagens_00_limitar_recursos_update
+      before update of dados, nivel, campanha_id on public.personagens
+      for each row execute function public.aplicar_limites_recursos_personagem()';
+  end if;
+end;
+$create_character_triggers$;
+
+-- Reward audit table. It is new according to the remote SQL Editor diagnosis.
+create table if not exists public.campanha_recompensas (
+  id bigint generated by default as identity primary key,
+  campanha_id uuid not null references public.campanhas(id) on delete cascade,
+  personagem_id uuid references public.personagens(id) on delete set null,
+  item_id uuid references public.itens(id) on delete set null,
+  tipo text not null check (tipo in ('OURO', 'XP', 'ITEM')),
+  quantidade integer not null check (quantidade > 0),
+  quantidade_item integer check (quantidade_item is null or quantidade_item > 0),
+  total_destinatarios integer not null default 0 check (total_destinatarios >= 0),
+  request_id uuid not null,
+  created_by uuid not null references auth.users(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  unique (created_by, request_id)
+);
+
+create index if not exists campanha_recompensas_campanha_created_idx
+  on public.campanha_recompensas (campanha_id, created_at desc);
+
+alter table public.campanha_recompensas enable row level security;
+grant select on public.campanha_recompensas to authenticated;
+
+do $create_reward_policy$
+begin
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public'
+      and tablename = 'campanha_recompensas'
+      and policyname = 'campanha_recompensas_select_membro'
+  ) then
+    execute $policy$
+      create policy "campanha_recompensas_select_membro"
+        on public.campanha_recompensas
+        for select to authenticated
+        using (
+          exists (
+            select 1 from public.campanha_membros membro
+            where membro.campanha_id = campanha_recompensas.campanha_id
+              and membro.user_id = auth.uid()
+              and membro.status = 'ATIVO'
+          )
+        )
+    $policy$;
+  end if;
+end;
+$create_reward_policy$;
+
+create or replace function public.creditar_ouro_campanha(
+  p_campanha_id uuid,
+  p_quantia integer,
+  p_personagem_id uuid default null,
+  p_request_id uuid default gen_random_uuid()
+)
+returns integer
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_usuario_id uuid := auth.uid();
+  v_request_id uuid := coalesce(p_request_id, gen_random_uuid());
+  v_operation_id bigint;
+  v_existing public.campanha_recompensas%rowtype;
+  v_personagem record;
+  v_dados jsonb;
+  v_carteira jsonb;
+  v_novo_saldo numeric;
+  v_atualizados integer := 0;
+begin
+  if v_usuario_id is null then
+    raise exception 'Usuário não autenticado.';
+  end if;
+  if p_quantia is null or p_quantia <= 0 or p_quantia > 100000 then
+    raise exception 'A quantia deve estar entre 1 e 100000 PO.';
+  end if;
+  if not exists (
+    select 1 from public.campanha_membros membro
+    where membro.campanha_id = p_campanha_id
+      and membro.user_id = v_usuario_id
+      and membro.papel = 'MESTRE'
+      and membro.status = 'ATIVO'
+  ) then
+    raise exception 'Somente o Mestre ativo pode distribuir ouro.';
+  end if;
+
+  insert into public.campanha_recompensas (
+    campanha_id, personagem_id, tipo, quantidade, request_id, created_by
+  ) values (
+    p_campanha_id, p_personagem_id, 'OURO', p_quantia, v_request_id, v_usuario_id
+  ) on conflict (created_by, request_id) do nothing
+  returning id into v_operation_id;
+
+  if v_operation_id is null then
+    select * into v_existing
+    from public.campanha_recompensas
+    where created_by = v_usuario_id and request_id = v_request_id;
+    if not found
+      or v_existing.campanha_id <> p_campanha_id
+      or v_existing.personagem_id is distinct from p_personagem_id
+      or v_existing.tipo <> 'OURO'
+      or v_existing.item_id is not null
+      or v_existing.quantidade <> p_quantia then
+      raise exception 'A chave da recompensa já foi usada com outros dados.';
+    end if;
+    return v_existing.total_destinatarios;
+  end if;
+
+  for v_personagem in
+    select personagem.id, personagem.dados
+    from public.personagens personagem
+    join public.campanha_membros membro
+      on membro.campanha_id = personagem.campanha_id
+      and membro.user_id = personagem.user_id
+      and membro.status = 'ATIVO'
+    where personagem.campanha_id = p_campanha_id
+      and (p_personagem_id is null or personagem.id = p_personagem_id)
+    order by personagem.id
+    for update
+  loop
+    v_dados := coalesce(v_personagem.dados, '{}'::jsonb);
+    v_carteira := case
+      when jsonb_typeof(v_dados -> 'carteira') = 'object' then v_dados -> 'carteira'
+      else '{}'::jsonb
+    end;
+    v_novo_saldo := coalesce(nullif(v_carteira ->> 'po', '')::numeric, 0) + p_quantia;
+    if v_novo_saldo > 9999999 then
+      raise exception 'O saldo de % excederia o limite de 9999999 PO.', v_personagem.id;
+    end if;
+    v_carteira := v_carteira || jsonb_build_object('po', v_novo_saldo);
+    v_dados := jsonb_set(v_dados, '{carteira}', v_carteira, true);
+    update public.personagens set dados = v_dados where id = v_personagem.id;
+    v_atualizados := v_atualizados + 1;
+  end loop;
+
+  if p_personagem_id is not null and v_atualizados = 0 then
+    raise exception 'Personagem não pertence a esta campanha.';
+  end if;
+  update public.campanha_recompensas
+  set total_destinatarios = v_atualizados
+  where id = v_operation_id;
+  return v_atualizados;
+end;
+$$;
+
+create or replace function public.creditar_experiencia_campanha(
+  p_campanha_id uuid,
+  p_quantia integer,
+  p_personagem_id uuid default null,
+  p_request_id uuid default gen_random_uuid()
+)
+returns integer
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_usuario_id uuid := auth.uid();
+  v_request_id uuid := coalesce(p_request_id, gen_random_uuid());
+  v_operation_id bigint;
+  v_existing public.campanha_recompensas%rowtype;
+  v_personagem record;
+  v_novo_xp bigint;
+  v_atualizados integer := 0;
+begin
+  if v_usuario_id is null then
+    raise exception 'Usuário não autenticado.';
+  end if;
+  if p_quantia is null or p_quantia <= 0 or p_quantia > 2147483647 then
+    raise exception 'A quantidade de XP deve ser maior que zero.';
+  end if;
+  if not exists (
+    select 1 from public.campanha_membros membro
+    where membro.campanha_id = p_campanha_id
+      and membro.user_id = v_usuario_id
+      and membro.papel = 'MESTRE'
+      and membro.status = 'ATIVO'
+  ) then
+    raise exception 'Somente o Mestre ativo pode distribuir XP.';
+  end if;
+
+  insert into public.campanha_recompensas (
+    campanha_id, personagem_id, tipo, quantidade, request_id, created_by
+  ) values (
+    p_campanha_id, p_personagem_id, 'XP', p_quantia, v_request_id, v_usuario_id
+  ) on conflict (created_by, request_id) do nothing
+  returning id into v_operation_id;
+
+  if v_operation_id is null then
+    select * into v_existing
+    from public.campanha_recompensas
+    where created_by = v_usuario_id and request_id = v_request_id;
+    if not found
+      or v_existing.campanha_id <> p_campanha_id
+      or v_existing.personagem_id is distinct from p_personagem_id
+      or v_existing.tipo <> 'XP'
+      or v_existing.item_id is not null
+      or v_existing.quantidade <> p_quantia then
+      raise exception 'A chave da recompensa já foi usada com outros dados.';
+    end if;
+    return v_existing.total_destinatarios;
+  end if;
+
+  for v_personagem in
+    select personagem.id, personagem.xp
+    from public.personagens personagem
+    join public.campanha_membros membro
+      on membro.campanha_id = personagem.campanha_id
+      and membro.user_id = personagem.user_id
+      and membro.status = 'ATIVO'
+    where personagem.campanha_id = p_campanha_id
+      and (p_personagem_id is null or personagem.id = p_personagem_id)
+    order by personagem.id
+    for update
+  loop
+    v_novo_xp := coalesce(v_personagem.xp, 0)::bigint + p_quantia;
+    if v_novo_xp > 2147483647 then
+      raise exception 'O XP excederia o limite armazenável para o personagem %.', v_personagem.id;
+    end if;
+    update public.personagens
+    set xp = v_novo_xp::integer
+    where id = v_personagem.id;
+    v_atualizados := v_atualizados + 1;
+  end loop;
+
+  if p_personagem_id is not null and v_atualizados = 0 then
+    raise exception 'Personagem não pertence a esta campanha.';
+  end if;
+  update public.campanha_recompensas
+  set total_destinatarios = v_atualizados
+  where id = v_operation_id;
+  return v_atualizados;
+end;
+$$;
+
+create or replace function public.entregar_item_campanha(
+  p_campanha_id uuid,
+  p_item_id uuid,
+  p_quantidade integer,
+  p_personagem_id uuid default null,
+  p_request_id uuid default gen_random_uuid()
+)
+returns integer
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_usuario_id uuid := auth.uid();
+  v_request_id uuid := coalesce(p_request_id, gen_random_uuid());
+  v_operation_id bigint;
+  v_existing public.campanha_recompensas%rowtype;
+  v_personagem record;
+  v_updated integer;
+  v_destinatarios integer := 0;
+begin
+  if v_usuario_id is null then
+    raise exception 'Usuário não autenticado.';
+  end if;
+  if p_quantidade is null or p_quantidade <= 0 or p_quantidade > 9999 then
+    raise exception 'A quantidade de itens deve estar entre 1 e 9999.';
+  end if;
+  if not exists (select 1 from public.itens item where item.id = p_item_id) then
+    raise exception 'O item selecionado não existe mais.';
+  end if;
+  if not exists (
+    select 1 from public.campanha_membros membro
+    where membro.campanha_id = p_campanha_id
+      and membro.user_id = v_usuario_id
+      and membro.papel = 'MESTRE'
+      and membro.status = 'ATIVO'
+  ) then
+    raise exception 'Somente o Mestre ativo pode entregar itens.';
+  end if;
+
+  insert into public.campanha_recompensas (
+    campanha_id, personagem_id, item_id, tipo, quantidade, quantidade_item, request_id, created_by
+  ) values (
+    p_campanha_id, p_personagem_id, p_item_id, 'ITEM', p_quantidade, p_quantidade, v_request_id, v_usuario_id
+  ) on conflict (created_by, request_id) do nothing
+  returning id into v_operation_id;
+
+  if v_operation_id is null then
+    select * into v_existing
+    from public.campanha_recompensas
+    where created_by = v_usuario_id and request_id = v_request_id;
+    if not found
+      or v_existing.campanha_id <> p_campanha_id
+      or v_existing.personagem_id is distinct from p_personagem_id
+      or v_existing.tipo <> 'ITEM'
+      or v_existing.item_id is distinct from p_item_id
+      or v_existing.quantidade_item <> p_quantidade then
+      raise exception 'A chave da recompensa já foi usada com outros dados.';
+    end if;
+    return v_existing.total_destinatarios;
+  end if;
+
+  for v_personagem in
+    select personagem.id
+    from public.personagens personagem
+    join public.campanha_membros membro
+      on membro.campanha_id = personagem.campanha_id
+      and membro.user_id = personagem.user_id
+      and membro.status = 'ATIVO'
+    where personagem.campanha_id = p_campanha_id
+      and (p_personagem_id is null or personagem.id = p_personagem_id)
+    order by personagem.id
+    for update
+  loop
+    update public.inventarios
+      set quantidade = quantidade + p_quantidade,
+          updated_at = now()
+      where personagem_id = v_personagem.id
+        and item_id = p_item_id;
+    get diagnostics v_updated = row_count;
+    if v_updated = 0 then
+      insert into public.inventarios (personagem_id, item_id, quantidade, equipado, updated_at)
+      values (v_personagem.id, p_item_id, p_quantidade, false, now());
+    end if;
+    v_destinatarios := v_destinatarios + 1;
+  end loop;
+
+  if p_personagem_id is not null and v_destinatarios = 0 then
+    raise exception 'Personagem não pertence a esta campanha.';
+  end if;
+  update public.campanha_recompensas
+  set total_destinatarios = v_destinatarios
+  where id = v_operation_id;
+  return v_destinatarios;
+end;
+$$;
+
+create or replace function public.listar_recompensas_campanha(p_campanha_id uuid)
+returns setof public.campanha_recompensas
+language plpgsql
+security invoker
+set search_path = public, pg_temp
+as $$
+begin
+  if auth.uid() is null or not exists (
+    select 1 from public.campanha_membros membro
+    where membro.campanha_id = p_campanha_id
+      and membro.user_id = auth.uid()
+      and membro.status = 'ATIVO'
+  ) then
+    raise exception 'Você não participa ativamente desta campanha.';
+  end if;
+  return query
+    select * from public.campanha_recompensas recompensa
+    where recompensa.campanha_id = p_campanha_id
+    order by recompensa.created_at desc
+    limit 30;
+end;
+$$;
+
+create or replace function public.listar_maximos_recursos_campanha(p_campanha_id uuid)
+returns table (
+  personagem_id uuid,
+  hp_atual integer,
+  hp_max integer,
+  mp_atual integer,
+  mp_max integer
+)
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+begin
+  if auth.uid() is null or not exists (
+    select 1 from public.campanha_membros membro
+    where membro.campanha_id = p_campanha_id
+      and membro.user_id = auth.uid()
+      and membro.status = 'ATIVO'
+  ) then
+    raise exception 'Você não participa ativamente desta campanha.';
+  end if;
+
+  return query
+    select
+      personagem.id,
+      public._integer_from_jsonb(personagem.dados #> '{hp,atual}', 0, 0, maxima.hp_max),
+      maxima.hp_max,
+      public._integer_from_jsonb(personagem.dados #> '{mp,atual}', 0, 0, maxima.mp_max),
+      maxima.mp_max
+    from public.personagens personagem
+    join public.campanha_membros membro
+      on membro.campanha_id = personagem.campanha_id
+      and membro.user_id = personagem.user_id
+      and membro.status = 'ATIVO'
+    cross join lateral public._calcular_maximos_recursos_personagem(
+      personagem.id, personagem.dados, personagem.nivel, personagem.campanha_id
+    ) maxima
+    where personagem.campanha_id = p_campanha_id
+    order by personagem.id;
+end;
+$$;
+
+create or replace function public.get_character_resource_maximums(p_personagem_id uuid)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_usuario_id uuid := auth.uid();
+  v_personagem public.personagens%rowtype;
+  v_maximos record;
+begin
+  if v_usuario_id is null then
+    raise exception 'Usuário não autenticado.';
+  end if;
+  select * into v_personagem
+  from public.personagens personagem
+  where personagem.id = p_personagem_id
+    and (
+      personagem.user_id = v_usuario_id
+      or exists (
+        select 1 from public.campanha_membros membro
+        where membro.campanha_id = personagem.campanha_id
+          and membro.user_id = v_usuario_id
+          and membro.status = 'ATIVO'
+      )
+    );
+  if not found then
+    raise exception 'Personagem não encontrado ou sem permissão.';
+  end if;
+
+  select * into v_maximos
+  from public._calcular_maximos_recursos_personagem(
+    v_personagem.id, v_personagem.dados, v_personagem.nivel, v_personagem.campanha_id
+  );
+  return jsonb_build_object(
+    'dados_version', v_personagem.dados_version,
+    'hp_atual', public._integer_from_jsonb(v_personagem.dados #> '{hp,atual}', 0, 0, v_maximos.hp_max),
+    'mp_atual', public._integer_from_jsonb(v_personagem.dados #> '{mp,atual}', 0, 0, v_maximos.mp_max),
+    'hp_max', v_maximos.hp_max,
+    'mp_max', v_maximos.mp_max
+  );
+end;
+$$;
+
+create or replace function public.reconciliar_limites_recursos_personagem(p_personagem_id uuid)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_usuario_id uuid := auth.uid();
+  v_personagem public.personagens%rowtype;
+  v_maximos record;
+begin
+  if v_usuario_id is null then
+    raise exception 'Usuário não autenticado.';
+  end if;
+
+  select * into v_personagem
+  from public.personagens personagem
+  where personagem.id = p_personagem_id
+    and (
+      personagem.user_id = v_usuario_id
+      or exists (
+        select 1 from public.campanha_membros membro
+        where membro.campanha_id = personagem.campanha_id
+          and membro.user_id = v_usuario_id
+          and membro.papel = 'MESTRE'
+          and membro.status = 'ATIVO'
+      )
+    )
+  for update;
+  if not found then
+    raise exception 'Personagem não encontrado ou sem permissão.';
+  end if;
+
+  select * into v_maximos
+  from public._calcular_maximos_recursos_personagem(
+    v_personagem.id,
+    coalesce(v_personagem.dados, '{}'::jsonb),
+    v_personagem.nivel,
+    v_personagem.campanha_id
+  );
+
+  update public.personagens
+  set dados = coalesce(v_personagem.dados, '{}'::jsonb)
+  where id = p_personagem_id
+  returning * into v_personagem;
+
+  return jsonb_build_object(
+    'dados_version', v_personagem.dados_version,
+    'hp_atual', public._integer_from_jsonb(v_personagem.dados #> '{hp,atual}', 0, 0, v_maximos.hp_max),
+    'mp_atual', public._integer_from_jsonb(v_personagem.dados #> '{mp,atual}', 0, 0, v_maximos.mp_max),
+    'hp_max', v_maximos.hp_max,
+    'mp_max', v_maximos.mp_max
+  );
+end;
+$$;
+
+revoke all on function public.creditar_ouro_campanha(uuid, integer, uuid, uuid) from public;
+grant execute on function public.creditar_ouro_campanha(uuid, integer, uuid, uuid) to authenticated;
+revoke all on function public.creditar_experiencia_campanha(uuid, integer, uuid, uuid) from public;
+grant execute on function public.creditar_experiencia_campanha(uuid, integer, uuid, uuid) to authenticated;
+revoke all on function public.entregar_item_campanha(uuid, uuid, integer, uuid, uuid) from public;
+grant execute on function public.entregar_item_campanha(uuid, uuid, integer, uuid, uuid) to authenticated;
+revoke all on function public.listar_recompensas_campanha(uuid) from public;
+grant execute on function public.listar_recompensas_campanha(uuid) to authenticated;
+revoke all on function public.listar_maximos_recursos_campanha(uuid) from public;
+grant execute on function public.listar_maximos_recursos_campanha(uuid) to authenticated;
+revoke all on function public.get_character_resource_maximums(uuid) from public;
+grant execute on function public.get_character_resource_maximums(uuid) to authenticated;
+revoke all on function public.reconciliar_limites_recursos_personagem(uuid) from public;
+grant execute on function public.reconciliar_limites_recursos_personagem(uuid) to authenticated;
+
+notify pgrst, 'reload schema';
+
+
+
+===== C:\Users\casa\rpg-platform\supabase\20261011_diagnostico_banco.sql =====
+-- Elementum: DIAGNÓSTICO (só lê, não altera nada).
+-- Rode no SQL Editor e me envie o resultado das duas tabelas.
+
+-- 1) Funções (RPCs) que o código chama e NÃO existem no banco
+select f.nome as funcao_faltando
+from unnest(array[
+  'adicionar_item_existente_loja','alterar_item_equipado','atualizar_personagem_versionado',
+  'creditar_experiencia_campanha','creditar_ouro_campanha','criar_campanha_atomica',
+  'entregar_item_campanha','get_character_resource_maximums','listar_maximos_recursos_campanha',
+  'reconciliar_limites_recursos_personagem','registrar_compra_carrinho','remover_item_loja',
+  'salvar_item_loja','usar_item_personagem','vincular_personagem_campanha'
+]) as f(nome)
+where not exists (
+  select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+  where n.nspname = 'public' and p.proname = f.nome
+);
+
+-- 2) Tabelas esperadas que NÃO existem
+select t.nome as tabela_faltando
+from unnest(array[
+  'profiles','campanhas','campanha_membros','personagens','inventarios','itens','lojas',
+  'loja_itens','mapas','mapa_marcadores','retratos','global_class_catalog',
+  'campanha_classes_conteudos','campanha_recompensas'
+]) as t(nome)
+where to_regclass('public.' || t.nome) is null;
+
+
+
+===== NPM RUN BUILD =====
+
+> rpg-platform@0.0.0 build
+> tsc -b && vite build
+
+src/pages/Campaign/CampaignRaces.tsx(3,10): error TS2305: Module '"../../services/api"' has no exported member 'salvarRacasCampanha'.
+src/pages/ClassCatalog/RaceCatalog.tsx(10,3): error TS2724: '"../../services/api"' has no exported member named 'canManageGlobalRaceCatalog'. Did you mean 'canManageGlobalClassCatalog'?
+src/pages/ClassCatalog/RaceCatalog.tsx(11,3): error TS2724: '"../../services/api"' has no exported member named 'getCatalogoGlobalRacas'. Did you mean 'getCatalogoGlobalClasses'?
+src/pages/ClassCatalog/RaceCatalog.tsx(12,3): error TS2724: '"../../services/api"' has no exported member named 'salvarCatalogoGlobalRacas'. Did you mean 'salvarCatalogoGlobalClasses'?
+

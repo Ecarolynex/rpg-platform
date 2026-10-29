@@ -1922,3 +1922,5 @@ export async function excluirItemInventario(
     throw new Error("O Supabase não confirmou a exclusão do item.");
   }
 }
+export * from './racesApi';
+
