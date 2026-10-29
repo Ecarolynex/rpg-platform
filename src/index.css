@@ -275,9 +275,16 @@ svg {
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-control);
   padding: 10px 12px;
+  background-color: #0e1e1b;
   background: var(--surface-inset);
+  color-scheme: dark;
   font-size: 1rem;
   color: var(--parchment);
+}
+select option,
+select optgroup {
+  background-color: #141918;
+  color: #ffffff;
 }
 .field textarea {
   resize: vertical;

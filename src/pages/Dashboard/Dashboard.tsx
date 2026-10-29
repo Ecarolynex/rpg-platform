@@ -19,28 +19,30 @@ import {
   type CampaignClassContent,
 } from "../../services/api";
 import { CharacterCard } from "../../components/character/CharacterCard";
-import { OptionField } from "../../components/ui/OptionField";
-import { ClassInfoBox } from "../../components/character/ClassInfoBox";
+import { GrimoireEnvironment } from "../../components/character/creator/GrimoireEnvironment";
+import {
+  GrimoireModal,
+  type CharacterDraftState,
+  type DraftTextField,
+} from "../../components/character/creator/GrimoireModal";
 import { montarInfoClasse } from "../../components/character/classInfoUtils";
 import {
-  RACAS,
   bonusProficiencia,
   carteiraInicial,
-  formatarModificador,
-  modificador,
 } from "../../data/dnd";
 import {
-  ATTRIBUTE_CONFIG,
   DEFAULT_CLASS_CATALOG,
   FIXED_SKILLS,
+  normalizarBonusClassesCampanha,
   type CampaignClassBonuses,
   type ClassDefinition,
 } from "../../data/personaRules";
 import { calculateDerivedCharacterStats, type CharacterRulesContext } from "../../domain/characterRules";
 import "./Dashboard.css";
 import "./DashboardActions.css";
+import "../../components/character/creator/GrimoireCreator.css";
 
-const initialDraft = {
+const initialDraft: CharacterDraftState = {
   nome: "",
   raca: "",
   classe: "",
@@ -55,17 +57,9 @@ const initialDraft = {
   destreza: 10,
   constituicao: 10,
   inteligencia: 10,
+  sabedoria: 10,
   carisma: 10,
 };
-
-type TextField =
-  | "nome"
-  | "origem"
-  | "qualidades"
-  | "idade"
-  | "historia"
-  | "aparencia"
-  | "defeito";
 
 type CampaignRulesState = {
   campaignId: string;
@@ -73,14 +67,38 @@ type CampaignRulesState = {
   message?: string;
 };
 
-function rotuloAtributo(valor: string): string {
-  const porChave = ATTRIBUTE_CONFIG.find((item) => String(item.key) === valor);
-  return porChave ? porChave.label : valor;
-}
-
 function chaveNomePericia(nome?: string): string {
   if (!nome) return "";
   return nome.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLocaleLowerCase();
+}
+
+function normalizarChaveClasse(valor?: string): string {
+  if (!valor) return "";
+  return valor
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLocaleLowerCase();
+}
+
+function isClasseBloqueadaNaCampanha(
+  classe: ClassDefinition,
+  bonuses: CampaignClassBonuses,
+): boolean {
+  if (classe.bloqueada) return true;
+  const direct = bonuses[classe.nome] ?? bonuses[classe.id];
+  if (direct && typeof direct.bloqueada === "boolean") {
+    return direct.bloqueada;
+  }
+  const targetNome = normalizarChaveClasse(classe.nome);
+  const targetId = normalizarChaveClasse(classe.id);
+  for (const [key, config] of Object.entries(bonuses)) {
+    const normKey = normalizarChaveClasse(key);
+    if (normKey === targetNome || normKey === targetId) {
+      return Boolean(config?.bloqueada);
+    }
+  }
+  return false;
 }
 
 function createUntrainedSkills(
@@ -116,7 +134,6 @@ function createUntrainedSkills(
   const nomesVistos = new Set<string>();
   const definitions = [...FIXED_SKILLS, ...classSkills].filter((skill, index, skills) => {
     if (skills.findIndex((item) => item.id === skill.id) !== index) return false;
-    // Uma perícia da classe com o mesmo nome de uma fixa (ex.: Atletismo) não entra duas vezes.
     const chave = chaveNomePericia(skill.nome);
     if (nomesVistos.has(chave)) return false;
     nomesVistos.add(chave);
@@ -150,7 +167,7 @@ export default function Dashboard() {
   const [saving, setSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [showCreator, setShowCreator] = useState(false);
-  const [draft, setDraft] = useState(initialDraft);
+  const [draft, setDraft] = useState<CharacterDraftState>(initialDraft);
   const [skillsDraft, setSkillsDraft] = useState<Skill[]>(() =>
     createUntrainedSkills(undefined, []),
   );
@@ -190,6 +207,25 @@ export default function Dashboard() {
         setCharacters(charactersData);
         setCampaigns(campaignsData);
         setClassCatalog(classesData);
+
+        const activeCampaigns = campaignsData.filter((item) => item.status === "ATIVA");
+        if (activeCampaigns.length === 1) {
+          const singleCampaign = activeCampaigns[0];
+          setSelectedCampaignId((current) => {
+            if (current) return current;
+            setCampaignRulesState({ campaignId: singleCampaign.id, status: "loading" });
+            if (
+              singleCampaign.bonus_classes &&
+              typeof singleCampaign.bonus_classes === "object" &&
+              Object.keys(singleCampaign.bonus_classes).length > 0
+            ) {
+              setCampaignBonuses(
+                normalizarBonusClassesCampanha(singleCampaign.bonus_classes, false),
+              );
+            }
+            return singleCampaign.id;
+          });
+        }
 
         const linkedCampaignIds = [...new Set(
           charactersData.map((character) => character.campanhaId).filter((campaignId): campaignId is string => Boolean(campaignId)),
@@ -286,31 +322,78 @@ export default function Dashboard() {
       magias: [],
       usaMagia: false,
     }));
-  const classesParaCriacao = [
-    ...classCatalog,
-    ...campaignCustomClasses.filter(
-      (classe) => !classCatalog.some((item) => item.nome === classe.nome),
-    ),
-  ].filter((classe) => {
-    if (!selectedCampaignId) return true;
-    return !campaignBonuses[classe.nome]?.bloqueada;
-  });
+  const eligibleCampaigns = campaigns.filter((campaign) => campaign.status === "ATIVA");
+  const selectedCampaign =
+    campaigns.find((campaign) => campaign.id === selectedCampaignId) ?? null;
+
+  const effectiveCampaignBonuses: CampaignClassBonuses = {
+    ...(selectedCampaign?.bonus_classes &&
+    typeof selectedCampaign.bonus_classes === "object" &&
+    Object.keys(selectedCampaign.bonus_classes).length > 0
+      ? normalizarBonusClassesCampanha(selectedCampaign.bonus_classes, false)
+      : {}),
+    ...campaignBonuses,
+  };
+
+  const hasResolvedCampaignRules =
+    Boolean(selectedCampaignId) &&
+    ((campaignRulesState.campaignId === selectedCampaignId &&
+      campaignRulesState.status === "ready") ||
+      Boolean(
+        selectedCampaign?.bonus_classes &&
+          typeof selectedCampaign.bonus_classes === "object" &&
+          Object.keys(selectedCampaign.bonus_classes).length > 0,
+      ));
+
+  const classesParaCriacao = !hasResolvedCampaignRules
+    ? []
+    : [
+        ...classCatalog,
+        ...campaignCustomClasses.filter(
+          (classe) =>
+            !classCatalog.some(
+              (item) =>
+                normalizarChaveClasse(item.nome) === normalizarChaveClasse(classe.nome),
+            ),
+        ),
+      ].filter(
+        (classe) => !isClasseBloqueadaNaCampanha(classe, effectiveCampaignBonuses),
+      );
+
+  useEffect(() => {
+    if (!hasResolvedCampaignRules || !draft.classe) return;
+    const disponivel = classesParaCriacao.some((item) => item.nome === draft.classe);
+    if (!disponivel) {
+      setDraft((prev) => ({ ...prev, classe: "" }));
+      setSkillsDraft(createUntrainedSkills(undefined, campaignClassContents));
+      setSelectedAbilities([]);
+      setClassRevalidationNotice(
+        "A classe selecionada anteriormente não está liberada pelo Mestre nesta campanha.",
+      );
+    }
+  }, [hasResolvedCampaignRules, classesParaCriacao, draft.classe, campaignClassContents]);
 
   const infoClasse = montarInfoClasse(
     draft.classe,
     classesParaCriacao.find((item) => item.nome === draft.classe)?.id,
     classesParaCriacao,
     campaignClassContents,
-    selectedCampaignId ? campaignBonuses : {},
+    selectedCampaignId ? effectiveCampaignBonuses : {},
   );
 
-  const eligibleCampaigns = campaigns.filter((campaign) => campaign.status === "ATIVA");
-
-  function handleSelectCampaign(campaignId: string) {
+  function handleSelectCampaign(campaignId: string, campaignOverride?: Campaign) {
     if (campaignId === selectedCampaignId) return;
+    const targetCampaign =
+      campaignOverride ?? campaigns.find((item) => item.id === campaignId) ?? null;
     setSelectedCampaignId(campaignId);
     setCampaignClassContents([]);
-    setCampaignBonuses({});
+    setCampaignBonuses(
+      targetCampaign?.bonus_classes &&
+        typeof targetCampaign.bonus_classes === "object" &&
+        Object.keys(targetCampaign.bonus_classes).length > 0
+        ? normalizarBonusClassesCampanha(targetCampaign.bonus_classes, false)
+        : {},
+    );
     setCampaignRulesState(campaignId
       ? { campaignId, status: "loading" }
       : { campaignId: "", status: "idle" });
@@ -318,22 +401,19 @@ export default function Dashboard() {
     setCreatorCodeError("");
 
     const classeAtual = draft.classe;
-    if (classeAtual) {
-      const existeNoCatalogo = classesParaCriacao.some((item) => item.nome === classeAtual);
-      if (!existeNoCatalogo && !campaignId) {
-        updateDraft("classe", "");
-        setSkillsDraft(createUntrainedSkills(undefined, []));
-        setSelectedAbilities([]);
-        setClassRevalidationNotice("A classe customizada anterior não está disponível nesta campanha.");
-      }
+    if (classeAtual && !campaignId) {
+      updateDraft("classe", "");
+      setSkillsDraft(createUntrainedSkills(undefined, []));
+      setSelectedAbilities([]);
+      setClassRevalidationNotice("A classe customizada anterior não está disponível nesta campanha.");
     }
   }
 
-  const handleJoinCampaignByCodeInCreator = async () => {
+  const handleJoinCampaignByCodeInCreator = async (): Promise<boolean> => {
     const code = creatorJoinCode.trim().toUpperCase();
     if (!code) {
       setCreatorCodeError("Informe o código de convite da campanha.");
-      return;
+      return false;
     }
 
     setCreatorCodeBusy(true);
@@ -346,12 +426,14 @@ export default function Dashboard() {
         if (prev.some((c) => c.id === campaign.id)) return prev;
         return [campaign, ...prev];
       });
-      handleSelectCampaign(campaign.id);
+      handleSelectCampaign(campaign.id, campaign);
       setCreatorCodeSuccess(`Campanha "${campaign.nome}" vinculada com sucesso!`);
+      return true;
     } catch (err) {
       setCreatorCodeError(
         err instanceof Error ? err.message : "Não foi possível vincular a campanha pelo código.",
       );
+      return false;
     } finally {
       setCreatorCodeBusy(false);
     }
@@ -364,7 +446,6 @@ export default function Dashboard() {
     const classe = classesParaCriacao.find((item) => item.nome === nome);
     const novasPericias = createUntrainedSkills(classe, campaignClassContents);
 
-    // Revalidação suave de perícias: preserva as que já estavam treinadas
     const treinadasAnteriores = new Set(
       skillsDraft.filter((s) => s.treinada).map((s) => chaveNomePericia(s.nome))
     );
@@ -380,7 +461,6 @@ export default function Dashboard() {
       })
     );
 
-    // Revalidação suave de habilidades:
     const classeAnterior = draft.classe;
     const novaInfo = montarInfoClasse(
       nome,
@@ -443,9 +523,9 @@ export default function Dashboard() {
   const hpMaxInicial = 200 + classHpBonus;
   const mpMaxInicial = 200 + classMpBonus;
 
-  const updateDraft = <K extends keyof typeof initialDraft>(
+  const updateDraft = <K extends keyof CharacterDraftState>(
     field: K,
-    value: (typeof initialDraft)[K],
+    value: CharacterDraftState[K],
   ) => {
     setDraft((prev) => ({ ...prev, [field]: value }));
   };
@@ -463,22 +543,31 @@ export default function Dashboard() {
     }));
   };
 
-  const textProps = (field: TextField) => ({
+  const textProps = (field: DraftTextField) => ({
     value: draft[field],
     onChange: (
       event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
     ) => updateDraft(field, event.target.value),
   });
 
-  const handlePortrait = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0] ?? null;
-
+  const applyPortraitFile = (file: File | null) => {
     if (portraitPreview) {
       URL.revokeObjectURL(portraitPreview);
     }
-
     setPortraitFile(file);
     setPortraitPreview(file ? URL.createObjectURL(file) : "");
+  };
+
+  const handlePortrait = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] ?? null;
+    applyPortraitFile(file);
+  };
+
+  const closeCreatorModal = () => {
+    setShowCreator(false);
+    setSelectedCampaignId("");
+    setSelectedAbilities([]);
+    setClassRevalidationNotice("");
   };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -683,6 +772,7 @@ export default function Dashboard() {
   return (
     <div className="dashboard">
       <div className="dashboard-backdrop" aria-hidden="true" />
+      <GrimoireEnvironment />
       <header className="dashboard-header">
         <div>
           <h1>Meus personagens</h1>
@@ -690,13 +780,17 @@ export default function Dashboard() {
         </div>
 
         <button
-          className="btn-primary"
+          className="btn-primary grimoire-trigger-btn"
+          aria-label={showCreator ? "Fechar" : "+ Novo personagem · Criar Personagem"}
           onClick={() => {
             setErrorMessage("");
             setShowCreator((open) => !open);
           }}
         >
-          {showCreator ? "Fechar" : "+ Novo personagem"}
+          <span className="grimoire-trigger-btn__seal" aria-hidden="true">
+            ⚜
+          </span>
+          <span>{showCreator ? "Fechar" : "Criar Personagem"}</span>
         </button>
       </header>
 
@@ -706,516 +800,57 @@ export default function Dashboard() {
 
       {notice && <p className="dashboard-status">{notice}</p>}
 
-      {showCreator && (
-        <form className="character-creator" onSubmit={handleSubmit}>
-          <div className="creator-banner">
-            <div>
-              <span className="creator-kicker">Ficha de aventura</span>
-
-              <h2>Criação de personagem</h2>
-              {selectedCampaignId && (
-                <p className="creator-subtitle">
-                  Campanha vinculada: <strong>{campaigns.find((c) => c.id === selectedCampaignId)?.nome}</strong>
-                </p>
-              )}
-            </div>
-
-            <span className="creator-badge">Elementum</span>
-          </div>
-
-          <div className="creator-body">
-            {/* 1. SELEÇÃO DE CAMPANHA */}
-            <section className="creator-panel">
-              <h3>1. Campanha</h3>
-              <p className="creator-skill-hint">
-                Selecione uma campanha da lista ou insira o código de convite fornecido pelo seu Mestre para vincular o personagem.
-              </p>
-
-              {/* Inserir código de convite */}
-              <div className="creator-code-join-box">
-                <label className="field">
-                  <span>Vincular por código de convite</span>
-                  <div className="creator-code-input-row">
-                    <input
-                      type="text"
-                      placeholder="Ex.: ABC12345"
-                      value={creatorJoinCode}
-                      aria-label="Código de convite da campanha"
-                      onChange={(e) => {
-                        setCreatorJoinCode(e.target.value.toUpperCase());
-                        setCreatorCodeError("");
-                        setCreatorCodeSuccess("");
-                      }}
-                      disabled={creatorCodeBusy}
-                    />
-                    <button
-                      type="button"
-                      className="btn-primary"
-                      disabled={creatorCodeBusy || !creatorJoinCode.trim()}
-                      onClick={handleJoinCampaignByCodeInCreator}
-                    >
-                      {creatorCodeBusy ? "Vinculando..." : "Vincular Código"}
-                    </button>
-                  </div>
-                </label>
-                {creatorCodeError && (
-                  <p className="creator-code-error" role="alert">{creatorCodeError}</p>
-                )}
-                {creatorCodeSuccess && (
-                  <p className="creator-code-success">{creatorCodeSuccess}</p>
-                )}
-              </div>
-
-              {eligibleCampaigns.length > 0 ? (
-                <div className="creator-campaign-list-section">
-                  <label className="field">
-                    <span>Vincular a uma campanha (opcional)</span>
-
-                    <select
-                      value={selectedCampaignId}
-                      onChange={(event) => handleSelectCampaign(event.target.value)}
-                    >
-                      <option value="">
-                        Selecione a campanha antes de criar...
-                      </option>
-
-                      {eligibleCampaigns.map((campaign) => (
-                        <option key={campaign.id} value={campaign.id}>
-                          {campaign.nome}
-                        </option>
-                      ))}
-                    </select>
-
-                    {selectedCampaignId && campaignRulesState.campaignId === selectedCampaignId && campaignRulesState.status === "loading" && (
-                      <span role="status">Carregando regras da campanha...</span>
-                    )}
-                    {selectedCampaignId && campaignRulesState.campaignId === selectedCampaignId && campaignRulesState.status === "error" && (
-                      <span className="dashboard-status" role="alert">
-                        {campaignRulesState.message}{" "}
-                        <button
-                          type="button"
-                          className="btn-ghost"
-                          onClick={() => {
-                            setErrorMessage("");
-                            setCampaignRulesState({ campaignId: selectedCampaignId, status: "loading" });
-                            setCampaignRulesRetry((attempt) => attempt + 1);
-                          }}
-                        >
-                          Tentar carregar novamente
-                        </button>
-                      </span>
-                    )}
-                  </label>
-
-                  <div className="creator-campaign-cards">
-                    {eligibleCampaigns.map((camp) => {
-                      const isSelected = selectedCampaignId === camp.id;
-                      return (
-                        <button
-                          key={camp.id}
-                          type="button"
-                          className={isSelected ? "creator-camp-card creator-camp-card--selected" : "creator-camp-card"}
-                          onClick={() => handleSelectCampaign(camp.id)}
-                        >
-                          <div className="creator-camp-card-top">
-                            <strong>{camp.nome}</strong>
-                            <span className="creator-camp-tag">{camp.sistema || "Elementum"}</span>
-                          </div>
-                          {camp.descricao && <p>{camp.descricao}</p>}
-                          <small>Ouro inicial: {camp.ouro_inicial ?? 0} PO</small>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              ) : (
-                <div className="creator-campaign-alert" role="alert" style={{ marginTop: 14 }}>
-                  <p>
-                    Você ainda não participa de nenhuma campanha na lista. Digite o código de convite acima para ingressar na mesa do seu Mestre.
-                  </p>
-                  <Link to="/campanhas" className="btn-ghost">
-                    Ver minhas campanhas
-                  </Link>
-                </div>
-              )}
-            </section>
-
-            {/* 2. IDENTIDADE E ATRIBUTOS */}
-            <div className="creator-layout">
-              <section className="creator-panel">
-                <h3>2. Identidade e História</h3>
-
-                <div className="field-grid">
-                  <label className="field field-wide">
-                    <span>Nome do personagem</span>
-
-                    <input
-                      id="nome-personagem"
-                      placeholder="Ex.: Elira Fenra"
-                      {...textProps("nome")}
-                    />
-                  </label>
-
-                  <OptionField
-                    label="Raça"
-                    value={draft.raca}
-                    options={RACAS}
-                    onChange={(value) => updateDraft("raca", value)}
-                  />
-
-                  <OptionField
-                    label="Classe"
-                    value={draft.classe}
-                    options={classesParaCriacao.map((classe) => classe.nome)}
-                    onChange={selecionarClasse}
-                  />
-
-                  <div className="field field-wide">
-                    <span>Sobre a classe</span>
-
-                    <ClassInfoBox
-                      info={infoClasse}
-                      mensagemVazia="Escolha uma classe para ver a descrição e os bônus."
-                    />
-                  </div>
-
-                  <label className="field">
-                    <span>Nível</span>
-
-                    <input
-                      id="nivel-personagem"
-                      type="number"
-                      min={1}
-                      max={20}
-                      value={draft.nivel}
-                      onChange={(event) =>
-                        updateDraft("nivel", Number(event.target.value) || 1)
-                      }
-                    />
-                  </label>
-
-                  <label className="field">
-                    <span>Idade</span>
-
-                    <input placeholder="24 anos" {...textProps("idade")} />
-                  </label>
-
-                  <label className="field">
-                    <span>Origem</span>
-
-                    <input
-                      placeholder="Peste, guilda, reino..."
-                      {...textProps("origem")}
-                    />
-                  </label>
-
-                  <label className="field">
-                    <span>Defeito</span>
-
-                    <input
-                      placeholder="Qual fraqueza o acompanha?"
-                      {...textProps("defeito")}
-                    />
-                  </label>
-
-                  <label className="field field-wide">
-                    <span>Qualidades</span>
-                    <textarea
-                      rows={2}
-                      placeholder="Corajoso, leal, curioso..."
-                      {...textProps("qualidades")}
-                    />
-                  </label>
-
-                  <label className="field field-wide">
-                    <span>Aparência</span>
-                    <textarea
-                      rows={3}
-                      placeholder="Olhos, cabelo, marcas, roupas, presença..."
-                      {...textProps("aparencia")}
-                    />
-                  </label>
-
-                  <label className="field field-wide">
-                    <span>História do personagem</span>
-                    <textarea
-                      id="historia-personagem"
-                      rows={4}
-                      placeholder="Descreva como ele chegou ao mundo de Elementum..."
-                      {...textProps("historia")}
-                    />
-                  </label>
-
-                  <div className="field field-wide">
-                    <span>Foto do personagem (opcional)</span>
-
-                    <div className="creator-photo">
-                      {portraitPreview && (
-                        <img
-                          className="creator-photo-preview"
-                          src={portraitPreview}
-                          alt="Prévia da foto"
-                        />
-                      )}
-
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handlePortrait}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </section>
-
-              <aside className="creator-panel creator-panel-side">
-                <h3>3. Atributos</h3>
-
-                <div className="creator-attr-grid">
-                  {ATTRIBUTE_CONFIG.map(({ key, label }) => {
-                    const finalVal = liveCharacterStats.attributesFinal[key];
-                    const bonusVal = liveCharacterStats.attributeBonuses[key];
-                    return (
-                      <label key={key} htmlFor={`attr-${key}`} className="creator-attr-field">
-                        <span>{label}</span>
-
-                        <input
-                          id={`attr-${key}`}
-                          aria-label={label}
-                          type="number"
-                          min={1}
-                          max={20}
-                          value={draft[key]}
-                          onChange={(event) =>
-                            updateAttribute(
-                              key,
-                              Number(event.target.value) || 1,
-                            )
-                          }
-                        />
-
-                        <small>
-                          Total: {finalVal} ({formatarModificador(modificador(finalVal))})
-                          {bonusVal !== 0 ? ` · Bônus ${bonusVal > 0 ? "+" : ""}${bonusVal}` : ""}
-                        </small>
-                      </label>
-                    );
-                  })}
-                </div>
-              </aside>
-            </div>
-
-            {/* 4. VITALIDADE E MANA */}
-            <section className="creator-panel">
-              <h3>4. Vitalidade e Mana</h3>
-              <p className="creator-skill-hint">
-                Os valores máximos sugeridos iniciam em 200 PV / 200 PM mais bônus de classe. Você pode ajustá-los manualmente abaixo conforme sua classe ou regras da campanha, e também poderá alterá-los posteriormente na ficha.
-              </p>
-              <div className="creator-vital-preview">
-                <div className="creator-vital-card creator-vital-card--hp">
-                  <div className="creator-vital-header">
-                    <span>Pontos de Vida (PV Máximo)</span>
-                    <input
-                      id="hp-max-input"
-                      type="number"
-                      className="creator-vital-input"
-                      min={1}
-                      max={9999}
-                      value={customHpMax !== null ? customHpMax : hpMaxInicial}
-                      aria-label="Pontos de Vida (PV Máximo)"
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setCustomHpMax(val === "" ? null : Math.max(1, Number(val)));
-                      }}
-                    />
-                  </div>
-                  <p className="creator-vital-breakdown">
-                    Base: 200 PV {classHpBonus !== 0 ? `· Ajuste da Classe: ${classHpBonus > 0 ? `+${classHpBonus}` : classHpBonus}` : "· Sem ajuste adicional de classe"}
-                  </p>
-                  <small className="creator-vital-cap">Configuração manual flexível · Editável na ficha</small>
-                </div>
-
-                <div className="creator-vital-card creator-vital-card--mp">
-                  <div className="creator-vital-header">
-                    <span>Pontos de Mana (PM Máximo)</span>
-                    <input
-                      id="mp-max-input"
-                      type="number"
-                      className="creator-vital-input"
-                      min={0}
-                      max={9999}
-                      value={customMpMax !== null ? customMpMax : mpMaxInicial}
-                      aria-label="Pontos de Mana (PM Máximo)"
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setCustomMpMax(val === "" ? null : Math.max(0, Number(val)));
-                      }}
-                    />
-                  </div>
-                  <p className="creator-vital-breakdown">
-                    Base: 200 PM {classMpBonus !== 0 ? `· Ajuste da Classe: ${classMpBonus > 0 ? `+${classMpBonus}` : classMpBonus}` : "· Sem ajuste adicional de classe"}
-                  </p>
-                  <small className="creator-vital-cap">Configuração manual flexível · Editável na ficha</small>
-                </div>
-              </div>
-            </section>
-
-            {/* 5. PERÍCIAS */}
-            <section className="creator-panel">
-              <h3>5. Perícias</h3>
-
-              <p className="creator-skill-hint">
-                Selecione as perícias treinadas (+{bonusProficiencia(nivelNum)} de bônus no nível {nivelNum}):
-              </p>
-
-              <div className="creator-skill-grid">
-                {skillsDraft.map((skill) => (
-                  <label
-                    className={
-                      skill.treinada
-                        ? "creator-skill-option creator-skill-option--on"
-                        : "creator-skill-option"
-                    }
-                    key={skill.id}
-                    title={skill.descricao || undefined}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={skill.treinada}
-                      onChange={() => toggleSkillDraft(skill.id)}
-                    />
-
-                    <span className="creator-skill-text">
-                      <span className="creator-skill-name">{skill.nome}</span>
-                      <small>{rotuloAtributo(String(skill.atributo))}</small>
-                    </span>
-                  </label>
-                ))}
-              </div>
-            </section>
-
-            {/* 6. HABILIDADES */}
-            <section className="creator-panel">
-              <h3>6. Habilidades da Classe</h3>
-
-              {classRevalidationNotice && (
-                <p className="creator-revalidation-alert" role="status">
-                  {classRevalidationNotice}
-                </p>
-              )}
-
-              {infoClasse?.habilidadesIniciais && infoClasse.habilidadesIniciais.length > 0 ? (
-                <>
-                  <p className="creator-skill-hint">
-                    Escolha as habilidades iniciais para seu personagem (Nível 1):
-                  </p>
-                  <div className="creator-ability-grid">
-                    {infoClasse.habilidadesIniciais.map((hab) => {
-                      const isSelected = selectedAbilities.includes(hab.nome);
-                      return (
-                        <label
-                          key={hab.nome}
-                          className={isSelected ? "creator-skill-option creator-skill-option--on" : "creator-skill-option"}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={isSelected}
-                            onChange={() => toggleAbility(hab.nome)}
-                          />
-                          <span className="creator-skill-text">
-                            <span className="creator-skill-name">{hab.nome}</span>
-                            {hab.descricao && <small>{hab.descricao}</small>}
-                          </span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                </>
-              ) : (
-                <p className="creator-skill-hint">
-                  {draft.classe
-                    ? "Esta classe não possui habilidades iniciais de nível 1 cadastradas no catálogo."
-                    : "Escolha uma classe para visualizar as habilidades iniciais disponíveis."}
-                </p>
-              )}
-
-              {infoClasse?.desbloqueiosFuturos && infoClasse.desbloqueiosFuturos.length > 0 && (
-                <div className="creator-future-abilities">
-                  <h5>Desbloqueios futuros da classe</h5>
-                  <ul>
-                    {infoClasse.desbloqueiosFuturos.map((hab) => (
-                      <li key={hab.nome}>
-                        <strong>{hab.nome}</strong> (Nível {hab.nivel})
-                        {hab.descricao && <span> — {hab.descricao}</span>}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </section>
-
-            {/* 7. REVISÃO E CONFIRMAÇÃO */}
-            <section className="creator-panel creator-review-panel">
-              <h3>7. Revisão e Confirmação</h3>
-              <div className="creator-review-grid">
-                <div>
-                  <strong>Campanha:</strong>{" "}
-                  {campaigns.find((c) => c.id === selectedCampaignId)?.nome || (
-                    <span style={{ color: "#e58282" }}>Nenhuma selecionada</span>
-                  )}
-                </div>
-                <div>
-                  <strong>Personagem:</strong> {draft.nome || "Novo personagem"} (Nível {nivelNum})
-                </div>
-                <div>
-                  <strong>Raça e Classe:</strong> {draft.raca || "Humano"} · {draft.classe || "Aventureiro"}
-                </div>
-                <div>
-                  <strong>Recursos Iniciais:</strong> {hpMaxInicial} PV · {mpMaxInicial} PM · {campaigns.find((c) => c.id === selectedCampaignId)?.ouro_inicial ?? 0} PO
-                </div>
-                <div>
-                  <strong>Perícias Treinadas ({skillsDraft.filter((s) => s.treinada).length}):</strong>{" "}
-                  {skillsDraft.filter((s) => s.treinada).map((s) => s.nome).join(", ") || "Nenhuma"}
-                </div>
-                <div>
-                  <strong>Habilidades Selecionadas ({selectedAbilities.length}):</strong>{" "}
-                  {selectedAbilities.join(", ") || "Nenhuma"}
-                </div>
-              </div>
-            </section>
-          </div>
-
-          <div className="creator-actions">
-            <button
-              type="button"
-              className="btn-ghost"
-              onClick={() => {
-                setShowCreator(false);
-                setSelectedCampaignId("");
-                setSelectedAbilities([]);
-                setClassRevalidationNotice("");
-              }}
-              disabled={saving}
-            >
-              Cancelar
-            </button>
-
-            <button
-              type="submit"
-              className="btn-primary"
-              disabled={saving || !selectedCampaignId || !campaignRulesReady}
-            >
-              {saving
-                ? "Salvando..."
-                : !selectedCampaignId
-                  ? "Selecione uma campanha"
-                  : campaignRulesState.status === "loading"
-                    ? "Carregando regras..."
-                    : "Salvar personagem"}
-            </button>
-          </div>
-        </form>
-      )}
+      <GrimoireModal
+        open={showCreator}
+        onClose={closeCreatorModal}
+        onSubmit={handleSubmit}
+        saving={saving}
+        draft={draft}
+        updateDraft={updateDraft}
+        updateAttribute={updateAttribute}
+        textProps={textProps}
+        eligibleCampaigns={eligibleCampaigns}
+        campaigns={campaigns}
+        selectedCampaignId={selectedCampaignId}
+        onSelectCampaign={handleSelectCampaign}
+        campaignRulesState={campaignRulesState}
+        campaignRulesReady={campaignRulesReady}
+        onRetryCampaignRules={() => {
+          setErrorMessage("");
+          setCampaignRulesState({ campaignId: selectedCampaignId, status: "loading" });
+          setCampaignRulesRetry((attempt) => attempt + 1);
+        }}
+        creatorJoinCode={creatorJoinCode}
+        onChangeJoinCode={(val) => {
+          setCreatorJoinCode(val);
+          setCreatorCodeError("");
+          setCreatorCodeSuccess("");
+        }}
+        creatorCodeBusy={creatorCodeBusy}
+        creatorCodeError={creatorCodeError}
+        creatorCodeSuccess={creatorCodeSuccess}
+        onJoinCampaignByCode={handleJoinCampaignByCodeInCreator}
+        classesParaCriacao={classesParaCriacao}
+        onSelectClass={selecionarClasse}
+        infoClasse={infoClasse}
+        liveCharacterStats={liveCharacterStats}
+        hpMaxInicial={hpMaxInicial}
+        mpMaxInicial={mpMaxInicial}
+        classHpBonus={classHpBonus}
+        classMpBonus={classMpBonus}
+        customHpMax={customHpMax}
+        setCustomHpMax={setCustomHpMax}
+        customMpMax={customMpMax}
+        setCustomMpMax={setCustomMpMax}
+        skillsDraft={skillsDraft}
+        onToggleSkill={toggleSkillDraft}
+        selectedAbilities={selectedAbilities}
+        onToggleAbility={toggleAbility}
+        classRevalidationNotice={classRevalidationNotice}
+        portraitPreview={portraitPreview}
+        onPortraitChange={handlePortrait}
+        onPortraitFileDrop={(file) => applyPortraitFile(file)}
+      />
 
       {joining && (
         <section className="creator-panel dashboard-join">

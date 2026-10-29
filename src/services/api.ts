@@ -743,7 +743,7 @@ export async function salvarBonusClassesCampanha(
     throw new Error("Somente o Mestre pode alterar os bônus da campanha.");
   }
 
-  const bonusNormalizados = normalizarBonusClassesCampanha(bonuses);
+  const bonusNormalizados = normalizarBonusClassesCampanha(bonuses, false);
   const { data, error } = await supabase
     .from("campanhas")
     .update({ bonus_classes: bonusNormalizados })
@@ -761,7 +761,7 @@ export async function salvarBonusClassesCampanha(
     throw new Error("Campanha não encontrada ou sem permissão para alterar.");
   }
 
-  return normalizarBonusClassesCampanha(data.bonus_classes);
+  return normalizarBonusClassesCampanha(data.bonus_classes, false);
 }
 
 function gerarCodigoConvite(): string {
