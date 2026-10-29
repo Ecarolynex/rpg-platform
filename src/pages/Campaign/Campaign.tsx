@@ -207,7 +207,7 @@ export default function Campaign() {
 
   const [campaign, setCampaign] = useState<Campaign | null>(null);
   const [bonusClasses, setBonusClasses] = useState<CampaignClassBonuses>(
-    () => normalizarBonusClassesCampanha(),
+    () => normalizarBonusClassesCampanha(undefined, false),
   );
   const [salvandoBonusClasses, setSalvandoBonusClasses] = useState(false);
   const [bonusClassesMensagem, setBonusClassesMensagem] = useState("");

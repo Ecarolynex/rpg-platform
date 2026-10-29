@@ -1,0 +1,1570 @@
+/* ==========================================================================
+   ELEMENTUM · ANCIENT MAGICAL PARCHMENT SCROLL CHARACTER CREATION SYSTEM
+   Palette:
+   - Deep Parchment: #f3e5ab
+   - Aged Gold:      #d4af37
+   - Dark Bronze:    #4a3b32
+   - Slate / Stone:  #1c1e24
+   - Deep Leather:   #2b1810
+   - Emerald Green:  #0f2e20
+   ========================================================================== */
+
+:root {
+  --grimoire-parchment: #f3e5ab;
+  --grimoire-parchment-dim: #d8c68e;
+  --grimoire-gold: #d4af37;
+  --grimoire-gold-bright: #ffe285;
+  --grimoire-bronze: #4a3b32;
+  --grimoire-stone: #1c1e24;
+  --grimoire-leather: #2b1810;
+  --grimoire-leather-deep: #180c07;
+  --grimoire-emerald: #0f2e20;
+  --grimoire-emerald-deep: #091d14;
+  --grimoire-crimson: #7d1818;
+  --grimoire-font-heading: "Cinzel", "UnifrakturMaguntia", Georgia, serif;
+  --grimoire-font-gothic: "UnifrakturMaguntia", "Cinzel", serif;
+  --grimoire-font-script: "Cormorant Garamond", "MedievalSharp", Georgia, serif;
+  --grimoire-font-medieval: "MedievalSharp", "Cormorant Garamond", Georgia, serif;
+}
+
+/* --------------------------------------------------------------------------
+   STEP 1: ANIMATED BACKGROUND & ENVIRONMENT LAYER (Castle Hall & Oak Table)
+   -------------------------------------------------------------------------- */
+.dashboard {
+  position: relative;
+}
+
+.grimoire-env {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+  background: #0b0d12;
+}
+
+.grimoire-env__backdrop {
+  position: absolute;
+  inset: -4%;
+  background-position: center 42%;
+  background-repeat: no-repeat;
+  background-size: cover;
+  filter: brightness(0.4) contrast(1.08) saturate(0.86);
+  transform: scale(1.03);
+}
+
+.grimoire-env__archways {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.78;
+}
+
+.grimoire-env__overlay {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 74% 66% at 50% 45%, rgba(15, 46, 32, 0.18), rgba(24, 20, 16, 0.86) 80%),
+    linear-gradient(180deg, rgba(12, 14, 19, 0.74) 0%, rgba(26, 22, 18, 0.6) 52%, rgba(16, 10, 6, 0.92) 100%);
+}
+
+/* Torchlight & Candlelight Flickering Ambient Glow */
+.grimoire-env__torch {
+  position: absolute;
+  border-radius: 50%;
+  mix-blend-mode: screen;
+  filter: blur(48px);
+  animation: grimoire-torch-flicker 4.2s ease-in-out infinite alternate;
+}
+
+.grimoire-env__torch--left {
+  top: 24%;
+  left: 10%;
+  width: 340px;
+  height: 340px;
+  background: radial-gradient(circle, rgba(255, 162, 54, 0.36) 0%, rgba(212, 175, 55, 0.12) 48%, transparent 72%);
+}
+
+.grimoire-env__torch--right {
+  top: 24%;
+  right: 10%;
+  width: 340px;
+  height: 340px;
+  background: radial-gradient(circle, rgba(255, 152, 46, 0.34) 0%, rgba(212, 175, 55, 0.1) 48%, transparent 72%);
+  animation-delay: -1.9s;
+}
+
+.grimoire-env__torch--center {
+  bottom: 6%;
+  left: 50%;
+  width: 620px;
+  height: 260px;
+  transform: translateX(-50%);
+  background: radial-gradient(ellipse, rgba(255, 179, 71, 0.22) 0%, rgba(212, 175, 55, 0.08) 48%, transparent 74%);
+  animation-duration: 5.4s;
+}
+
+.grimoire-env__table-shadow {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 22%;
+  background:
+    radial-gradient(ellipse 65% 85% at 50% 100%, rgba(255, 165, 58, 0.12), transparent 70%),
+    linear-gradient(180deg, transparent 0%, rgba(12, 6, 3, 0.72) 100%);
+  animation: grimoire-torch-flicker 3.7s ease-in-out infinite alternate-reverse;
+}
+
+/* Floating Dust Motes & Warm Embers */
+.grimoire-env__particles {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.grimoire-env__particle {
+  position: absolute;
+  display: block;
+  border-radius: 50%;
+  animation: grimoire-ember-float 8s ease-in-out infinite;
+}
+
+.grimoire-env__particle--ember {
+  background: #ffbe55;
+  box-shadow: 0 0 8px 2px rgba(255, 166, 48, 0.65);
+  opacity: 0.45;
+}
+
+.grimoire-env__particle--dust {
+  background: var(--grimoire-parchment);
+  box-shadow: 0 0 6px rgba(243, 229, 171, 0.45);
+  opacity: 0.32;
+}
+
+@keyframes grimoire-torch-flicker {
+  0% {
+    opacity: 0.68;
+    transform: scale(0.95) translate3d(-3px, 2px, 0);
+  }
+  35% {
+    opacity: 0.94;
+    transform: scale(1.04) translate3d(2px, -3px, 0);
+  }
+  70% {
+    opacity: 0.76;
+    transform: scale(0.98) translate3d(-1px, 1px, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1.06) translate3d(3px, -2px, 0);
+  }
+}
+
+@keyframes grimoire-ember-float {
+  0% {
+    transform: translate3d(0, 18px, 0) scale(0.8);
+    opacity: 0;
+  }
+  25% {
+    opacity: 0.72;
+  }
+  75% {
+    opacity: 0.52;
+  }
+  100% {
+    transform: translate3d(16px, -88px, 0) scale(1.15);
+    opacity: 0;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   STEP 2: DASHBOARD TRIGGER BUTTON WITH GOLD TRIM & WAX SEAL ICON
+   -------------------------------------------------------------------------- */
+.grimoire-trigger-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 10px 22px 10px 14px !important;
+  border: 1.5px solid var(--grimoire-gold) !important;
+  border-radius: 8px !important;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(212, 175, 55, 0.28), transparent 65%),
+    linear-gradient(180deg, #2d231b 0%, #19130f 55%, #100c09 100%) !important;
+  color: var(--grimoire-parchment) !important;
+  font-family: var(--grimoire-font-heading) !important;
+  font-size: 0.92rem !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.11em !important;
+  text-transform: uppercase;
+  text-shadow: 0 0 12px rgba(212, 175, 55, 0.45), 0 2px 3px #000;
+  box-shadow:
+    inset 0 0 0 1px rgba(212, 175, 55, 0.28),
+    inset 0 1px 0 rgba(255, 226, 133, 0.4),
+    0 6px 20px rgba(0, 0, 0, 0.7),
+    0 0 18px rgba(212, 175, 55, 0.2) !important;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.25s ease, border-color 0.25s ease !important;
+}
+
+.grimoire-trigger-btn__seal {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 1.5px solid var(--grimoire-gold-bright);
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #b52b2b 0%, #6b1111 72%, #3a0707 100%);
+  color: var(--grimoire-gold-bright);
+  font-size: 0.88rem;
+  box-shadow:
+    inset 0 1px 2px rgba(255, 226, 133, 0.5),
+    0 2px 6px rgba(0, 0, 0, 0.75);
+}
+
+.grimoire-trigger-btn:hover {
+  transform: translateY(-2px);
+  border-color: var(--grimoire-gold-bright) !important;
+  color: #fff6d6 !important;
+  box-shadow:
+    inset 0 0 0 1px rgba(212, 175, 55, 0.55),
+    0 8px 26px rgba(0, 0, 0, 0.8),
+    0 0 28px rgba(212, 175, 55, 0.48) !important;
+}
+
+/* --------------------------------------------------------------------------
+   CINEMATIC SCROLL OVERLAY, SILK RIBBON PHYSICS & RUSTLING PARTICLES
+   -------------------------------------------------------------------------- */
+.grimoire-modal-overlay {
+  box-sizing: border-box;
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px 20px;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(43, 24, 16, 0.52), rgba(7, 9, 12, 0.94)),
+    rgba(6, 8, 11, 0.84);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  perspective: 1200px;
+  overflow: hidden;
+}
+
+.grimoire-modal-overlay *,
+.grimoire-modal-overlay *::before,
+.grimoire-modal-overlay *::after {
+  box-sizing: border-box;
+}
+
+/* Silk Ribbon & Royal Wax Seal Stage (Untying on Open / Wrapping on Close) */
+.scroll-ribbon-stage {
+  position: absolute;
+  inset: 0;
+  z-index: 25;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.scroll-ribbon-band {
+  position: absolute;
+  top: 50%;
+  width: min(460px, 46vw);
+  height: 28px;
+  margin-top: -14px;
+  border-top: 2px solid var(--grimoire-gold-bright);
+  border-bottom: 2px solid var(--grimoire-gold);
+  background:
+    repeating-linear-gradient(
+      90deg,
+      rgba(212, 175, 55, 0.16) 0px,
+      rgba(212, 175, 55, 0.16) 8px,
+      transparent 8px,
+      transparent 16px
+    ),
+    linear-gradient(180deg, #9e1b1b 0%, #680e0e 52%, #3f0707 100%);
+  box-shadow:
+    0 10px 24px rgba(0, 0, 0, 0.8),
+    0 0 18px rgba(212, 175, 55, 0.35);
+}
+
+.scroll-ribbon-band--left {
+  right: 50%;
+  border-radius: 6px 0 0 6px;
+  transform-origin: right center;
+}
+
+.scroll-ribbon-band--right {
+  left: 50%;
+  border-radius: 0 6px 6px 0;
+  transform-origin: left center;
+}
+
+.scroll-ribbon-knot {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 74px;
+  height: 74px;
+  border: 3px solid var(--grimoire-gold-bright);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 35% 30%, #c42b2b 0%, #7a1212 65%, #3d0606 100%);
+  box-shadow:
+    inset 0 0 0 4px rgba(43, 24, 16, 0.65),
+    0 12px 30px rgba(0, 0, 0, 0.9),
+    0 0 28px rgba(212, 175, 55, 0.55);
+}
+
+.scroll-ribbon-knot__emblem {
+  color: var(--grimoire-gold-bright);
+  font-size: 2rem;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.85);
+}
+
+/* Soft Paper-Rustling & Parchment Fiber Particles */
+.scroll-rustle-particles {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.scroll-rustle-mote {
+  position: absolute;
+  border-radius: 2px;
+  background: linear-gradient(135deg, #fff1c2, var(--grimoire-gold));
+  box-shadow: 0 0 10px rgba(243, 229, 171, 0.65);
+  opacity: 0;
+  animation: scroll-rustle-burst 0.85s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes scroll-rustle-burst {
+  0% {
+    opacity: 0.92;
+    transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(var(--dx), var(--dy), 0) rotate(140deg) scale(0.2);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   ANCIENT PARCHMENT SCROLL SHELL & WOOD/BRONZE SCROLL ROLLERS
+   -------------------------------------------------------------------------- */
+.grimoire-book-shell.scroll-manuscript-shell {
+  position: relative;
+  width: min(1210px, 100%);
+  max-height: calc(100svh - 28px);
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  transform-origin: center center;
+}
+
+/* Turned Wooden & Bronze Scroll Rollers (Top & Bottom Cylinders) */
+.scroll-roller {
+  position: relative;
+  z-index: 8;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 30px;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.scroll-roller__rod {
+  flex: 1;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 28px;
+  border-top: 1.5px solid rgba(255, 226, 133, 0.65);
+  border-bottom: 1.5px solid rgba(90, 62, 24, 0.95);
+  background:
+    linear-gradient(
+      180deg,
+      #593722 0%,
+      #8b5e3c 18%,
+      #3b2214 48%,
+      #221209 78%,
+      #4a2c1a 100%
+    );
+  box-shadow:
+    inset 0 2px 5px rgba(255, 226, 133, 0.25),
+    0 10px 24px rgba(0, 0, 0, 0.85);
+}
+
+.scroll-roller--top .scroll-roller__rod {
+  border-radius: 8px 8px 3px 3px;
+  box-shadow:
+    inset 0 2px 5px rgba(255, 226, 133, 0.25),
+    0 12px 22px rgba(0, 0, 0, 0.82);
+}
+
+.scroll-roller--bottom .scroll-roller__rod {
+  border-radius: 3px 3px 8px 8px;
+  box-shadow:
+    inset 0 2px 5px rgba(255, 226, 133, 0.25),
+    0 -8px 20px rgba(0, 0, 0, 0.72),
+    0 12px 26px rgba(0, 0, 0, 0.9);
+}
+
+.scroll-roller__finial {
+  width: 34px;
+  height: 30px;
+  flex-shrink: 0;
+  border: 1.5px solid var(--grimoire-gold-bright);
+  background:
+    linear-gradient(
+      180deg,
+      #ffe58f 0%,
+      #d4af37 32%,
+      #7c5b14 68%,
+      #3f2b07 100%
+    );
+  box-shadow:
+    inset 0 1px 3px rgba(255, 255, 255, 0.45),
+    0 6px 14px rgba(0, 0, 0, 0.85);
+}
+
+.scroll-roller__finial--left {
+  border-radius: 14px 4px 4px 14px;
+  margin-right: -2px;
+}
+
+.scroll-roller__finial--right {
+  border-radius: 4px 14px 14px 4px;
+  margin-left: -2px;
+}
+
+.scroll-roller__ring {
+  width: 12px;
+  height: 100%;
+  background: linear-gradient(180deg, #ffe285, #b8891e 55%, #593e08);
+  border-left: 1px solid rgba(255, 245, 200, 0.65);
+  border-right: 1px solid rgba(40, 24, 6, 0.85);
+}
+
+.scroll-roller__runes {
+  color: rgba(243, 229, 171, 0.72);
+  font-family: var(--grimoire-font-heading);
+  font-size: 0.68rem;
+  letter-spacing: 0.34em;
+  text-shadow: 0 1px 3px #000, 0 0 8px rgba(212, 175, 55, 0.4);
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+/* Unrolled Parchment Manuscript Body between the two Rollers */
+.scroll-parchment-body {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  margin: 0 16px;
+  display: flex;
+  flex-direction: column;
+  padding: 8px 10px;
+  border-left: 2px solid var(--grimoire-gold);
+  border-right: 2px solid var(--grimoire-gold);
+  background:
+    radial-gradient(circle at 20% 20%, rgba(92, 52, 34, 0.32), transparent 55%),
+    linear-gradient(90deg, #1b100a 0%, #2d1b11 3%, #25160e 97%, #180e08 100%);
+  box-shadow:
+    inset 0 14px 24px -10px rgba(0, 0, 0, 0.92),
+    inset 0 -14px 24px -10px rgba(0, 0, 0, 0.92),
+    inset 0 0 0 1px rgba(212, 175, 55, 0.28),
+    0 24px 64px rgba(0, 0, 0, 0.92);
+}
+
+/* Carved Metal Corner Guards */
+.grimoire-corner {
+  position: absolute;
+  z-index: 5;
+  width: 22px;
+  height: 22px;
+  border: 2px solid var(--grimoire-gold);
+  background: linear-gradient(135deg, rgba(212, 175, 55, 0.28), rgba(43, 24, 16, 0.92));
+  box-shadow: 0 0 12px rgba(212, 175, 55, 0.25);
+  pointer-events: none;
+}
+
+.grimoire-corner--tl {
+  top: 4px;
+  left: 4px;
+  border-right: 0;
+  border-bottom: 0;
+}
+
+.grimoire-corner--tr {
+  top: 4px;
+  right: 4px;
+  border-left: 0;
+  border-bottom: 0;
+}
+
+.grimoire-corner--bl {
+  bottom: 4px;
+  left: 4px;
+  border-right: 0;
+  border-top: 0;
+}
+
+.grimoire-corner--br {
+  bottom: 4px;
+  right: 4px;
+  border-left: 0;
+  border-top: 0;
+}
+
+/* Wax Seal Emblem in Header */
+.grimoire-wax-clasp {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.grimoire-wax-clasp__medal {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 1.5px solid var(--grimoire-gold);
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #a52a2a, #5c1010 70%, #330707);
+  color: var(--grimoire-parchment);
+  box-shadow:
+    inset 0 1px 3px rgba(255, 215, 140, 0.45),
+    0 3px 10px rgba(0, 0, 0, 0.75);
+  font-size: 0.95rem;
+}
+
+/* Inner Manuscript Form Wrapper */
+.grimoire-form {
+  margin: 0 !important;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  border: 1px solid rgba(212, 175, 55, 0.44) !important;
+  border-radius: 6px !important;
+  background:
+    linear-gradient(180deg, rgba(24, 21, 17, 0.97), rgba(18, 14, 11, 0.99)) !important;
+  overflow: hidden;
+}
+
+/* Deep Emerald Green & Gold Illuminated Scroll Header */
+.grimoire-header.scroll-manuscript-header {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch !important;
+  justify-content: flex-start;
+  gap: 12px;
+  padding: 14px 20px !important;
+  border-bottom: 1.5px solid rgba(212, 175, 55, 0.42) !important;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(212, 175, 55, 0.16), transparent 70%),
+    linear-gradient(
+      90deg,
+      rgba(12, 34, 24, 0.96) 0%,
+      rgba(18, 52, 36, 0.92) 50%,
+      rgba(12, 34, 24, 0.96) 100%
+    ) !important;
+}
+
+.grimoire-header__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.grimoire-header__titles {
+  min-width: 0;
+  flex: 1;
+}
+
+.grimoire-header h2 {
+  margin: 0;
+  color: var(--grimoire-parchment);
+  font-family: var(--grimoire-font-heading);
+  font-size: clamp(1.22rem, 2vw, 1.62rem) !important;
+  letter-spacing: 0.06em;
+  line-height: 1.2;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.85), 0 0 16px rgba(212, 175, 55, 0.26);
+}
+
+.grimoire-header__actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+/* Wax Seal / Carved Tablet Close Button in Header */
+.grimoire-close-btn.scroll-wax-close-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: auto;
+  height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--grimoire-gold);
+  border-radius: 999px;
+  background: linear-gradient(180deg, #5e1515 0%, #380909 100%);
+  color: var(--grimoire-parchment);
+  font-family: var(--grimoire-font-heading);
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 226, 133, 0.35),
+    0 3px 10px rgba(0, 0, 0, 0.65);
+  cursor: pointer;
+  transition: border-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+.grimoire-close-btn.scroll-wax-close-btn:hover {
+  border-color: var(--grimoire-gold-bright);
+  color: var(--grimoire-gold-bright);
+  transform: translateY(-1px);
+}
+
+/* Section Seals Navigation Bar */
+.grimoire-bookmarks.scroll-section-nav {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  width: 100%;
+}
+
+.grimoire-bookmark {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  min-width: 0;
+  padding: 7px 12px;
+  border: 1px solid rgba(212, 175, 55, 0.32);
+  border-radius: 6px;
+  background: rgba(16, 22, 19, 0.82);
+  color: var(--grimoire-parchment-dim);
+  font-family: var(--grimoire-font-heading);
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.grimoire-bookmark__roman {
+  font-size: 0.62rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--grimoire-gold);
+}
+
+.grimoire-bookmark__label {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.76rem;
+  font-weight: 600;
+}
+
+.grimoire-bookmark:hover {
+  border-color: var(--grimoire-gold);
+  color: var(--grimoire-parchment);
+}
+
+.grimoire-bookmark.is-active {
+  border-color: var(--grimoire-gold-bright);
+  background: linear-gradient(180deg, rgba(43, 24, 16, 0.95), rgba(24, 14, 9, 0.96));
+  color: var(--grimoire-parchment);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 226, 133, 0.28),
+    0 0 14px rgba(212, 175, 55, 0.3);
+}
+
+.grimoire-bookmark.is-locked {
+  opacity: 0.65;
+  border-style: dashed;
+}
+
+.grimoire-step-gate-alert {
+  margin-top: 8px;
+  padding: 8px 12px;
+  border: 1px solid rgba(229, 130, 130, 0.55);
+  border-radius: 6px;
+  background: rgba(94, 21, 21, 0.42);
+  color: #ffd5d5 !important;
+  font-family: var(--grimoire-font-script);
+  font-size: 0.94rem;
+}
+
+/* --------------------------------------------------------------------------
+   STEP 3: PARCHMENT SHEET CONTENT & MULTI-STEP FLOW
+   -------------------------------------------------------------------------- */
+.grimoire-book-viewport.scroll-manuscript-viewport {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  background:
+    radial-gradient(circle at 50% 35%, rgba(243, 229, 171, 0.06), transparent 72%),
+    #18130e;
+  scrollbar-width: thin;
+  scrollbar-color: #c59b27 #130e0a;
+}
+
+.grimoire-book-viewport::-webkit-scrollbar {
+  width: 8px;
+}
+
+.grimoire-book-viewport::-webkit-scrollbar-track {
+  background: #130e0a;
+}
+
+.grimoire-book-viewport::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #d4af37, #7a5c18);
+  border-radius: 999px;
+  border: 1px solid #130e0a;
+}
+
+/* Unrolling Parchment Wave Shimmer FX */
+.scroll-unroll-wave-fx {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  background: linear-gradient(
+    180deg,
+    rgba(243, 229, 171, 0.18) 0%,
+    rgba(212, 175, 55, 0.22) 45%,
+    transparent 100%
+  );
+  pointer-events: none;
+}
+
+.grimoire-spread {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0;
+  border-bottom: 1px solid rgba(212, 175, 55, 0.24);
+}
+
+.grimoire-spread--hidden {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 0;
+  min-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+  border: 0;
+  z-index: -1;
+}
+
+.grimoire-leaf {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+  padding: 20px 24px 22px;
+  background:
+    radial-gradient(circle at 50% 20%, rgba(243, 229, 171, 0.05), transparent 70%),
+    linear-gradient(180deg, rgba(36, 28, 20, 0.94), rgba(24, 18, 13, 0.98));
+  color: var(--grimoire-parchment);
+}
+
+.grimoire-leaf--left {
+  border-right: 1px solid rgba(212, 175, 55, 0.28);
+  box-shadow: inset -16px 0 26px -14px rgba(0, 0, 0, 0.72);
+}
+
+.grimoire-leaf--right {
+  box-shadow: inset 16px 0 26px -14px rgba(0, 0, 0, 0.72);
+}
+
+.grimoire-leaf__header {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(212, 175, 55, 0.3);
+}
+
+.grimoire-leaf__folio {
+  font-family: var(--grimoire-font-heading);
+  font-size: 0.66rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--grimoire-gold);
+}
+
+.grimoire-leaf__header h3 {
+  margin: 0;
+  font-family: var(--grimoire-font-heading);
+  font-size: 1.14rem;
+  color: var(--grimoire-parchment);
+  letter-spacing: 0.05em;
+}
+
+.grimoire-section-box {
+  padding: 14px;
+  border: 1px solid rgba(212, 175, 55, 0.28);
+  border-radius: 10px;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(15, 46, 32, 0.24), transparent 70%),
+    rgba(16, 14, 11, 0.62);
+}
+
+/* Campaign Code Input Row */
+.grimoire-leaf .creator-code-input-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: stretch;
+}
+
+.grimoire-leaf .creator-code-input-row input {
+  flex: 1 1 150px;
+  min-width: 0;
+  max-width: none;
+}
+
+.grimoire-leaf .creator-code-input-row button {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+/* Parchment Inputs & Handwritten Ink Focus Glow */
+.grimoire-leaf .field input,
+.grimoire-leaf .field select,
+.grimoire-leaf .field textarea {
+  border: 1px solid rgba(212, 175, 55, 0.45);
+  border-radius: 8px;
+  background-color: #18120d;
+  background-image:
+    linear-gradient(180deg, rgba(32, 24, 17, 0.9), rgba(18, 14, 10, 0.94));
+  color: #ffffff;
+  color-scheme: dark;
+  font-family: var(--grimoire-font-script);
+  font-size: 1.05rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.grimoire-leaf .field select option,
+.grimoire-leaf .field select optgroup {
+  background-color: #18120d !important;
+  color: #ffffff !important;
+  font-family: var(--grimoire-font-script);
+}
+
+.grimoire-leaf .field input:focus,
+.grimoire-leaf .field select:focus,
+.grimoire-leaf .field textarea:focus {
+  outline: none;
+  border-color: var(--grimoire-gold-bright);
+  box-shadow:
+    0 0 0 2px rgba(212, 175, 55, 0.22),
+    0 0 16px rgba(212, 175, 55, 0.32);
+}
+
+.grimoire-name-input {
+  font-family: var(--grimoire-font-heading) !important;
+  font-size: 1.05rem !important;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.grimoire-script-textarea {
+  font-family: var(--grimoire-font-script) !important;
+  font-size: 1.08rem !important;
+  line-height: 1.45;
+  background:
+    repeating-linear-gradient(
+      180deg,
+      rgba(243, 229, 171, 0.03) 0px,
+      rgba(243, 229, 171, 0.03) 27px,
+      rgba(212, 175, 55, 0.1) 28px
+    ),
+    rgba(20, 15, 11, 0.88) !important;
+}
+
+.grimoire-script-textarea--tall {
+  min-height: 124px;
+}
+
+/* Custom Scroll Dropdown Tooltip */
+.grimoire-select-field {
+  position: relative;
+}
+
+.grimoire-select-tooltip {
+  margin-top: 4px;
+  padding: 7px 10px;
+  border: 1px solid var(--grimoire-gold);
+  border-radius: 6px;
+  background: rgba(15, 46, 32, 0.94);
+  color: var(--grimoire-parchment);
+  font-family: var(--grimoire-font-script);
+  font-size: 0.86rem;
+  line-height: 1.35;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.65);
+}
+
+/* Medieval +/- Stepper Controls */
+.grimoire-stepper {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.grimoire-stepper input {
+  min-width: 0;
+  text-align: center;
+  font-family: var(--grimoire-font-heading) !important;
+  font-weight: 700;
+}
+
+.grimoire-stepper__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  min-width: 36px;
+  height: 38px;
+  padding: 0 8px;
+  border: 1px solid var(--grimoire-gold);
+  border-radius: 6px;
+  background: linear-gradient(180deg, #3a271c, #1f140e);
+  color: var(--grimoire-gold-bright);
+  font-family: var(--grimoire-font-heading);
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 0.15s ease, transform 0.15s ease, background 0.15s ease;
+}
+
+.grimoire-stepper__btn:hover {
+  border-color: var(--grimoire-gold-bright);
+  background: linear-gradient(180deg, #4f3526, #2b1810);
+  transform: translateY(-1px);
+}
+
+/* Character Avatar Upload Frame with Wax-Seal Border */
+.grimoire-token-dropzone {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px;
+  border: 1px dashed rgba(212, 175, 55, 0.55);
+  border-radius: 10px;
+  background:
+    radial-gradient(circle at 15% 50%, rgba(165, 42, 42, 0.18), transparent 60%),
+    rgba(18, 14, 11, 0.76);
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.grimoire-token-dropzone:hover,
+.grimoire-token-dropzone.is-dragging {
+  border-color: var(--grimoire-gold-bright);
+  box-shadow: 0 0 18px rgba(212, 175, 55, 0.24);
+}
+
+.grimoire-file-input-sr {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+.grimoire-file-trigger-badge {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: 6px;
+  margin-top: 4px;
+  padding: 6px 14px;
+  border: 1px solid var(--grimoire-gold);
+  border-radius: 6px;
+  background: linear-gradient(180deg, rgba(58, 39, 28, 0.95), rgba(28, 18, 12, 0.98));
+  color: var(--grimoire-gold-bright) !important;
+  font-family: var(--grimoire-font-heading);
+  font-size: 0.74rem !important;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  box-shadow: inset 0 1px 0 rgba(255, 226, 133, 0.25), 0 3px 8px rgba(0, 0, 0, 0.45);
+}
+
+.grimoire-wax-frame {
+  position: relative;
+  flex: 0 0 80px;
+  width: 80px;
+  height: 80px;
+  display: grid;
+  place-items: center;
+  border: 3px solid var(--grimoire-gold);
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #8b1e1e, #420c0c 75%);
+  box-shadow:
+    inset 0 0 0 3px rgba(43, 24, 16, 0.85),
+    0 6px 16px rgba(0, 0, 0, 0.75);
+  overflow: hidden;
+}
+
+.grimoire-wax-frame__img {
+  width: 100% !important;
+  height: 100% !important;
+  border: 0 !important;
+  border-radius: 50% !important;
+  object-fit: cover;
+}
+
+.grimoire-wax-frame__placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: var(--grimoire-parchment);
+  line-height: 1.1;
+}
+
+.grimoire-wax-frame__placeholder span {
+  font-size: 1.45rem;
+  color: var(--grimoire-gold-bright) !important;
+}
+
+.grimoire-wax-frame__placeholder small {
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.grimoire-token-dropzone__copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+}
+
+.grimoire-token-dropzone__copy strong {
+  font-family: var(--grimoire-font-heading);
+  font-size: 0.88rem;
+  color: var(--grimoire-gold-bright);
+}
+
+.grimoire-token-dropzone__copy p {
+  margin: 0;
+  font-family: var(--grimoire-font-script);
+  font-size: 0.92rem;
+  line-height: 1.35;
+  color: var(--grimoire-parchment-dim);
+}
+
+/* --------------------------------------------------------------------------
+   SECTION 2: CIRCULAR STONE/METALLIC SLOTS & AGED WOOD/BRONZE VITAL BARS
+   -------------------------------------------------------------------------- */
+.grimoire-medallion-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.grimoire-medallion {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 12px;
+  border: 1px solid rgba(212, 175, 55, 0.38);
+  border-radius: 12px;
+  background:
+    radial-gradient(circle at 50% 25%, rgba(212, 175, 55, 0.1), transparent 70%),
+    linear-gradient(180deg, #25221e 0%, #171512 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 226, 133, 0.2),
+    0 6px 16px rgba(0, 0, 0, 0.55);
+}
+
+.grimoire-medallion__ring {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border: 2px solid var(--grimoire-gold);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 35% 30%, #3d3832, #1c1916 74%);
+  box-shadow:
+    inset 0 0 0 3px rgba(74, 59, 50, 0.85),
+    0 0 14px rgba(212, 175, 55, 0.26);
+}
+
+.grimoire-medallion__abbr {
+  font-family: var(--grimoire-font-heading);
+  font-size: 0.64rem;
+  letter-spacing: 0.14em;
+  color: var(--grimoire-parchment-dim);
+}
+
+.grimoire-medallion__mod {
+  font-family: var(--grimoire-font-heading);
+  font-size: 1.12rem;
+  font-weight: 800;
+  color: var(--grimoire-gold-bright);
+}
+
+.grimoire-medallion__label span {
+  font-family: var(--grimoire-font-heading);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--grimoire-parchment);
+}
+
+.grimoire-medallion__controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  justify-content: center;
+}
+
+.grimoire-medallion__controls input {
+  width: 62px !important;
+  text-align: center;
+  font-family: var(--grimoire-font-heading) !important;
+  font-size: 1.05rem !important;
+  font-weight: 700;
+  color: var(--grimoire-parchment);
+  background: rgba(12, 10, 8, 0.86);
+  border: 1px solid rgba(212, 175, 55, 0.48);
+  border-radius: 6px;
+  padding: 5px 6px;
+}
+
+.grimoire-medallion__meta {
+  color: var(--grimoire-parchment-dim);
+  font-size: 0.75rem;
+  text-align: center;
+}
+
+/* Life (PV) & Mana (PM) Progress Bars in Aged Wood & Bronze Frames */
+.grimoire-vitals-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.grimoire-vital-forged {
+  background:
+    linear-gradient(180deg, rgba(40, 26, 17, 0.92), rgba(22, 15, 10, 0.96)) !important;
+  border: 1.5px solid rgba(212, 175, 55, 0.42) !important;
+  box-shadow:
+    inset 0 0 0 1px rgba(74, 59, 50, 0.7),
+    inset 0 0 18px rgba(0, 0, 0, 0.7);
+}
+
+.grimoire-vital-forged .creator-vital-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.grimoire-vital-input-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.grimoire-meter-frame {
+  position: relative;
+  height: 28px;
+  margin: 10px 0;
+  border: 2px solid var(--grimoire-gold);
+  border-radius: 999px;
+  background:
+    linear-gradient(180deg, #1b110b 0%, #0d0805 100%);
+  box-shadow:
+    inset 0 0 0 2px #4a3b32,
+    inset 0 3px 6px rgba(0, 0, 0, 0.9),
+    0 3px 10px rgba(0, 0, 0, 0.6);
+  overflow: hidden;
+}
+
+.grimoire-meter-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+
+.grimoire-meter-fill--hp {
+  background: linear-gradient(90deg, #5e1119 0%, #a82028 55%, #dc3b43 100%);
+  box-shadow: 0 0 14px rgba(220, 59, 67, 0.65);
+}
+
+.grimoire-meter-fill--mp {
+  background: linear-gradient(90deg, #132c5c 0%, #2358a6 55%, #4287e8 100%);
+  box-shadow: 0 0 14px rgba(66, 135, 232, 0.65);
+}
+
+.grimoire-meter-text {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--grimoire-font-heading);
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #fff8e6;
+  text-shadow: 0 1px 3px #000;
+}
+
+/* --------------------------------------------------------------------------
+   SECTION 3 & 4: RUNE CHECKBOXES, CARVED STONE TABLETS & WAX SEAL SUBMIT
+   -------------------------------------------------------------------------- */
+.grimoire-rune-skill {
+  position: relative;
+  border-color: rgba(212, 175, 55, 0.34) !important;
+  background: rgba(24, 19, 15, 0.85) !important;
+}
+
+.grimoire-rune-skill input[type="checkbox"] {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
+}
+
+.grimoire-rune-checkbox {
+  display: grid;
+  place-items: center;
+  flex: 0 0 24px;
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--grimoire-gold);
+  border-radius: 4px;
+  background: linear-gradient(135deg, #2b1810, #150d09);
+  color: rgba(212, 175, 55, 0.45);
+  font-size: 0.82rem;
+  transition: all 0.18s ease;
+}
+
+.creator-skill-option--on .grimoire-rune-checkbox {
+  border-color: var(--grimoire-gold-bright);
+  background: radial-gradient(circle, #185a3d 0%, #0f2e20 100%);
+  color: var(--grimoire-gold-bright);
+  box-shadow: 0 0 10px rgba(212, 175, 55, 0.48);
+}
+
+.grimoire-review-scroll h4 {
+  margin: 0 0 10px;
+  font-family: var(--grimoire-font-heading);
+  font-size: 0.95rem;
+  color: var(--grimoire-gold-bright);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* Footer Navigation, Carved Stone Tablet Buttons & Wax Seal Submit */
+.grimoire-leaf__footer {
+  margin-top: auto;
+  padding-top: 16px;
+  border-top: 1px solid rgba(212, 175, 55, 0.26);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.scroll-final-left-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.scroll-stone-btn {
+  border: 1px solid rgba(212, 175, 55, 0.45) !important;
+  border-radius: 6px !important;
+  background:
+    linear-gradient(180deg, #2c2d35 0%, #1c1e24 60%, #14151a 100%) !important;
+  color: var(--grimoire-parchment) !important;
+  font-family: var(--grimoire-font-heading) !important;
+  font-size: 0.78rem !important;
+  letter-spacing: 0.06em;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 4px 10px rgba(0, 0, 0, 0.55) !important;
+}
+
+.scroll-stone-btn:hover {
+  border-color: var(--grimoire-gold-bright) !important;
+  color: var(--grimoire-gold-bright) !important;
+}
+
+.grimoire-finalize-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.grimoire-finalize-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 12px 22px !important;
+  border: 1.5px solid var(--grimoire-gold-bright) !important;
+  border-radius: 8px !important;
+  background: linear-gradient(180deg, #f3d266 0%, #c89b28 55%, #8f6812 100%) !important;
+  color: #1c1208 !important;
+  font-family: var(--grimoire-font-heading) !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.08em;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 250, 220, 0.65),
+    0 0 22px rgba(212, 175, 55, 0.45),
+    0 6px 18px rgba(0, 0, 0, 0.65) !important;
+}
+
+.grimoire-finalize-btn__icon {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #9e1e1e, #4a0909);
+  color: var(--grimoire-gold-bright);
+  border: 1px solid var(--grimoire-gold-bright);
+  font-size: 0.78rem;
+}
+
+.grimoire-finalize-btn__sub {
+  font-size: 0.68rem;
+  opacity: 0.85;
+  padding-left: 8px;
+  border-left: 1px solid rgba(28, 18, 8, 0.35);
+}
+
+/* Magical Particle Outburst on Submit */
+.grimoire-spark-burst {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.grimoire-spark-burst span {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--grimoire-gold-bright);
+  box-shadow: 0 0 10px 2px #ffbe42;
+  animation: grimoire-spark-fly 0.82s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes grimoire-spark-fly {
+  0% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(calc(-50% + var(--tx)), calc(-50% + var(--ty))) scale(0);
+    opacity: 0;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   RESPONSIVE BREAKPOINTS (TABLET & MOBILE)
+   -------------------------------------------------------------------------- */
+@media (max-width: 960px) {
+  .grimoire-spread {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .grimoire-leaf--left {
+    border-right: 0;
+    border-bottom: 1px solid rgba(212, 175, 55, 0.28);
+    box-shadow: none;
+  }
+
+  .grimoire-leaf--right {
+    box-shadow: none;
+  }
+
+  .grimoire-bookmarks.scroll-section-nav {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 680px) {
+  .grimoire-modal-overlay {
+    padding: 6px;
+  }
+
+  .grimoire-book-shell.scroll-manuscript-shell {
+    max-height: calc(100svh - 12px);
+  }
+
+  .scroll-roller {
+    height: 22px;
+  }
+
+  .scroll-roller__rod {
+    height: 18px;
+    padding: 0 12px;
+  }
+
+  .scroll-roller__finial {
+    width: 18px;
+    height: 22px;
+  }
+
+  .scroll-roller__runes {
+    font-size: 0.56rem;
+    letter-spacing: 0.2em;
+  }
+
+  .scroll-parchment-body {
+    margin: 0 6px;
+    padding: 6px;
+  }
+
+  .grimoire-header.scroll-manuscript-header {
+    padding: 10px 12px !important;
+    gap: 8px;
+  }
+
+  .grimoire-header__top {
+    align-items: center;
+    gap: 8px;
+  }
+
+  .grimoire-wax-clasp,
+  .grimoire-header .creator-badge,
+  .scroll-wax-close-btn__text {
+    display: none;
+  }
+
+  .grimoire-close-btn.scroll-wax-close-btn {
+    width: 34px;
+    padding: 0;
+  }
+
+  .grimoire-bookmarks.scroll-section-nav {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .grimoire-bookmark {
+    padding: 6px 8px;
+  }
+
+  .grimoire-bookmark__roman {
+    font-size: 0.56rem;
+  }
+
+  .grimoire-bookmark__label {
+    font-size: 0.68rem;
+  }
+
+  .grimoire-leaf {
+    padding: 14px 12px;
+  }
+
+  .grimoire-identity-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .grimoire-token-dropzone {
+    flex-direction: column;
+    text-align: center;
+    padding: 14px 12px;
+  }
+
+  .grimoire-file-trigger-badge {
+    align-self: center;
+  }
+
+  .grimoire-medallion-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .grimoire-vital-forged .creator-vital-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .grimoire-vital-input-group {
+    justify-content: space-between;
+  }
+
+  .grimoire-vital-input-group .creator-vital-input {
+    flex: 1;
+    width: auto;
+    text-align: center;
+  }
+
+  .grimoire-leaf__footer {
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
+
+  .scroll-final-left-actions {
+    width: 100%;
+    flex-direction: column;
+  }
+
+  .grimoire-leaf__footer button,
+  .grimoire-finalize-wrap,
+  .grimoire-finalize-btn {
+    width: 100%;
+    justify-content: center;
+  }
+}

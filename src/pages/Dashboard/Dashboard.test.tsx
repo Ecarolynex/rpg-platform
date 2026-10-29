@@ -379,4 +379,118 @@ describe("Dashboard", () => {
       }),
     );
   });
+
+  it("só avança para a próxima seção após informar e vincular o código da campanha", async () => {
+    const campanhaPorCodigo = {
+      id: "campaign-code-step",
+      nome: "Campanha do Pergaminho",
+      descricao: "Mesa de teste",
+      sistema: "Elementum",
+      imagem_url: null,
+      moeda_principal: "Ouro",
+      status: "ATIVA",
+      codigo_convite: "MESA777",
+      created_by: "master-1",
+      created_at: "2026-10-11T00:00:00.000Z",
+      ouro_inicial: 25,
+      bonus_classes: null,
+    };
+    api.entrarNaCampanha.mockResolvedValueOnce(campanhaPorCodigo);
+
+    renderDashboard();
+    fireEvent.click(screen.getByRole("button", { name: /\+ novo personagem/i }));
+    await screen.findByRole("heading", { name: /criação de personagem/i });
+
+    const nextStepBtn = screen.getByRole("button", {
+      name: /desenrolar seção ii: atributos & vitalidade/i,
+    });
+
+    // Tenta ir para a próxima página sem colocar o código da campanha
+    fireEvent.click(nextStepBtn);
+
+    expect(
+      await screen.findByText(
+        /informe e vincule o código da campanha \(ou selecione uma campanha ativa\) antes de avançar para a próxima página/i,
+      ),
+    ).toBeInTheDocument();
+    expect(document.querySelector('[data-page="1"]')).toHaveClass("grimoire-spread--active");
+    expect(document.querySelector('[data-page="2"]')).toHaveClass("grimoire-spread--hidden");
+
+    // Agora informa o código da campanha e clica no botão de avançar página
+    const codeInput = screen.getByLabelText("Código de convite da campanha");
+    fireEvent.change(codeInput, { target: { value: "mesa777" } });
+    fireEvent.click(nextStepBtn);
+
+    await waitFor(() => expect(api.entrarNaCampanha).toHaveBeenCalledWith("MESA777"));
+    await waitFor(() =>
+      expect(document.querySelector('[data-page="2"]')).toHaveClass("grimoire-spread--active"),
+    );
+
+    // Avança da Seção II para a Seção III
+    fireEvent.click(
+      screen.getByRole("button", { name: /desenrolar seção iii: perícias & selo/i }),
+    );
+    await waitFor(() =>
+      expect(document.querySelector('[data-page="3"]')).toHaveClass("grimoire-spread--active"),
+    );
+  });
+
+  it("exibe no seletor de Classe apenas as classes liberadas pelo Mestre da campanha", async () => {
+    api.getCatalogoGlobalClasses.mockResolvedValueOnce([
+      ...classCatalog,
+      {
+        id: "alquimista",
+        nome: "Alquimista",
+        aliases: [],
+        usaMagia: true,
+        atributoBonus: { forca: 0, destreza: 0, constituicao: 0, inteligencia: 2, carisma: 0 },
+        hpBonus: 6,
+        mpBonus: 12,
+        pericias: [],
+        habilidades: [],
+        magias: [],
+      },
+    ]);
+    api.getCampaignClassBonuses.mockResolvedValueOnce({
+      Guerreiro: {
+        atributoBonus: { forca: 0, destreza: 0, constituicao: 0, inteligencia: 0, carisma: 0 },
+        hpBonus: 10,
+        mpBonus: 0,
+        bloqueada: true,
+      },
+      Mago: {
+        atributoBonus: { forca: 0, destreza: 0, constituicao: 0, inteligencia: 2, carisma: 0 },
+        hpBonus: 4,
+        mpBonus: 16,
+        bloqueada: true,
+      },
+      Alquimista: {
+        atributoBonus: { forca: 0, destreza: 0, constituicao: 0, inteligencia: 2, carisma: 0 },
+        hpBonus: 6,
+        mpBonus: 12,
+        bloqueada: false,
+      },
+    });
+
+    renderDashboard();
+    fireEvent.click(screen.getByRole("button", { name: /\+ novo personagem/i }));
+    await screen.findByRole("heading", { name: /criação de personagem/i });
+
+    const classSelect = screen.getByLabelText("Classe") as HTMLSelectElement;
+
+    // Antes de selecionar campanha, nenhuma classe do catálogo global deve vazar no seletor
+    expect(Array.from(classSelect.options).map((o) => o.value).filter(Boolean)).toEqual([]);
+
+    await screen.findByRole("option", { name: "Campanha A" });
+    fireEvent.change(screen.getByLabelText("Vincular a uma campanha (opcional)"), {
+      target: { value: "campaign-a" },
+    });
+    await waitFor(() => expect(screen.getByRole("button", { name: "Salvar personagem" })).toBeEnabled());
+
+    // Apenas a classe liberada pelo Mestre ("Alquimista") deve aparecer
+    const availableClassNames = Array.from(classSelect.options)
+      .map((o) => o.value)
+      .filter(Boolean);
+    expect(availableClassNames).toEqual(["Alquimista"]);
+  });
 });

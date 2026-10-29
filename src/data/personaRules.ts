@@ -367,6 +367,7 @@ export function normalizarCatalogoClasses(valor: unknown): ClassDefinition[] {
       atributoBonus,
       hpBonus: numeroSeguro(entrada.hpBonus),
       mpBonus: numeroSeguro(entrada.mpBonus),
+      bloqueada: Boolean(entrada.bloqueada),
       pericias,
       habilidades,
       magias,
