@@ -1,25 +1,25 @@
-export function Crest({ size = 32 }: { size?: number }) {
+﻿export function Crest({ size = 32 }: { size?: number }) {
   return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 48 52"
-      fill="none"
-      aria-hidden="true"
+    <div
+      style={{
+        width: size,
+        height: size,
+        borderRadius: "50%",
+        overflow: "hidden",
+        display: "inline-grid",
+        placeItems: "center",
+        border: "1.5px solid rgba(199, 166, 108, 0.45)",
+        background: "#111310",
+        boxShadow: "0 2px 6px rgba(0, 0, 0, 0.4)",
+        flexShrink: 0,
+      }}
     >
-      <path
-        d="M24 2 44 9v14c0 14-8 22-20 27C12 45 4 37 4 23V9z"
-        fill="rgba(11, 19, 18, 0.9)"
-        stroke="rgba(240, 219, 162, 0.9)"
-        strokeWidth="1.8"
+      <img
+        src="/logo.jpg"
+        alt="RPG Platform Emblem"
+        style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+        loading="eager"
       />
-      <path
-        d="M24 10v32M14 18h20M15 30h18"
-        stroke="rgba(240, 219, 162, 0.9)"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-      />
-      <circle cx="24" cy="18" r="2.5" fill="rgba(240, 219, 162, 0.95)" />
-    </svg>
+    </div>
   );
 }

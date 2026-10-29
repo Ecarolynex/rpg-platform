@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
-import { Crest } from "../ui/Crest";
+import { AppLogo } from "../ui/AppLogo";
 import { useAuth } from "../../context/useAuth";
 import { getCharacterById, listarMinhasCampanhas } from "../../services/api";
 import "./AppShell.css";
@@ -79,8 +79,8 @@ export function AppShell() {
       <aside className={menuAberto ? "app-sidebar app-sidebar--open" : "app-sidebar"}>
         <div className="app-sidebar-header">
           <div className="app-sidebar-brand">
-            <Crest size={30} />
-            <span>Elementum</span>
+            <AppLogo size={32} to="/" />
+
           </div>
 
           <button

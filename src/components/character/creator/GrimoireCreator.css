@@ -1568,3 +1568,347 @@
     justify-content: center;
   }
 }
+
+/* ==========================================================================
+   THEME TOGGLE BUTTON & DUAL VISUAL MODES (Light Parchment & Dark Grimoire)
+   Matching the Ancient Parchment / Nordic Stone Tablet Reference Images
+   ========================================================================== */
+
+.grimoire-theme-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid rgba(212, 175, 55, 0.45);
+  border-radius: 999px;
+  background: rgba(30, 20, 14, 0.75);
+  color: #f3e5ab;
+  font-family: var(--grimoire-font-heading);
+  font-size: 0.74rem;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  box-shadow: inset 0 1px 0 rgba(255, 226, 133, 0.22), 0 2px 6px rgba(0,0,0,0.5);
+  transition: all 0.2s ease;
+}
+
+.grimoire-theme-toggle-btn:hover {
+  border-color: #ffd460;
+  color: #fff2bf;
+  transform: translateY(-1px);
+}
+
+/* ==========================================================================
+   THEME 1: SCROLL-THEME--LIGHT (Reference 2: Illuminated Rolled Parchment)
+   Aged warm parchment sheet, curled scroll edges, sepia ink, engraved boxes
+   ========================================================================== */
+
+.scroll-theme--light {
+  /* Roller rods: warm aged birch / golden cedarwood */
+  --light-parchment-bg: #eddcb7;
+  --light-parchment-glow: #f7eed8;
+  --light-parchment-edge: #d3be93;
+  --light-ink-heading: #26170c;
+  --light-ink-body: #3d2919;
+  --light-ink-muted: #69523c;
+  --light-line-engraved: rgba(92, 64, 40, 0.38);
+  --light-line-strong: rgba(74, 47, 25, 0.65);
+  --light-box-bg: rgba(255, 248, 230, 0.52);
+  --light-box-border: rgba(120, 85, 52, 0.32);
+}
+
+.scroll-theme--light .scroll-roller__rod {
+  border-top: 1.5px solid rgba(255, 240, 190, 0.9);
+  border-bottom: 2px solid #362012;
+  background: linear-gradient(180deg, #9b6c43 0%, #caa072 20%, #754b2c 60%, #462814 100%) !important;
+  box-shadow: inset 0 2px 6px rgba(255, 255, 255, 0.4), 0 14px 28px rgba(0, 0, 0, 0.65) !important;
+}
+
+.scroll-theme--light .scroll-roller__finial {
+  border-color: #d4a945 !important;
+  background: linear-gradient(180deg, #fff3c2 0%, #d8ad44 38%, #8e681b 75%, #4a3407 100%) !important;
+}
+
+.scroll-theme--light .scroll-parchment-body {
+  border-left: 6px solid #d4be95 !important;
+  border-right: 6px solid #d4be95 !important;
+  border-radius: 4px;
+  background:
+    radial-gradient(ellipse 90% 70% at 50% 30%, #f9f2e2 0%, #eedebf 55%, #dfcaa2 90%, #cfb586 100%) !important;
+  box-shadow:
+    inset 0 18px 24px -8px rgba(115, 80, 45, 0.4),
+    inset 0 -18px 24px -8px rgba(115, 80, 45, 0.4),
+    inset 12px 0 20px -6px rgba(105, 70, 35, 0.28),
+    inset -12px 0 20px -6px rgba(105, 70, 35, 0.28),
+    0 22px 60px rgba(0, 0, 0, 0.72) !important;
+}
+
+.scroll-theme--light .grimoire-form {
+  border: 1px solid rgba(130, 92, 54, 0.35) !important;
+  background: transparent !important;
+}
+
+.scroll-theme--light .grimoire-header.scroll-manuscript-header {
+  border-bottom: 2px double rgba(110, 75, 42, 0.45) !important;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(212, 175, 55, 0.22), transparent 75%),
+    linear-gradient(180deg, rgba(238, 222, 191, 0.95) 0%, rgba(228, 209, 175, 0.95) 100%) !important;
+}
+
+.scroll-theme--light .creator-kicker {
+  color: #7a542b !important;
+}
+
+.scroll-theme--light .grimoire-header h2 {
+  color: #24160c !important;
+  text-shadow: 0 1px 1px rgba(255, 255, 255, 0.6) !important;
+}
+
+.scroll-theme--light .creator-subtitle {
+  color: #5d432b !important;
+}
+
+.scroll-theme--light .creator-subtitle strong {
+  color: #8c2a1e !important;
+}
+
+.scroll-theme--light .grimoire-theme-toggle-btn {
+  background: rgba(245, 235, 215, 0.85);
+  border-color: #9c7546;
+  color: #3b2413;
+  box-shadow: 0 2px 5px rgba(90, 60, 30, 0.2);
+}
+
+.scroll-theme--light .creator-badge {
+  background: rgba(235, 220, 195, 0.9) !important;
+  border-color: #9c7546 !important;
+  color: #4b301a !important;
+}
+
+.scroll-theme--light .grimoire-close-btn.scroll-wax-close-btn {
+  background: linear-gradient(180deg, #87281f 0%, #5e1610 100%) !important;
+  border-color: #50130d !important;
+  color: #fff2e0 !important;
+}
+
+/* Light Theme Navigation Pills (Tab-style Engraved Parchment Buttons) */
+.scroll-theme--light .grimoire-bookmarks.scroll-section-nav {
+  gap: 8px;
+}
+
+.scroll-theme--light .grimoire-bookmark {
+  border: 1px solid rgba(120, 85, 50, 0.4) !important;
+  background: rgba(246, 237, 219, 0.72) !important;
+  color: #422d1b !important;
+  box-shadow: 0 2px 4px rgba(95, 65, 35, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.75);
+}
+
+.scroll-theme--light .grimoire-bookmark__roman {
+  color: #7d4f23 !important;
+}
+
+.scroll-theme--light .grimoire-bookmark__label {
+  color: #2d1c0f !important;
+}
+
+.scroll-theme--light .grimoire-bookmark:hover {
+  border-color: #7b4f23 !important;
+  background: rgba(255, 250, 238, 0.95) !important;
+}
+
+.scroll-theme--light .grimoire-bookmark.is-active {
+  border-color: #5c3815 !important;
+  background: linear-gradient(180deg, #2a1b10 0%, #1c1109 100%) !important;
+  color: #f7eed8 !important;
+  box-shadow: 0 3px 8px rgba(40, 20, 10, 0.45) !important;
+}
+
+.scroll-theme--light .grimoire-bookmark.is-active .grimoire-bookmark__roman {
+  color: #e5b955 !important;
+}
+
+.scroll-theme--light .grimoire-bookmark.is-active .grimoire-bookmark__label {
+  color: #fff6e4 !important;
+}
+
+/* Light Theme Viewport and Leaves */
+.scroll-theme--light .grimoire-book-viewport.scroll-manuscript-viewport {
+  background:
+    radial-gradient(ellipse at 50% 25%, #fcf8ee 0%, #f4e8cc 60%, #e6d3ad 100%) !important;
+}
+
+.scroll-theme--light .grimoire-leaf {
+  background: transparent !important;
+  color: #2f1d10 !important;
+}
+
+.scroll-theme--light .grimoire-leaf--left {
+  border-right: 1px solid rgba(135, 95, 55, 0.32) !important;
+  box-shadow: inset -14px 0 22px -12px rgba(100, 68, 36, 0.18) !important;
+}
+
+.scroll-theme--light .grimoire-leaf--right {
+  box-shadow: inset 14px 0 22px -12px rgba(100, 68, 36, 0.18) !important;
+}
+
+.scroll-theme--light .grimoire-leaf__header {
+  border-bottom: 1px solid rgba(135, 95, 55, 0.35) !important;
+}
+
+.scroll-theme--light .grimoire-leaf__folio {
+  color: #8c5625 !important;
+}
+
+.scroll-theme--light .grimoire-leaf__header h3 {
+  color: #241407 !important;
+}
+
+.scroll-theme--light .creator-skill-hint,
+.scroll-theme--light .creator-field-hint,
+.scroll-theme--light .grimoire-section-box p {
+  color: #543924 !important;
+}
+
+/* Engraved Light Boxes */
+.scroll-theme--light .grimoire-section-box,
+.scroll-theme--light .grimoire-stat-card,
+.scroll-theme--light .grimoire-vital-forged,
+.scroll-theme--light .grimoire-summary-card,
+.scroll-theme--light .grimoire-token-dropzone {
+  border: 1px solid rgba(130, 92, 54, 0.34) !important;
+  background: rgba(255, 250, 238, 0.62) !important;
+  box-shadow: inset 0 1px 3px rgba(110, 75, 40, 0.12), 0 2px 6px rgba(110, 75, 40, 0.08) !important;
+}
+
+.scroll-theme--light .field span,
+.scroll-theme--light .creator-field-label {
+  color: #4b301a !important;
+}
+
+.scroll-theme--light input[type="text"],
+.scroll-theme--light input[type="number"],
+.scroll-theme--light select,
+.scroll-theme--light textarea {
+  border: 1px solid rgba(115, 80, 45, 0.45) !important;
+  background: rgba(255, 253, 246, 0.88) !important;
+  color: #1e1108 !important;
+  box-shadow: inset 0 1px 3px rgba(80, 50, 25, 0.15) !important;
+}
+
+.scroll-theme--light input:focus,
+.scroll-theme--light select:focus,
+.scroll-theme--light textarea:focus {
+  border-color: #852b1e !important;
+  outline: 2px solid rgba(133, 43, 30, 0.3) !important;
+}
+
+.scroll-theme--light .creator-code-submit-btn {
+  background: linear-gradient(180deg, #2b1c10 0%, #170e08 100%) !important;
+  border-color: #4a301a !important;
+  color: #f7eed8 !important;
+}
+
+.scroll-theme--light .grimoire-medallion-item {
+  border: 1px solid rgba(130, 92, 54, 0.36) !important;
+  background: rgba(255, 250, 238, 0.58) !important;
+  color: #2d1c0f !important;
+}
+
+.scroll-theme--light .grimoire-medallion-item:hover {
+  border-color: #824f24 !important;
+  background: rgba(255, 255, 250, 0.95) !important;
+}
+
+.scroll-theme--light .grimoire-medallion-item.is-selected {
+  border-color: #852b1e !important;
+  background: linear-gradient(180deg, rgba(133, 43, 30, 0.12) 0%, rgba(255, 248, 235, 0.9) 100%) !important;
+  box-shadow: 0 0 10px rgba(133, 43, 30, 0.22) !important;
+}
+
+.scroll-theme--light .grimoire-medallion-label {
+  color: #241407 !important;
+}
+
+.scroll-theme--light .grimoire-medallion-badge {
+  background: rgba(220, 200, 170, 0.6) !important;
+  color: #5c3818 !important;
+}
+
+.scroll-theme--light .grimoire-leaf__footer {
+  border-top: 1px solid rgba(135, 95, 55, 0.32) !important;
+  background: rgba(235, 218, 185, 0.5) !important;
+}
+
+.scroll-theme--light .grimoire-turn-page-btn {
+  border: 1px solid rgba(120, 85, 50, 0.45) !important;
+  background: rgba(246, 237, 219, 0.85) !important;
+  color: #3b2513 !important;
+}
+
+.scroll-theme--light .grimoire-finalize-btn {
+  background: linear-gradient(180deg, #91271b 0%, #5e160e 100%) !important;
+  border-color: #4a100a !important;
+  color: #fff4e5 !important;
+  box-shadow: 0 6px 16px rgba(120, 30, 20, 0.45) !important;
+}
+
+/* ==========================================================================
+   THEME 2: SCROLL-THEME--DARK (Reference 1: Nordic Carved Stone & Dark Wood)
+   Deep obsidian, carved wood grain, bright gold runes, torchlit highlights
+   ========================================================================== */
+
+.scroll-theme--dark .scroll-roller__rod {
+  border-top: 1.5px solid rgba(212, 175, 55, 0.5) !important;
+  border-bottom: 2px solid #0d0805 !important;
+  background: linear-gradient(180deg, #2b1c14 0%, #422a1d 22%, #1a100a 60%, #0d0704 100%) !important;
+}
+
+.scroll-theme--dark .scroll-parchment-body {
+  border-left: 5px solid #6b4d24 !important;
+  border-right: 5px solid #6b4d24 !important;
+  background:
+    radial-gradient(circle at 50% 15%, rgba(65, 40, 24, 0.4), transparent 60%),
+    linear-gradient(180deg, #18110b 0%, #130d08 45%, #0e0905 100%) !important;
+  box-shadow:
+    inset 0 16px 30px -10px rgba(0, 0, 0, 0.95),
+    inset 0 -16px 30px -10px rgba(0, 0, 0, 0.95),
+    inset 0 0 0 1px rgba(212, 175, 55, 0.28),
+    0 24px 70px rgba(0, 0, 0, 0.95) !important;
+}
+
+.scroll-theme--dark .grimoire-header.scroll-manuscript-header {
+  border-bottom: 1.5px solid rgba(212, 175, 55, 0.35) !important;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(212, 175, 55, 0.16), transparent 70%),
+    linear-gradient(90deg, #111a15 0%, #16241c 50%, #111a15 100%) !important;
+}
+
+.scroll-theme--dark .grimoire-bookmark.is-active {
+  border-color: #ffdf78 !important;
+  background: linear-gradient(180deg, #382012 0%, #1d1009 100%) !important;
+  box-shadow: 0 0 16px rgba(212, 175, 55, 0.38) !important;
+}
+
+.scroll-theme--dark .grimoire-book-viewport.scroll-manuscript-viewport {
+  background:
+    radial-gradient(ellipse at 50% 30%, rgba(46, 28, 16, 0.25) 0%, transparent 70%),
+    #130e09 !important;
+}
+
+.scroll-theme--dark .grimoire-leaf {
+  background:
+    radial-gradient(circle at 50% 15%, rgba(212, 175, 55, 0.04), transparent 65%),
+    linear-gradient(180deg, #1d1610 0%, #150f0a 100%) !important;
+}
+
+.scroll-theme--dark .grimoire-section-box,
+.scroll-theme--dark .grimoire-stat-card,
+.scroll-theme--dark .grimoire-vital-forged,
+.scroll-theme--dark .grimoire-summary-card,
+.scroll-theme--dark .grimoire-token-dropzone {
+  border: 1px solid rgba(212, 175, 55, 0.26) !important;
+  background: rgba(18, 13, 9, 0.75) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 230, 150, 0.12), 0 4px 12px rgba(0, 0, 0, 0.6) !important;
+}
+

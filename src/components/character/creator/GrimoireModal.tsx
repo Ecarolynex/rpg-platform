@@ -1,4 +1,4 @@
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+﻿import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import {
   useEffect,
   useRef,
@@ -225,6 +225,16 @@ export function GrimoireModal({
   const [stepGateError, setStepGateError] = useState("");
   const [hoveredRaceHint, setHoveredRaceHint] = useState(false);
   const [hoveredClassHint, setHoveredClassHint] = useState(false);
+  const [scrollTheme, setScrollTheme] = useState<"light" | "dark">(() => {
+    return (localStorage.getItem("elementum_scroll_theme") as "light" | "dark") || "light";
+  });
+  const toggleScrollTheme = () => {
+    setScrollTheme((prev) => {
+      const next = prev === "light" ? "dark" : "light";
+      localStorage.setItem("elementum_scroll_theme", next);
+      return next;
+    });
+  };
   const closeTimerRef = useRef<number | null>(null);
   const campaignCodeInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -442,7 +452,7 @@ export function GrimoireModal({
           ANCIENT MAGICAL PARCHMENT SCROLL CONTAINER (Rolls Out & Rolls Up)
          ==================================================================== */}
       <motion.div
-        className="grimoire-book-shell scroll-manuscript-shell"
+        className={`grimoire-book-shell scroll-manuscript-shell scroll-theme--${scrollTheme}`}
         initial={
           reduceMotion
             ? { opacity: 0 }
@@ -475,23 +485,11 @@ export function GrimoireModal({
         }}
       >
         {/* TOP WOOD & BRONZE SCROLL ROLLER WITH CARVED GOLD FINIALS */}
-        <div className="scroll-roller scroll-roller--top" aria-hidden="true">
-          <span className="scroll-roller__finial scroll-roller__finial--left" />
-          <div className="scroll-roller__rod">
-            <span className="scroll-roller__ring scroll-roller__ring--left" />
-            <span className="scroll-roller__runes">ᚦ ✦ ᚨ ✦ ᚱ ✦ ᛉ ✦ ᛟ</span>
-            <span className="scroll-roller__ring scroll-roller__ring--right" />
-          </div>
-          <span className="scroll-roller__finial scroll-roller__finial--right" />
-        </div>
+        <div className="scroll-roller scroll-roller--top" aria-hidden="true"><div className="scroll-roller__trim" /></div>
 
         {/* UNROLLED PARCHMENT SHEET BODY */}
         <div className="scroll-parchment-body">
           {/* Decorative Corner Accents */}
-          <span className="grimoire-corner grimoire-corner--tl" aria-hidden="true" />
-          <span className="grimoire-corner grimoire-corner--tr" aria-hidden="true" />
-          <span className="grimoire-corner grimoire-corner--bl" aria-hidden="true" />
-          <span className="grimoire-corner grimoire-corner--br" aria-hidden="true" />
 
           <form className="character-creator grimoire-form" onSubmit={handleFormSubmit}>
             {/* Deep Emerald & Gold Illuminated Scroll Header */}
@@ -522,6 +520,15 @@ export function GrimoireModal({
                       <span>⚜</span>
                     </div>
                   </div>
+                  <button
+                    type="button"
+                    className="grimoire-theme-toggle-btn"
+                    onClick={toggleScrollTheme}
+                    title={scrollTheme === "light" ? "Mudar para Grimório (Modo Escuro)" : "Mudar para Pergaminho (Modo Claro)"}
+                    aria-label="Alternar tema do pergaminho"
+                  >
+                    <span aria-hidden="true">{scrollTheme === "light" ? "Grimório" : "Pergaminho"}</span>
+                  </button>
                   <span className="creator-badge">Elementum</span>
                   <button
                     type="button"
@@ -558,7 +565,7 @@ export function GrimoireModal({
                       }
                     >
                       <span className="grimoire-bookmark__roman">
-                        Seção {item.roman} {locked ? "🔒" : ""}
+                        Seção {item.roman} {locked ? " (bloqueado)" : ""}
                       </span>
                       <span className="grimoire-bookmark__label">{item.title}</span>
                     </button>
@@ -578,7 +585,7 @@ export function GrimoireModal({
                   }
                 >
                   <span className="grimoire-bookmark__roman">
-                    Pergaminho {!selectedCampaignId ? "🔒" : ""}
+                    Pergaminho {!selectedCampaignId ? " (bloqueado)" : ""}
                   </span>
                   <span className="grimoire-bookmark__label">Visão Completa</span>
                 </button>
@@ -1588,15 +1595,7 @@ export function GrimoireModal({
         </div>
 
         {/* BOTTOM WOOD & BRONZE SCROLL ROLLER WITH CARVED GOLD FINIALS */}
-        <div className="scroll-roller scroll-roller--bottom" aria-hidden="true">
-          <span className="scroll-roller__finial scroll-roller__finial--left" />
-          <div className="scroll-roller__rod">
-            <span className="scroll-roller__ring scroll-roller__ring--left" />
-            <span className="scroll-roller__runes">ᚷ ✦ ᛟ ✦ ᛉ ✦ ᚱ ✦ ᚦ</span>
-            <span className="scroll-roller__ring scroll-roller__ring--right" />
-          </div>
-          <span className="scroll-roller__finial scroll-roller__finial--right" />
-        </div>
+        <div className="scroll-roller scroll-roller--bottom" aria-hidden="true"><div className="scroll-roller__trim" /></div>
       </motion.div>
     </div>
   );

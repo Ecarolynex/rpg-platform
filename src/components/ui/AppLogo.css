@@ -1,0 +1,91 @@
+﻿/* ==========================================================================
+   RPG Platform — Official Global Brand Component
+   Nordic Minimalist: Sober, Matte Bronze & Clean Dark Surface
+   ========================================================================== */
+
+.app-logo-link {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+  color: inherit;
+  outline: none;
+  border-radius: var(--radius-control, 3px);
+  transition: opacity 0.15s ease;
+}
+
+.app-logo-link:hover {
+  opacity: 0.92;
+}
+
+.app-logo-link:focus-visible {
+  outline: 2px solid var(--border-bronze, #82704D);
+  outline-offset: 2px;
+}
+
+.app-logo-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  user-select: none;
+}
+
+.app-logo-badge {
+  position: relative;
+  flex-shrink: 0;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid var(--border-subtle, #3D3A30);
+  background: var(--surface-panel, #201F1A);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+  transition: border-color 0.15s ease;
+}
+
+.app-logo-link:hover .app-logo-badge {
+  border-color: var(--border-bronze, #82704D);
+}
+
+.app-logo-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.app-logo-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+}
+
+.app-logo-title {
+  font-family: var(--font-title, "Cinzel", Georgia, serif);
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--text-main, #D8D2C4);
+}
+
+.app-logo-sub {
+  font-family: var(--font-body, "EB Garamond", serif);
+  font-size: 0.72rem;
+  font-style: italic;
+  letter-spacing: 0.08em;
+  color: var(--text-muted, #A6A193);
+}
+
+/* Compact sizes */
+.app-logo-mark--sm .app-logo-title {
+  font-size: 0.85rem;
+}
+.app-logo-mark--sm .app-logo-sub {
+  font-size: 0.65rem;
+}
+
+.app-logo-mark--lg .app-logo-title {
+  font-size: 1.15rem;
+}
+.app-logo-mark--lg .app-logo-sub {
+  font-size: 0.75rem;
+}

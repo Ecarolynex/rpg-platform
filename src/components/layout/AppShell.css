@@ -1,4 +1,4 @@
-.app-shell {
+﻿.app-shell {
   display: flex;
   min-height: 100vh;
 }
@@ -13,8 +13,8 @@
   overflow-y: auto;
   align-self: flex-start;
   z-index: 50;
-  background: linear-gradient(180deg, #0f1d1b 0%, #1b322f 100%);
-  border-right: 1px solid rgba(217, 195, 156, 0.28);
+  background: linear-gradient(180deg, #131411 0%, #1c1a15 100%);
+  border-right: 1px solid rgba(191, 160, 104, 0.25);
   box-shadow: 6px 0 28px rgba(0, 0, 0, 0.48);
   display: flex;
   flex-direction: column;
