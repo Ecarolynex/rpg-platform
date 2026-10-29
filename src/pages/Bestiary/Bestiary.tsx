@@ -250,6 +250,7 @@ export default function Bestiary() {
   if (carregandoCampanhas) {
     return (
       <main className="bestiary-page">
+        <div className="bestiary-backdrop" aria-hidden="true" />
         <header className="bestiary-header">
           <h1>Bestiário</h1>
           <p>Carregando campanhas...</p>
@@ -262,6 +263,7 @@ export default function Bestiary() {
   if (!rotaCampanhaId && campanhas.length === 0) {
     return (
       <main className="bestiary-page">
+        <div className="bestiary-backdrop" aria-hidden="true" />
         <header className="bestiary-header">
           <h1>Bestiário</h1>
           <p>Catálogo de criaturas e ameaças</p>
@@ -282,6 +284,7 @@ export default function Bestiary() {
 
   return (
     <main className="bestiary-page">
+      <div className="bestiary-backdrop" aria-hidden="true" />
       <header className="bestiary-header">
         {rotaCampanhaId ? (
           <nav className="bestiary-nav" aria-label="Navegação da campanha">

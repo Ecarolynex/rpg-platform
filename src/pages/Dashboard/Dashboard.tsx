@@ -682,6 +682,7 @@ export default function Dashboard() {
 
   return (
     <div className="dashboard">
+      <div className="dashboard-backdrop" aria-hidden="true" />
       <header className="dashboard-header">
         <div>
           <h1>Meus personagens</h1>

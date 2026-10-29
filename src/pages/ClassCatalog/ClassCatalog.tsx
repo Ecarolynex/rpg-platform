@@ -296,13 +296,19 @@ export default function ClassCatalog() {
   }
 
   if (carregando) {
-    return <main className="class-catalog-page"><p>Carregando regras...</p></main>;
+    return (
+      <main className="class-catalog-page">
+        <div className="class-catalog-backdrop" aria-hidden="true" />
+        <p>Carregando regras...</p>
+      </main>
+    );
   }
 
   const totalHabilidades = classes.reduce((soma, classe) => soma + classe.habilidades.length, 0);
 
   return (
     <main className="class-catalog-page">
+      <div className="class-catalog-backdrop" aria-hidden="true" />
       <header className="class-catalog-header">
         <span className="class-catalog-kicker">Regras compartilhadas</span>
         <h1>Classes, perícias e habilidades</h1>

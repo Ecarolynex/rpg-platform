@@ -170,6 +170,7 @@ export default function Campaigns() {
 
   return (
     <div className="campaigns-page">
+      <div className="campaigns-backdrop" aria-hidden="true" />
       <header className="campaigns-header">
         <div>
           <span className="campaigns-kicker">Aventuras</span>

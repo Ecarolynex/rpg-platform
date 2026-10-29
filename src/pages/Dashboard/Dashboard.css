@@ -61,6 +61,70 @@
   text-transform: uppercase;
 }
 
+.dashboard {
+  position: relative;
+  isolation: isolate;
+  min-height: calc(100vh - 120px);
+}
+
+.dashboard > *:not(.dashboard-backdrop) {
+  position: relative;
+  z-index: 1;
+}
+
+.dashboard-backdrop {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  left: 220px;
+  pointer-events: none;
+  z-index: 0;
+  background-image:
+    /* Degradê perto das categorias (da lateral esquerda para a direita) */
+    linear-gradient(
+      to right,
+      rgba(9, 23, 19, 0.98) 0%,
+      rgba(9, 23, 19, 0.92) 80px,
+      rgba(9, 23, 19, 0.68) 240px,
+      rgba(9, 23, 19, 0.32) 500px,
+      rgba(9, 23, 19, 0.16) 750px,
+      rgba(6, 15, 12, 0.6) 100%
+    ),
+    /* Degradê vertical no topo e base para manter títulos nítidos e transição com o rodapé */
+    linear-gradient(
+      180deg,
+      rgba(9, 23, 19, 0.92) 0%,
+      rgba(9, 23, 19, 0.42) 130px,
+      rgba(9, 23, 19, 0.16) 45%,
+      rgba(6, 15, 12, 0.45) 80%,
+      rgba(5, 11, 9, 0.96) 100%
+    ),
+    url('/knight-castle.jpg');
+  background-size: cover;
+  background-position: left 15% center;
+  background-repeat: no-repeat;
+  opacity: 0.84;
+  filter: contrast(1.08) saturate(1.1);
+}
+
+@media (max-width: 768px) {
+  .dashboard-backdrop {
+    left: 0;
+    top: 60px;
+    background-position: center center;
+    background-image:
+      linear-gradient(
+        180deg,
+        rgba(9, 23, 19, 0.95) 0%,
+        rgba(9, 23, 19, 0.4) 140px,
+        rgba(9, 23, 19, 0.2) 60%,
+        rgba(5, 11, 9, 0.96) 100%
+      ),
+      url('/knight-castle.jpg');
+  }
+}
+
 .dashboard-header {
   display: flex;
   align-items: flex-start;

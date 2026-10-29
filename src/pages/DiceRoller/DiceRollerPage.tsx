@@ -33,6 +33,7 @@ export default function DiceRollerPage() {
 
   return (
     <div className="dice-page-wrapper">
+      <div className="dice-backdrop" aria-hidden="true" />
       {!routeCampaignId && campanhas.length > 0 && (
         <div className="dice-campaign-selector-bar">
           <label htmlFor="dice-campaign-select">Vincular rolagens à campanha:</label>
