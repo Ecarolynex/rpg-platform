@@ -44,7 +44,7 @@
     radial-gradient(circle at 12% 40%, rgba(26, 61, 53, 0.16) 0%, transparent 55%),
     radial-gradient(circle at 88% 50%, rgba(35, 75, 65, 0.14) 0%, transparent 55%),
     linear-gradient(180deg, rgba(6, 14, 12, 0.82) 0%, rgba(4, 9, 8, 0.98) 100%),
-    url('/Portão de Moria.png');
+    url('/campanhas-bg.jpg');
   background-size: cover;
   background-position: center 30%;
   background-repeat: no-repeat;

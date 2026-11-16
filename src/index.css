@@ -1,47 +1,53 @@
 ﻿@import url("https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700;800&family=Cormorant+Garamond:wght@400;500;600;700&family=EB+Garamond:wght@400;500;600;700&display=swap");
 
 :root {
-  /* RPG Platform — Identidade Nórdica Medieval Escura & Minimalista */
-  --bg-app: #151612;
-  --surface-panel: #201F1A;
-  --surface-elevated: #292820;
-  --surface-inset: #12130F;
+  /* RPG Platform — Atmosfera Realm Portal / Portões Antigos */
+  --portal-bg: #070b10;
+  --portal-gold: #e8c77d;
+  --portal-gold-bright: #fff0c2;
+  --portal-amber: #ffbe55;
+  --portal-ink: #080b0c;
 
-  --border-subtle: #3D3A30;
-  --border-strong: #595344;
-  --border-bronze: #82704D;
-  --accent-selected: #A18B60;
+  --bg-app: #080c12;
+  --surface-panel: rgba(10, 15, 20, 0.78);
+  --surface-elevated: rgba(15, 22, 28, 0.88);
+  --surface-inset: rgba(5, 8, 12, 0.75);
 
-  --text-main: #D8D2C4;
-  --text-muted: #A6A193;
-  --text-faint: #736E62;
+  --border-subtle: rgba(216, 183, 112, 0.22);
+  --border-strong: rgba(216, 183, 112, 0.55);
+  --border-bronze: #d9b86c;
+  --accent-selected: #e8c77d;
+
+  --text-main: #f5ead0;
+  --text-muted: rgba(245, 232, 205, 0.75);
+  --text-faint: rgba(216, 195, 160, 0.45);
 
   --ink: var(--bg-app);
   --ink-panel: var(--surface-panel);
   --ink-panel-raised: var(--surface-elevated);
   --parchment: var(--text-main);
   --parchment-dim: var(--text-muted);
-  --gold: var(--border-bronze);
-  --gold-bright: var(--accent-selected);
-  --wine: #632822;
-  --wine-bright: #85372E;
-  --forest: #23352B;
+  --gold: var(--portal-gold);
+  --gold-bright: var(--portal-gold-bright);
+  --wine: #6e251e;
+  --wine-bright: #96382e;
+  --forest: #14352a;
   --muted: var(--text-muted);
 
   --font-title: "Cinzel", "Cormorant Garamond", Georgia, serif;
-  --font-display: "EB Garamond", Georgia, serif;
-  --font-body: "EB Garamond", "Times New Roman", serif;
+  --font-display: "Cormorant Garamond", Georgia, serif;
+  --font-body: "EB Garamond", Georgia, serif;
 
   --surface-page: var(--bg-app);
-  --status-error-bg: rgba(99, 40, 34, 0.28);
-  --status-error-border: rgba(166, 68, 58, 0.65);
-  --status-error-text: #EAC4C0;
-  --status-success-bg: rgba(35, 69, 52, 0.32);
-  --status-success-border: rgba(69, 133, 98, 0.65);
-  --status-success-text: #D2E8DA;
-  --shadow-panel: 0 4px 16px rgba(0, 0, 0, 0.45);
-  --radius-control: 3px;
-  --radius-panel: 4px;
+  --status-error-bg: rgba(120, 30, 20, 0.28);
+  --status-error-border: rgba(210, 80, 70, 0.65);
+  --status-error-text: #fcd5d0;
+  --status-success-bg: rgba(20, 70, 50, 0.32);
+  --status-success-border: rgba(60, 160, 110, 0.65);
+  --status-success-text: #d8f5e5;
+  --shadow-panel: 0 12px 35px rgba(0, 0, 0, 0.65);
+  --radius-control: 4px;
+  --radius-panel: 6px;
 
   color-scheme: dark;
   color: var(--parchment);
@@ -66,7 +72,12 @@ body,
 }
 
 body {
-  background: #151612;
+  background-color: #070b10;
+  background-image:
+    radial-gradient(ellipse 70% 45% at 50% 0%, rgba(232, 199, 125, 0.08), transparent 70%),
+    radial-gradient(ellipse 60% 40% at 85% 90%, rgba(20, 35, 45, 0.35), transparent 75%),
+    linear-gradient(180deg, #070b10 0%, #090e15 50%, #06090d 100%);
+  background-attachment: fixed;
   color: var(--text-main);
 }
 
